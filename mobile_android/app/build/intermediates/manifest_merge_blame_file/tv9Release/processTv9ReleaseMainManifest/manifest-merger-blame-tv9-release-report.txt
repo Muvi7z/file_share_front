@@ -1,0 +1,87 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.localvideovault.mobile"
+4    android:versionCode="31"
+5    android:versionName="1.0.3-tv9" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="28" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:3:5-67
+11-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:3:22-64
+12    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+12-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:4:5-79
+12-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:4:22-76
+13
+14    <uses-feature
+14-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:5:5-87
+15        android:name="android.software.leanback"
+15-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:5:19-59
+16        android:required="false" />
+16-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:5:60-84
+17    <uses-feature
+17-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:6:5-90
+18        android:name="android.hardware.touchscreen"
+18-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:6:19-62
+19        android:required="false" />
+19-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:6:63-87
+20
+21    <permission
+21-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:22:5-24:47
+22        android:name="com.localvideovault.mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+22-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:23:9-81
+23        android:protectionLevel="signature" />
+23-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:24:9-44
+24
+25    <uses-permission android:name="com.localvideovault.mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+25-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:26:5-97
+25-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:26:22-94
+26
+27    <application
+27-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:8:5-27:19
+28        android:allowBackup="true"
+28-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:9:9-35
+29        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+29-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:28:18-86
+30        android:banner="@drawable/tv_banner"
+30-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:10:9-45
+31        android:extractNativeLibs="true"
+32        android:icon="@mipmap/ic_launcher"
+32-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:11:9-43
+33        android:label="@string/app_name"
+33-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:12:9-41
+34        android:networkSecurityConfig="@xml/network_security_config"
+34-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:13:9-69
+35        android:theme="@style/AppTheme"
+35-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:14:9-40
+36        android:usesCleartextTraffic="true" >
+36-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:15:9-44
+37        <activity
+37-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:16:9-26:20
+38            android:name="com.localvideovault.mobile.MainActivity"
+38-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:17:13-67
+39            android:banner="@drawable/tv_banner"
+39-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:18:13-49
+40            android:configChanges="keyboardHidden|orientation|screenSize"
+40-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:19:13-74
+41            android:exported="true" >
+41-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:20:13-36
+42            <intent-filter>
+42-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:21:13-25:29
+43                <action android:name="android.intent.action.MAIN" />
+43-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:22:17-69
+43-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:22:25-66
+44
+45                <category android:name="android.intent.category.LAUNCHER" />
+45-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:23:17-77
+45-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:23:27-74
+46                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+46-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:24:17-86
+46-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:24:27-83
+47            </intent-filter>
+48        </activity>
+49    </application>
+50
+51</manifest>

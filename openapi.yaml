@@ -1,0 +1,745 @@
+openapi: 3.1.0
+info:
+  title: Local Video Vault API
+  version: 1.0.0
+  description: API for a LAN video file manager. Folder is the single entity for both shared root paths and nested folders.
+servers:
+  - url: /api
+    description: Same-origin backend used by the frontend.
+  - url: http://localhost:3000/api
+    description: Local backend during development.
+tags:
+  - name: Public
+  - name: Auth
+  - name: Folders
+  - name: Videos
+security: []
+paths:
+  /health:
+    get:
+      tags: [Public]
+      summary: Check backend availability.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Backend is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Create a user session.
+      description: The backend decides user role and permissions from credentials.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: User session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user session.
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user identity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSession"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /folders:
+    get:
+      tags: [Folders]
+      summary: List folders visible to the current user.
+      description: Anonymous users receive public visible folders. Authorized users may receive extra fields or disabled folders according to backend roles.
+      operationId: getFolders
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ParentIdQuery"
+        - $ref: "#/components/parameters/RootFolderIdQuery"
+        - $ref: "#/components/parameters/SearchQuery"
+      responses:
+        "200":
+          description: Folder list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Folder"
+    post:
+      tags: [Folders]
+      summary: Add a root folder for scanning and viewing.
+      description: Requires a role that can manage folders. Files on disk are never created or deleted by this request.
+      operationId: createFolder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFolderRequest"
+      responses:
+        "201":
+          description: Folder was created and queued for scanning.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateFolderResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Folder path is already configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /folders/root/entries:
+    get:
+      tags: [Folders]
+      summary: List root file-browser entries.
+      description: Returns root folders visible to the current user. Non-video files must not be returned.
+      operationId: getRootFolderEntries
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/SearchQuery"
+      responses:
+        "200":
+          description: Root entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileBrowserEntry"
+  /folders/{folderId}:
+    get:
+      tags: [Folders]
+      summary: Get one folder.
+      operationId: getFolder
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "200":
+          description: Folder metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Folders]
+      summary: Update folder settings.
+      description: Requires a role that can manage folders.
+      operationId: updateFolder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFolderRequest"
+      responses:
+        "200":
+          description: Updated folder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Folders]
+      summary: Remove a root folder from viewing.
+      description: Requires a role that can manage folders. Deletes metadata from the app only; files on disk must not be deleted.
+      operationId: deleteFolder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "204":
+          description: Folder removed.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /folders/{folderId}/entries:
+    get:
+      tags: [Folders]
+      summary: List child folders and video files inside a folder.
+      operationId: getFolderEntries
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+        - $ref: "#/components/parameters/SearchQuery"
+      responses:
+        "200":
+          description: Folder entries. Non-video files must not be returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileBrowserEntry"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /folders/{folderId}/rescan:
+    post:
+      tags: [Folders]
+      summary: Queue folder rescan.
+      description: Requires a role that can manage folders.
+      operationId: rescanFolder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "202":
+          description: Scan job was queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanJob"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /scan-jobs/{jobId}:
+    get:
+      tags: [Folders]
+      summary: Get scan job status.
+      operationId: getScanJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scan job.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanJob"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /videos:
+    get:
+      tags: [Videos]
+      summary: List videos visible to the current user.
+      operationId: getVideos
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RootFolderIdQuery"
+        - name: parentFolderId
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: "#/components/parameters/SearchQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+        - $ref: "#/components/parameters/OffsetQuery"
+      responses:
+        "200":
+          description: Video list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoFile"
+  /videos/{videoId}:
+    get:
+      tags: [Videos]
+      summary: Get one video by id.
+      operationId: getVideo
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/VideoId"
+      responses:
+        "200":
+          description: Video metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoFile"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /videos/{videoId}/stream:
+    get:
+      tags: [Videos]
+      summary: Stream video content.
+      description: Must support HTTP Range requests for stable browser, mobile, and Android TV playback.
+      operationId: streamVideo
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/VideoId"
+        - name: Range
+          in: header
+          required: false
+          schema:
+            type: string
+            example: bytes=0-
+      responses:
+        "200":
+          description: Full video stream when Range is not provided.
+          headers:
+            Accept-Ranges:
+              schema:
+                type: string
+                example: bytes
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+            video/webm:
+              schema:
+                type: string
+                format: binary
+            video/x-matroska:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial video content for Range playback.
+          headers:
+            Accept-Ranges:
+              schema:
+                type: string
+                example: bytes
+            Content-Range:
+              schema:
+                type: string
+                example: bytes 0-1048575/734003200
+            Content-Length:
+              schema:
+                type: integer
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "416":
+          description: Requested range is not satisfiable.
+  /videos/{videoId}/poster:
+    get:
+      tags: [Videos]
+      summary: Get video poster image.
+      operationId: getVideoPoster
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/VideoId"
+      responses:
+        "200":
+          description: Poster image.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    FolderId:
+      name: folderId
+      in: path
+      required: true
+      schema:
+        type: string
+    ParentIdQuery:
+      name: parentId
+      in: query
+      required: false
+      schema:
+        type:
+          - string
+          - "null"
+    RootFolderIdQuery:
+      name: rootFolderId
+      in: query
+      required: false
+      schema:
+        type: string
+    VideoId:
+      name: videoId
+      in: path
+      required: true
+      schema:
+        type: string
+    SearchQuery:
+      name: query
+      in: query
+      required: false
+      schema:
+        type: string
+    LimitQuery:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 100
+    OffsetQuery:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authorization is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Current user role is not allowed to perform this action.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        version:
+          type: string
+          example: 1.0.0
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+          example: folder_not_found
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          example: admin
+        password:
+          type: string
+          format: password
+          example: admin1234
+    AdminSession:
+      type: object
+      required: [token, login]
+      properties:
+        token:
+          type: string
+        login:
+          type: string
+          example: admin
+        role:
+          type: string
+          example: admin
+        expiresAt:
+          type: string
+          format: date-time
+    UserSession:
+      allOf:
+        - $ref: "#/components/schemas/AdminSession"
+    Folder:
+      type: object
+      required:
+        - id
+        - name
+        - path
+        - parentId
+        - rootFolderId
+        - isRoot
+        - enabled
+        - filesCount
+        - videoCount
+        - childFolderCount
+        - lastScanAt
+      properties:
+        id:
+          type: string
+          example: movies
+        name:
+          type: string
+          example: Movies
+        path:
+          type: string
+          example: D:\Video\Movies
+        parentId:
+          type:
+            - string
+            - "null"
+          example: null
+        rootFolderId:
+          type: string
+          description: For root folders this equals id. For nested folders this points to the root shared folder.
+          example: movies
+        isRoot:
+          type: boolean
+          description: True when this folder is a root path added for viewing.
+          example: true
+        enabled:
+          type: boolean
+          description: Usually meaningful for root folders; nested folders inherit visibility from their root.
+          example: true
+        filesCount:
+          type: integer
+          minimum: 0
+          description: Total visible videos under this folder.
+          example: 42
+        videoCount:
+          type: integer
+          minimum: 0
+          description: Direct child videos in this folder.
+          example: 3
+        childFolderCount:
+          type: integer
+          minimum: 0
+          description: Direct child folders in this folder.
+          example: 5
+        lastScanAt:
+          type: string
+          description: ISO datetime or human-readable scan status.
+          example: "2026-06-17T12:00:00Z"
+    VideoFile:
+      type: object
+      required:
+        - id
+        - title
+        - folderId
+        - folderName
+        - parentFolderId
+        - size
+        - sizeBytes
+        - duration
+        - modifiedAt
+        - codec
+        - resolution
+        - posterUrl
+        - streamUrl
+        - path
+      properties:
+        id:
+          type: string
+          example: video-uuid
+        title:
+          type: string
+          example: Movie
+        folderId:
+          type: string
+          description: Root folder id.
+          example: movies
+        folderName:
+          type: string
+          example: Movies
+        parentFolderId:
+          type: string
+          description: Folder id that directly contains the video.
+          example: movies-action
+        size:
+          type: string
+          example: 733 MB
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        duration:
+          type: string
+          example: "01:42:13"
+        modifiedAt:
+          type: string
+          example: "2026-06-17T12:00:00Z"
+        codec:
+          type: string
+          example: H.264
+        resolution:
+          type: string
+          example: 1080p
+        posterUrl:
+          type: string
+          example: /api/videos/video-uuid/poster
+        streamUrl:
+          type: string
+          example: /api/videos/video-uuid/stream
+        path:
+          type: string
+          example: D:\Video\Movies\Movie.mp4
+    FileBrowserEntry:
+      oneOf:
+        - $ref: "#/components/schemas/FolderEntry"
+        - $ref: "#/components/schemas/VideoEntry"
+      discriminator:
+        propertyName: type
+        mapping:
+          folder: "#/components/schemas/FolderEntry"
+          video: "#/components/schemas/VideoEntry"
+    FolderEntry:
+      type: object
+      required: [type, folder]
+      properties:
+        type:
+          type: string
+          const: folder
+        folder:
+          $ref: "#/components/schemas/Folder"
+    VideoEntry:
+      type: object
+      required: [type, video]
+      properties:
+        type:
+          type: string
+          const: video
+        video:
+          $ref: "#/components/schemas/VideoFile"
+    CreateFolderRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          minLength: 1
+          example: D:\Video\Movies
+    CreateFolderResponse:
+      type: object
+      required: [folder]
+      properties:
+        folder:
+          $ref: "#/components/schemas/Folder"
+        scanJob:
+          $ref: "#/components/schemas/ScanJob"
+    UpdateFolderRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+        enabled:
+          type: boolean
+    ScanJob:
+      type: object
+      required: [id, folderId, status, processedVideos, processedFolders, startedAt]
+      properties:
+        id:
+          type: string
+        folderId:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        processedVideos:
+          type: integer
+          minimum: 0
+        processedFolders:
+          type: integer
+          minimum: 0
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        error:
+          type:
+            - string
+            - "null"

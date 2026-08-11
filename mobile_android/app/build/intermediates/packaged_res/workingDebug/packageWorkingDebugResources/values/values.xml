@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="launcher_background">#0F0F0F</color>
+    <string name="app_name">Video Vault</string>
+    <string name="backend_api_base_url">http://192.168.1.30:5544/api</string>
+    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">#0F0F0F</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#0F0F0F</item>
+        <item name="android:navigationBarColor">#0F0F0F</item>
+        <item name="android:colorAccent">#FF0033</item>
+        <item name="android:textColorPrimary">#F5F5F5</item>
+        <item name="android:textColorSecondary">#AAAAAA</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

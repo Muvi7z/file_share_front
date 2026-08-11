@@ -1,0 +1,10 @@
+#Sun Aug 09 19:10:34 IRKT 2026
+base.0=C\:\\Users\\Ochir\\Documents\\file_share\\mobile_android\\app\\build\\intermediates\\dex\\tv9Release\\mergeDexTv9Release\\classes.dex
+base.1=C\:\\Users\\Ochir\\Documents\\file_share\\mobile_android\\app\\build\\intermediates\\global_synthetics_dex\\tv9Release\\mergeTv9ReleaseGlobalSynthetics\\classes.dex
+base.2=C\:\\Users\\Ochir\\Documents\\file_share\\mobile_android\\app\\build\\intermediates\\dex\\tv9Release\\mergeDexTv9Release\\classes2.dex
+path.0=classes.dex
+path.1=classes.dex
+path.2=classes2.dex
+renamed.0=classes.dex
+renamed.1=classes2.dex
+renamed.2=classes3.dex

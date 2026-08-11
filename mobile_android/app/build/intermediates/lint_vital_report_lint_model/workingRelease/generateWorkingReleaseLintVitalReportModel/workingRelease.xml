@@ -1,0 +1,31 @@
+<variant
+    name="workingRelease"
+    package="com.localvideovault.mobile"
+    minSdkVersion="24"
+    targetSdkVersion="35"
+    mergedManifest="build\intermediates\merged_manifest\workingRelease\processWorkingReleaseMainManifest\AndroidManifest.xml"
+    manifestMergeReport="build\outputs\logs\manifest-merger-working-release-report.txt"
+    proguardFiles="build\intermediates\default_proguard_files\global\proguard-android.txt-8.7.3"
+    partialResultsDir="build\intermediates\lint_vital_partial_results\workingRelease\lintVitalAnalyzeWorkingRelease\out">
+  <buildFeatures
+      namespacing="REQUIRED"/>
+  <sourceProviders>
+    <sourceProvider
+        manifests="src\main\AndroidManifest.xml"
+        javaDirectories="src\main\java;src\working\java;src\release\java;src\workingRelease\java;src\main\kotlin;src\working\kotlin;src\release\kotlin;src\workingRelease\kotlin"
+        resDirectories="src\main\res;src\working\res;src\release\res;src\workingRelease\res"
+        assetsDirectories="src\main\assets;src\working\assets;src\release\assets;src\workingRelease\assets"/>
+  </sourceProviders>
+  <testSourceProviders>
+  </testSourceProviders>
+  <testFixturesSourceProviders>
+  </testFixturesSourceProviders>
+  <artifact
+      classOutputs="build\intermediates\javac\workingRelease\compileWorkingReleaseJavaWithJavac\classes;build\intermediates\compile_and_runtime_not_namespaced_r_class_jar\workingRelease\processWorkingReleaseResources\R.jar"
+      type="MAIN"
+      applicationId="com.localvideovault.mobile"
+      generatedSourceFolders="build\generated\ap_generated_sources\workingRelease\out"
+      generatedResourceFolders="build\generated\res\resValues\working\release"
+      desugaredMethodsFiles="C:\Users\Ochir\.gradle\caches\8.10.2\transforms\657903b4d6384c8316306cce9c551564\transformed\D8BackportedDesugaredMethods.txt">
+  </artifact>
+</variant>

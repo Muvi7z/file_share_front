@@ -1,0 +1,19 @@
+services:
+  frontend:
+    environment:
+      API_PROXY_TARGET: "http://backend:5544"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    expose:
+      - "5544"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "5544"
+    volumes:
+      - "${VIDEO_LIBRARY_PATH:-./videos}:/media/videos:ro"
+    restart: unless-stopped

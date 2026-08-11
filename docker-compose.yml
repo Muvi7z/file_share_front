@@ -1,0 +1,62 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: local-video-vault-frontend:latest
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    environment:
+      API_PROXY_TARGET: "http://backend:5544"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: local-video-vault-backend:latest
+    ports:
+      - "${BACKEND_PORT:-5544}:5544"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "5544"
+      POSTGRES_HOST: "db"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "${POSTGRES_DB:-local_video_vault}"
+      POSTGRES_USER: "${POSTGRES_USER:-vault}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-vault_password}"
+      POSTGRES_SSL_MODE: "disable"
+      POSTGRES_MAX_IDLE_CONNECTIONS: "10"
+      POSTGRES_MAX_OPEN_CONNECTIONS: "10"
+      POSTER_DIR: "/data/posters"
+    volumes:
+      - posters:/data/posters
+      - "${VIDEO_LIBRARY_PATH:-./videos}:/media/videos:ro"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:17.0-alpine3.20
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-local_video_vault}"
+      POSTGRES_USER: "${POSTGRES_USER:-vault}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-vault_password}"
+    ports:
+      - "${POSTGRES_PORT:-5439}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  posters:

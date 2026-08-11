@@ -1,0 +1,7 @@
+#Sun Aug 09 19:10:33 IRKT 2026
+base.0=C\:\\Users\\Ochir\\Documents\\file_share\\mobile_android\\app\\build\\intermediates\\dex\\workingRelease\\mergeDexWorkingRelease\\classes.dex
+base.1=C\:\\Users\\Ochir\\Documents\\file_share\\mobile_android\\app\\build\\intermediates\\dex\\workingRelease\\mergeDexWorkingRelease\\classes2.dex
+path.0=classes.dex
+path.1=classes2.dex
+renamed.0=classes.dex
+renamed.1=classes2.dex

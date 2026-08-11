@@ -1,0 +1,31 @@
+<variant
+    name="tv9Release"
+    package="com.localvideovault.mobile"
+    minSdkVersion="21"
+    targetSdkVersion="28"
+    mergedManifest="build\intermediates\merged_manifest\tv9Release\processTv9ReleaseMainManifest\AndroidManifest.xml"
+    proguardFiles="build\intermediates\default_proguard_files\global\proguard-android.txt-8.7.3"
+    partialResultsDir="build\intermediates\lint_vital_partial_results\tv9Release\lintVitalAnalyzeTv9Release\out"
+    desugaredMethodsFiles="C:\Users\Ochir\.gradle\caches\8.10.2\transforms\ae49ae28b47456c0a1b29075e2745e2b\transformed\D8BackportedDesugaredMethods.txt">
+  <buildFeatures
+      namespacing="REQUIRED"/>
+  <sourceProviders>
+    <sourceProvider
+        manifests="src\main\AndroidManifest.xml"
+        javaDirectories="src\main\java;src\tv9\java;src\release\java;src\tv9Release\java;src\main\kotlin;src\tv9\kotlin;src\release\kotlin;src\tv9Release\kotlin"
+        resDirectories="src\main\res;src\tv9\res;src\release\res;src\tv9Release\res"
+        assetsDirectories="src\main\assets;src\tv9\assets;src\release\assets;src\tv9Release\assets"/>
+  </sourceProviders>
+  <testSourceProviders>
+  </testSourceProviders>
+  <testFixturesSourceProviders>
+  </testFixturesSourceProviders>
+  <artifact
+      classOutputs="build\intermediates\javac\tv9Release\compileTv9ReleaseJavaWithJavac\classes;build\intermediates\compile_and_runtime_not_namespaced_r_class_jar\tv9Release\processTv9ReleaseResources\R.jar"
+      type="MAIN"
+      applicationId="com.localvideovault.mobile"
+      generatedSourceFolders="build\generated\ap_generated_sources\tv9Release\out"
+      generatedResourceFolders="build\generated\res\resValues\tv9\release"
+      desugaredMethodsFiles="C:\Users\Ochir\.gradle\caches\8.10.2\transforms\ae49ae28b47456c0a1b29075e2745e2b\transformed\D8BackportedDesugaredMethods.txt">
+  </artifact>
+</variant>

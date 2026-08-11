@@ -1,0 +1,50 @@
+[
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\drawable_ic_list_tv.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\drawable\\ic_list_tv.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\drawable_ic_video_tv.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\drawable\\ic_video_tv.xml"
+    },
+    {
+        "merged": "com.localvideovault.mobile.app-workingDebug-13:/drawable_tv_banner.xml.flat",
+        "source": "com.localvideovault.mobile.app-main-15:/drawable/tv_banner.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\drawable_ic_launcher_foreground.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\drawable\\ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\drawable_ic_admin_tv.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\drawable\\ic_admin_tv.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\drawable_tv_banner.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\drawable\\tv_banner.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\drawable_ic_search_tv.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\drawable\\ic_search_tv.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\xml_network_security_config.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\xml\\network_security_config.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\drawable_ic_grid_tv.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\drawable\\ic_grid_tv.xml"
+    },
+    {
+        "merged": "com.localvideovault.mobile.app-workingDebug-13:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.localvideovault.mobile.app-main-15:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\drawable_ic_folder_tv.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\drawable\\ic_folder_tv.xml"
+    },
+    {
+        "merged": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-workingDebug-13:\\mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "C:\\Users\\CodexSandboxOffline\\.gradle\\daemon\\8.10.2\\com.localvideovault.mobile.app-main-15:\\mipmap-anydpi-v26\\ic_launcher.xml"
+    }
+]

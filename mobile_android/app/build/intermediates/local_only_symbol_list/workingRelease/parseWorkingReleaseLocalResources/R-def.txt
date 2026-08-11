@@ -1,0 +1,11 @@
+R_DEF: Internal format may change without notice
+local
+color launcher_background
+drawable ic_folder_tv
+drawable ic_launcher_foreground
+drawable tv_banner
+mipmap ic_launcher
+string app_name
+string backend_api_base_url
+style AppTheme
+xml network_security_config

@@ -1,0 +1,20 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "LINKED_RESOURCES_BINARY_FORMAT",
+    "kind": "Directory"
+  },
+  "applicationId": "com.localvideovault.mobile",
+  "variantName": "workingDebug",
+  "elements": [
+    {
+      "type": "SINGLE",
+      "filters": [],
+      "attributes": [],
+      "versionCode": 30,
+      "versionName": "1.0.3-working",
+      "outputFile": "linked-resources-binary-format-workingDebug.ap_"
+    }
+  ],
+  "elementType": "File"
+}
