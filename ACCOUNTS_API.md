@@ -1,26 +1,310 @@
 # Account API contract
 
-The backend is maintained separately. These endpoints must be implemented before registration and account administration work. All paths below use the existing /api prefix. JSON errors: { "message": "User-facing error" } with an appropriate non-2xx status.
+Этот документ описывает HTTP API для регистрации, аутентификации и управления
+аккаунтами Local Video Vault. Фронтенд и бэкенд должны использовать этот контракт
+как единый источник форматов запросов и ответов.
 
-## Authentication
+## Общие правила
 
-- POST /auth/register: { login, password }. Return 201 with { status: "pending" }, or 204. Create a pending user with role user; never issue a session here. Reject duplicate normalized logins with 409.
-- POST /auth/login: { login, password }. Return { token, login, userId, role: "admin" | "user" }. Only active accounts may sign in. Return a clear 403 message for pending, rejected or blocked accounts. Existing admin sessions without a role need a new login after this update.
-- PUT /auth/password: { currentPassword, password }. Authenticate the user, verify currentPassword, change the password and return 204. Revoke other sessions.
+- Базовый префикс всех маршрутов: `/api`.
+- Формат запросов и ответов, кроме ответов без тела: `application/json; charset=utf-8`.
+- Защищённые методы принимают токен в заголовке
+  `Authorization: Bearer <token>`.
+- Даты передаются в UTC в формате RFC 3339, например
+  `2026-09-09T07:30:00Z`.
+- Логин перед проверкой и сохранением очищается от пробелов по краям.
+- Уникальность логина проверяется без учёта регистра.
+- Хэш пароля никогда не возвращается клиенту.
+- При успешном ответе без данных сервер возвращает `204 No Content` без тела.
 
-## Administration (active admin required)
+Стандартный ответ с ошибкой:
 
-- GET /admin/users: return an array of Account objects. The frontend polls this list every 30 seconds while the administration page is open and visible. Pending accounts appear as requests with a count in the administration UI.
-- PATCH /admin/users/:id: accepts login, role, status; returns the complete updated Account.
-- DELETE /admin/users/:id: delete the account and revoke sessions; return 204.
-- DELETE /admin/users/:id/sessions: revoke all sessions for the user; return 204.
+```json
+{
+  "message": "Пользователь уже существует",
+  "code": "login_conflict"
+}
+```
 
-Account: { id: string, login: string, role: "admin" | "user", status: "pending" | "active" | "blocked" | "rejected", createdAt: ISO8601 string }.
+`message` предназначено для отображения пользователю, `code` — для программной
+обработки на клиенте.
 
-Approval is PATCH { status: "active" }; rejection is PATCH { status: "rejected" }. Blocking is PATCH { status: "blocked" }. Enforce valid transitions and prevent self-deletion, self-demotion, self-blocking and removal of the last active administrator transactionally. Invalidate sessions when blocking/deleting or changing privileges. Check current database status/role on protected requests; client-side role checks are display controls only.
+## Модели
 
-Validate and normalize input server-side, hash passwords with an established password hashing implementation, enforce at least 12 characters for new passwords, rate-limit login/registration, never return password hashes. Record actor, target, action and time for administrative changes. Restrict editable fields to an allowlist.
+### Account
 
-## Posters
+```json
+{
+  "id": "d88a6bf4-84b0-4ae6-9cc1-36f220b03f13",
+  "login": "ivan",
+  "role": "user",
+  "status": "active",
+  "createdAt": "2026-09-09T07:30:00Z"
+}
+```
 
-PUT /videos/:id/poster: admin only, multipart/form-data with file field poster (JPEG, PNG or WebP, maximum 10 MiB). Validate actual image bytes and dimensions on the server, save under a server-generated name, return the complete VideoFile with posterUrl. Do not overwrite custom posters during library scans.
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `id` | `string` | Неизменяемый идентификатор аккаунта. |
+| `login` | `string` | Уникальный логин, не более 64 символов. |
+| `role` | `"admin" \| "user"` | Роль и набор разрешений пользователя. |
+| `status` | `"pending" \| "active" \| "blocked" \| "rejected"` | Состояние аккаунта. |
+| `createdAt` | `string` | Время создания в формате RFC 3339. |
+
+Назначение статусов:
+
+| Статус | Значение | Возможность входа |
+| --- | --- | --- |
+| `pending` | Заявка ожидает решения администратора. | Нет |
+| `active` | Аккаунт одобрен и доступен. | Да |
+| `blocked` | Аккаунт временно заблокирован. | Нет |
+| `rejected` | Заявка отклонена. | Нет |
+
+### Session
+
+```json
+{
+  "token": "random-session-token",
+  "login": "admin",
+  "userId": "b5b1b61e-5af8-4818-82ab-f98baf2be838",
+  "role": "admin",
+  "expiresAt": "2026-09-10T07:30:00Z"
+}
+```
+
+Все поля обязательны. `token` должен быть криптографически случайным и иметь
+ограниченный срок действия.
+
+## Аутентификация
+
+### Регистрация
+
+`POST /api/auth/register`
+
+Авторизация не требуется.
+
+Тело запроса:
+
+```json
+{
+  "login": "ivan",
+  "password": "strong-password"
+}
+```
+
+Правила:
+
+- `login` обязателен, после очистки содержит от 1 до 64 символов;
+- `password` обязателен и содержит не менее 12 символов;
+- новый аккаунт создаётся с `role: "user"` и `status: "pending"`;
+- сессия при регистрации не создаётся.
+
+Успешный ответ: `201 Created`.
+
+```json
+{
+  "status": "pending"
+}
+```
+
+Ошибки: `400 validation_error`, `409 login_conflict`, `429 rate_limit_exceeded`.
+
+### Вход
+
+`POST /api/auth/login`
+
+Авторизация не требуется.
+
+Тело запроса:
+
+```json
+{
+  "login": "admin",
+  "password": "admin"
+}
+```
+
+Успешный ответ: `200 OK` с объектом `Session`.
+
+Вход разрешён только аккаунтам со статусом `active`. Неверный логин или пароль
+возвращает `401 invalid_credentials`. Для существующего неактивного аккаунта
+сервер возвращает `403` с одним из кодов: `account_pending`,
+`account_blocked`, `account_rejected`.
+
+### Текущий аккаунт
+
+`GET /api/auth/me`
+
+Требуется авторизация. Успешный ответ: `200 OK`.
+
+```json
+{
+  "login": "admin",
+  "userId": "b5b1b61e-5af8-4818-82ab-f98baf2be838",
+  "role": "admin",
+  "expiresAt": "2026-09-10T07:30:00Z"
+}
+```
+
+При отсутствующем, неизвестном или истёкшем токене возвращается
+`401 unauthorized`.
+
+### Смена пароля
+
+`PUT /api/auth/password`
+
+Требуется авторизация пользователя или администратора.
+
+Тело запроса:
+
+```json
+{
+  "currentPassword": "old-password",
+  "password": "new-strong-password"
+}
+```
+
+Сервер проверяет текущий пароль, сохраняет хэш нового пароля и отзывает все
+остальные сессии аккаунта. Текущая сессия остаётся действующей.
+
+Успешный ответ: `204 No Content`.
+
+Ошибки: `400 validation_error`, `401 invalid_current_password`,
+`401 unauthorized`.
+
+## Управление аккаунтами
+
+Все маршруты этого раздела требуют активный аккаунт с ролью `admin`.
+
+### Получить список аккаунтов
+
+`GET /api/admin/users`
+
+Успешный ответ: `200 OK`, JSON-массив объектов `Account`.
+
+```json
+[
+  {
+    "id": "d88a6bf4-84b0-4ae6-9cc1-36f220b03f13",
+    "login": "ivan",
+    "role": "user",
+    "status": "pending",
+    "createdAt": "2026-09-09T07:30:00Z"
+  }
+]
+```
+
+Фронтенд запрашивает этот список каждые 30 секунд, пока страница управления
+открыта и вкладка браузера активна. Ответ всегда должен быть массивом; при
+отсутствии аккаунтов возвращается `[]`.
+
+### Изменить аккаунт
+
+`PATCH /api/admin/users/{id}`
+
+Тело содержит хотя бы одно изменяемое поле:
+
+```json
+{
+  "login": "new-login",
+  "role": "admin",
+  "status": "active"
+}
+```
+
+Разрешены только поля `login`, `role`, `status`. Неизвестные поля приводят к
+`400 validation_error`. Успешный ответ: `200 OK` с полным обновлённым объектом
+`Account`.
+
+Допустимые переходы статуса:
+
+| Из | В |
+| --- | --- |
+| `pending` | `active`, `rejected` |
+| `active` | `blocked` |
+| `blocked` | `active` |
+| `rejected` | `active` |
+
+Роль можно менять только у активного аккаунта. Сервер обязан запретить:
+
+- понижение собственной роли администратора;
+- блокировку собственного аккаунта;
+- действие, после которого не останется ни одного активного администратора.
+
+При изменении роли или переводе в неактивный статус все сессии целевого
+аккаунта отзываются.
+
+Ошибки: `400 validation_error`, `403 forbidden`, `404 account_not_found`,
+`409 login_conflict`, `409 last_active_admin`, `409 invalid_status_transition`.
+
+### Удалить аккаунт
+
+`DELETE /api/admin/users/{id}`
+
+Удаляет аккаунт и все его сессии. Удаление собственного аккаунта и последнего
+активного администратора запрещено. Операция выполняется транзакционно.
+
+Успешный ответ: `204 No Content`.
+
+Ошибки: `403 forbidden`, `404 account_not_found`,
+`409 self_delete_forbidden`, `409 last_active_admin`.
+
+### Завершить все сессии аккаунта
+
+`DELETE /api/admin/users/{id}/sessions`
+
+Отзывает все действующие сессии выбранного аккаунта. Завершение собственных
+сессий через административный интерфейс запрещено.
+
+Успешный ответ: `204 No Content`.
+
+Ошибки: `403 forbidden`, `404 account_not_found`,
+`409 self_action_forbidden`.
+
+## Общие HTTP-ошибки
+
+| HTTP | Код | Когда возвращается |
+| --- | --- | --- |
+| `400` | `validation_error` | Некорректное тело запроса или значение поля. |
+| `401` | `unauthorized` | Токен отсутствует, неизвестен или истёк. |
+| `401` | `invalid_credentials` | Неверный логин или пароль. |
+| `403` | `forbidden` | Роль не разрешает выполнить операцию. |
+| `404` | `account_not_found` | Аккаунт с указанным `id` не найден. |
+| `409` | `login_conflict` | Логин уже занят. |
+| `429` | `rate_limit_exceeded` | Превышен лимит попыток. |
+| `500` | `internal_error` | Непредвиденная ошибка сервера. |
+
+На `401` фронтенд удаляет локальную сессию и возвращает пользователя на экран
+входа. Поэтому недостаток прав должен возвращаться как `403`, а не `401`.
+
+## Требования безопасности
+
+- Пароли хэшируются `bcrypt` или `Argon2id`; открытый пароль не сохраняется и
+  не записывается в логи.
+- Вход и регистрация защищаются ограничением частоты запросов.
+- На каждом защищённом запросе статус и роль проверяются по данным сервера.
+- Проверки роли на фронтенде управляют только отображением и не являются
+  механизмом авторизации.
+- Изменение аккаунта, удаление и отзыв сессий выполняются транзакционно.
+- Административные изменения записываются в аудит: инициатор, целевой аккаунт,
+  действие и время.
+- При блокировке, удалении или изменении роли ранее выданные сессии становятся
+  недействительными немедленно.
+
+## Соответствие текущей реализации
+
+На момент составления документа Go-бэкенд реализует `POST /api/auth/login` и
+метод получения текущего пользователя, зарегистрированный как
+`POST /api/auth/me`. По этому контракту `auth/me` должен использовать `GET`.
+
+Следующие маршруты ещё требуется реализовать на бэкенде:
+
+- `POST /api/auth/register`;
+- `PUT /api/auth/password`;
+- `GET /api/admin/users`;
+- `PATCH /api/admin/users/{id}`;
+- `DELETE /api/admin/users/{id}`;
+- `DELETE /api/admin/users/{id}/sessions`.
+
+Также текущую модель пользователя и схему базы данных нужно дополнить полем
+`status`. Фронтенд уже использует все перечисленные маршруты и модели.

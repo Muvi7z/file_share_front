@@ -894,6 +894,18 @@ dd {
   box-shadow: 0 0 0 3px rgba(108, 143, 132, 0.18);
 }
 
+.account-center .add-folder input {
+  border-color: #46504d;
+  background: #202527;
+  color: #e8edeb;
+  caret-color: #e8edeb;
+}
+
+.account-center .add-folder input::placeholder {
+  color: #8f9b98;
+  opacity: 1;
+}
+
 .primary-button {
   background: #111817;
   color: #ffffff;
