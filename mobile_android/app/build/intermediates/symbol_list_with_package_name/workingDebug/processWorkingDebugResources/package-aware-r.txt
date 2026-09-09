@@ -263,6 +263,7 @@ drawable notification_template_icon_low_bg
 drawable notification_tile_bg
 drawable notify_panel_notification_icon_bg
 drawable tv_banner
+drawable vault_glass_background
 font roboto_medium_numbers
 id accessibility_action_clickable_span
 id accessibility_custom_action_0
@@ -449,6 +450,7 @@ plurals exo_controls_fastforward_by_amount_description
 plurals exo_controls_rewind_by_amount_description
 string app_name
 string backend_api_base_url
+string backend_api_fallback_url
 string exo_controls_cc_disabled_description
 string exo_controls_cc_enabled_description
 string exo_controls_custom_playback_speed

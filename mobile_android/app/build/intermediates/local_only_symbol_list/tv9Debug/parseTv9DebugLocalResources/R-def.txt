@@ -1,15 +1,21 @@
 R_DEF: Internal format may change without notice
 local
 color launcher_background
+drawable green_fluorescent_patterns_8h
 drawable ic_admin_tv
+drawable ic_brand_tv
 drawable ic_folder_tv
 drawable ic_grid_tv
 drawable ic_launcher_foreground
 drawable ic_list_tv
 drawable ic_search_tv
 drawable ic_video_tv
+drawable leaves_5k_uz
 drawable tv_banner
 drawable vault_glass_background
+drawable vault_glass_background_v2
+drawable vault_glass_background_v3
+drawable windows_11_green
 mipmap ic_launcher
 string app_name
 string backend_api_base_url

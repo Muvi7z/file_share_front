@@ -2,10 +2,19 @@ package com.localvideovault.mobile;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.animation.ValueAnimator;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BitmapShader;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.Matrix;
+import android.graphics.Outline;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PixelFormat;
+import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -49,6 +58,8 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import okhttp3.Request;
 import okhttp3.Response;
@@ -58,18 +69,24 @@ public class MainActivity extends Activity {
     private static final long PLAYER_SEEK_STEP_MS = 5_000L;
     private static final int TV_NAV_COLLAPSED_WIDTH_DP = 82;
     private static final int TV_NAV_EXPANDED_WIDTH_DP = 224;
-    private static final int BG = Color.rgb(7, 10, 15);
-    private static final int TEXT = Color.rgb(244, 248, 252);
-    private static final int MUTED = Color.rgb(169, 181, 194);
-    private static final int CARD = Color.argb(178, 25, 32, 42);
-    private static final int SURFACE_SELECTED = Color.argb(215, 43, 54, 68);
-    private static final int LINE = Color.argb(125, 215, 230, 240);
-    private static final int GREEN = Color.rgb(52, 184, 151);
-    private static final int ACCENT = Color.rgb(112, 238, 199);
-    private static final int DARK = Color.rgb(7, 16, 18);
-    private static final int LIME = ACCENT;
+    private static final int BG = Color.rgb(11, 15, 20);
+    private static final int TEXT = Color.rgb(242, 247, 250);
+    private static final int MUTED = Color.rgb(183, 194, 189);
+    private static final int CARD = Color.argb(116, 78, 91, 85);
+    private static final int SURFACE_SELECTED = Color.argb(224, 126, 143, 135);
+    private static final int LINE = Color.TRANSPARENT;
+    private static final int GREEN = Color.rgb(112, 130, 121);
+    private static final int ACCENT = Color.rgb(215, 226, 220);
+    private static final int DARK = Color.rgb(22, 28, 25);
+    private static final int LIME = Color.rgb(218, 226, 221);
+    private static final int WHITE_CONTROL = Color.rgb(241, 244, 241);
+    private static final int WHITE_CONTROL_IDLE = Color.argb(214, 241, 244, 241);
+    private static final int CATEGORY_IDLE = Color.argb(76, 244, 247, 244);
+    private static final int ACTIVE_CONTROL = Color.argb(218, 166, 194, 174);
+    private static final int ACTIVE_ICON = Color.rgb(38, 78, 57);
 
     private final VaultRepository repository = new VaultRepository();
+    private final ExecutorService posterExecutor = Executors.newFixedThreadPool(3);
     private final LruCache<String, Bitmap> posterCache = new LruCache<String, Bitmap>(24 * 1024) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
@@ -106,10 +123,16 @@ public class MainActivity extends Activity {
     private ExoPlayer player = null;
     private PlayerView playerView = null;
     private ImageView ambientBackground = null;
+    private Bitmap glassBackdropBitmap = null;
+    private int[] glassOpticalPixels = null;
     private LinearLayout tvNavRail = null;
-    private ValueAnimator tvNavAnimator = null;
+    private LinearLayout controlsGlassPanel = null;
+    private LinearLayout scrollingGlassPanel = null;
     private boolean tvNavExpanded = false;
     private TextView seekFeedbackView = null;
+    private View playerMetadataPanel = null;
+    private TextView playerTitleView = null;
+    private TextView playerSubtitleView = null;
     private long lastPlayerSeekAtMs = 0L;
     private long playerSeekStartedAtMs = 0L;
     private final Runnable hideSeekFeedback = () -> {
@@ -120,6 +143,11 @@ public class MainActivity extends Activity {
                         seekFeedbackView.setVisibility(View.GONE);
                     }
                 }).start();
+        }
+    };
+    private final Runnable hidePlayerControls = () -> {
+        if (playerView != null && "player".equals(page)) {
+            playerView.hideController();
         }
     };
 
@@ -134,6 +162,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         releasePlayer();
+        posterExecutor.shutdownNow();
         super.onDestroy();
     }
 
@@ -161,21 +190,11 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if ("player".equals(page) && isTvLayout() && player != null && playerView != null) {
-            int keyCode = event.getKeyCode();
-            if ((keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN)
-                && isPlayPauseFocused()) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-                    int targetId = keyCode == KeyEvent.KEYCODE_DPAD_UP
-                        ? androidx.media3.ui.R.id.exo_prev
-                        : androidx.media3.ui.R.id.exo_next;
-                    View target = playerView.findViewById(targetId);
-                    if (target != null && target.getVisibility() == View.VISIBLE) {
-                        playerView.showController();
-                        target.requestFocus();
-                    }
-                }
-                return true;
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                playerView.showController();
+                schedulePlayerControlsHide();
             }
+            int keyCode = event.getKeyCode();
             if ((keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
                 && shouldSeekPlayerFromDpad()) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
@@ -212,9 +231,12 @@ public class MainActivity extends Activity {
         return super.dispatchKeyEvent(event);
     }
 
-    private boolean isPlayPauseFocused() {
-        View focused = getCurrentFocus();
-        return focused != null && focused.getId() == androidx.media3.ui.R.id.exo_play_pause;
+    private void schedulePlayerControlsHide() {
+        if (playerView == null || !isTvLayout()) {
+            return;
+        }
+        playerView.removeCallbacks(hidePlayerControls);
+        playerView.postDelayed(hidePlayerControls, 5_000L);
     }
 
     private long playerSeekStep(long heldForMs) {
@@ -261,17 +283,9 @@ public class MainActivity extends Activity {
 
     private boolean shouldSeekPlayerFromDpad() {
         View focused = getCurrentFocus();
-        if (lastPlayerSeekAtMs != 0L) {
-            return true;
-        }
-        if (focused == null || !focused.isShown() || focused == playerView) {
-            return true;
-        }
-        int focusedId = focused.getId();
-        if (focusedId == androidx.media3.ui.R.id.exo_progress) {
-            return true;
-        }
-        return focusedId == androidx.media3.ui.R.id.exo_play_pause;
+        return focused != null
+            && focused.isShown()
+            && focused.getId() == androidx.media3.ui.R.id.exo_progress;
     }
 
     private void refreshData() {
@@ -513,10 +527,7 @@ public class MainActivity extends Activity {
         ambientBackground = null;
         tvNavRail = null;
         tvNavExpanded = false;
-        if (tvNavAnimator != null) {
-            tvNavAnimator.cancel();
-            tvNavAnimator = null;
-        }
+        scrollingGlassPanel = null;
         if (isTvLandscape()) {
             FrameLayout tvStage = new FrameLayout(this);
             tvStage.setBackgroundColor(BG);
@@ -544,10 +555,14 @@ public class MainActivity extends Activity {
         }
 
         mainScrollView = new ScrollView(this);
+        mainScrollView.setVerticalScrollBarEnabled(false);
+        mainScrollView.setFillViewport(true);
+        mainScrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         mainScrollView.setFocusable(false);
         mainScrollView.setFocusableInTouchMode(false);
         mainScrollView.setClipChildren(false);
         mainScrollView.setClipToPadding(false);
+        mainScrollView.setPadding(0, dp(8), 0, dp(8));
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setClipChildren(false);
@@ -555,6 +570,11 @@ public class MainActivity extends Activity {
         int sidePadding = isTvLandscape() ? dp(28) : (isTvLayout() ? dp(36) : dp(12));
         int bottomPadding = isTvLandscape() ? dp(28) : dp(isTvLayout() ? 104 : 88);
         content.setPadding(sidePadding, 0, sidePadding, bottomPadding);
+        mainScrollView.setOnScrollChangeListener((view, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            if (scrollingGlassPanel != null) {
+                scrollingGlassPanel.invalidate();
+            }
+        });
         mainScrollView.addView(content);
         root.addView(mainScrollView, new LinearLayout.LayoutParams(-1, 0, 1));
         renderHeader();
@@ -583,25 +603,49 @@ public class MainActivity extends Activity {
     }
 
     private void renderAmbientBackground(FrameLayout stage) {
+        if (glassBackdropBitmap == null) {
+            glassBackdropBitmap = decodeBackdropForScreen(R.drawable.windows_11_green);
+            if (glassBackdropBitmap != null) {
+                glassOpticalPixels = new int[
+                    glassBackdropBitmap.getWidth() * glassBackdropBitmap.getHeight()
+                ];
+                glassBackdropBitmap.getPixels(
+                    glassOpticalPixels,
+                    0,
+                    glassBackdropBitmap.getWidth(),
+                    0,
+                    0,
+                    glassBackdropBitmap.getWidth(),
+                    glassBackdropBitmap.getHeight()
+                );
+            }
+        }
         ambientBackground = new ImageView(this);
         ambientBackground.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        ambientBackground.setImageResource(R.drawable.vault_glass_background);
-        ambientBackground.setAlpha(0.82f);
+        ambientBackground.setImageBitmap(glassBackdropBitmap);
+        ambientBackground.setAlpha(1f);
+        ambientBackground.setFocusable(false);
+        ambientBackground.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         stage.addView(ambientBackground, new FrameLayout.LayoutParams(-1, -1));
+    }
 
-        View sideScrim = new View(this);
-        sideScrim.setBackground(makeGradientDrawable(
-            GradientDrawable.Orientation.LEFT_RIGHT,
-            new int[]{Color.argb(238, 6, 9, 14), Color.argb(188, 6, 9, 14), Color.argb(45, 6, 9, 14)}
-        ));
-        stage.addView(sideScrim, new FrameLayout.LayoutParams(-1, -1));
+    private Bitmap decodeBackdropForScreen(int resourceId) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeResource(getResources(), resourceId, bounds);
 
-        View depthScrim = new View(this);
-        depthScrim.setBackground(makeGradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            new int[]{Color.argb(28, 7, 10, 15), Color.argb(90, 7, 10, 15), Color.argb(230, 7, 10, 15)}
-        ));
-        stage.addView(depthScrim, new FrameLayout.LayoutParams(-1, -1));
+        int targetWidth = getResources().getDisplayMetrics().widthPixels;
+        int targetHeight = getResources().getDisplayMetrics().heightPixels;
+        int sampleSize = 1;
+        while (bounds.outWidth / (sampleSize * 2) >= targetWidth
+            && bounds.outHeight / (sampleSize * 2) >= targetHeight) {
+            sampleSize *= 2;
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = sampleSize;
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        return BitmapFactory.decodeResource(getResources(), resourceId, options);
     }
 
     private void renderTvNavigation(FrameLayout shell) {
@@ -610,28 +654,26 @@ public class MainActivity extends Activity {
         rail.setOrientation(LinearLayout.VERTICAL);
         rail.setClipChildren(false);
         rail.setClipToPadding(false);
-        rail.setGravity(Gravity.LEFT);
-        rail.setPadding(dp(12), dp(22), dp(12), dp(18));
-        rail.setBackground(makeGlassDrawable(
-            Color.argb(244, 33, 42, 54),
-            Color.argb(232, 15, 21, 30),
-            18
-        ));
-        rail.setElevation(dp(22));
+        rail.setGravity(Gravity.CENTER_HORIZONTAL);
+        rail.setPadding(dp(12), dp(26), dp(12), dp(24));
+        rail.setBackground(makeLensDrawable(Color.TRANSPARENT, 22, false));
+        rail.setElevation(dp(26));
 
         LinearLayout brand = new LinearLayout(this);
-        brand.setGravity(Gravity.CENTER_VERTICAL);
-        brand.setPadding(dp(7), 0, 0, 0);
+        brand.setGravity(Gravity.CENTER);
+        brand.setPadding(0, 0, 0, 0);
+        brand.setTag("nav-row");
         ImageView brandIcon = new ImageView(this);
-        brandIcon.setImageResource(R.drawable.ic_video_tv);
-        brandIcon.setColorFilter(DARK);
-        brandIcon.setPadding(dp(10), dp(10), dp(10), dp(10));
-        brandIcon.setBackground(makeRoundDrawable(LIME, 0, 10));
-        brand.addView(brandIcon, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        brandIcon.setImageResource(R.drawable.ic_brand_tv);
+        brandIcon.clearColorFilter();
+        brandIcon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        brandIcon.setPadding(dp(4), dp(4), dp(4), dp(4));
+        brandIcon.setBackgroundColor(Color.TRANSPARENT);
+        brand.addView(brandIcon, new LinearLayout.LayoutParams(dp(48), dp(48)));
         TextView brandTitle = text("VIDEO VAULT", 14, TEXT, true);
         brandTitle.setSingleLine(true);
         brandTitle.setAlpha(0f);
-        brandTitle.setVisibility(View.INVISIBLE);
+        brandTitle.setVisibility(View.GONE);
         brandTitle.setPadding(dp(14), 0, 0, 0);
         brandTitle.setTag("nav-label");
         brand.addView(brandTitle, new LinearLayout.LayoutParams(0, dp(44), 1));
@@ -666,8 +708,9 @@ public class MainActivity extends Activity {
         boolean selected = targetPage.equals(page);
         LinearLayout button = new LinearLayout(this);
         button.setOrientation(LinearLayout.HORIZONTAL);
-        button.setGravity(Gravity.CENTER_VERTICAL);
-        button.setPadding(dp(9), 0, dp(12), 0);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(0, 0, 0, 0);
+        button.setTag("nav-row");
         button.setFocusable(true);
         button.setFocusableInTouchMode(true);
         button.setId(View.generateViewId());
@@ -678,13 +721,13 @@ public class MainActivity extends Activity {
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconResource);
         icon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        button.addView(icon, new LinearLayout.LayoutParams(dp(28), dp(28)));
+        button.addView(icon, new LinearLayout.LayoutParams(dp(26), dp(26)));
 
         TextView title = text(label, 14, selected ? TEXT : MUTED, true);
         title.setGravity(Gravity.CENTER_VERTICAL);
         title.setMaxLines(1);
         title.setAlpha(0f);
-        title.setVisibility(View.INVISIBLE);
+        title.setVisibility(View.GONE);
         title.setPadding(dp(16), 0, 0, 0);
         title.setTag("nav-label");
         button.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1));
@@ -720,12 +763,15 @@ public class MainActivity extends Activity {
         boolean selected,
         boolean hasFocus
     ) {
-        int background = hasFocus ? Color.rgb(242, 247, 244) : (selected ? Color.argb(205, 37, 75, 62) : Color.TRANSPARENT);
-        button.setBackground(makeRoundDrawable(background, 0, 10));
-        title.setTextColor(hasFocus ? DARK : (selected ? TEXT : MUTED));
-        icon.setColorFilter(hasFocus ? DARK : (selected ? LIME : MUTED));
-        button.setScaleX(hasFocus ? 1.025f : 1f);
-        button.setScaleY(hasFocus ? 1.025f : 1f);
+        int background = hasFocus
+            ? WHITE_CONTROL
+            : (selected ? ACTIVE_CONTROL : Color.TRANSPARENT);
+        button.setBackground(makeRoundDrawable(background, 0, 13));
+        title.setTextColor(hasFocus || selected ? DARK : TEXT);
+        icon.setColorFilter(hasFocus ? DARK : (selected ? ACTIVE_ICON : TEXT));
+        button.setScaleX(1f);
+        button.setScaleY(1f);
+        button.setTranslationY(0);
         button.setElevation(hasFocus ? dp(12) : 0);
     }
 
@@ -733,41 +779,22 @@ public class MainActivity extends Activity {
         if (tvNavRail == null) {
             return;
         }
-        if (tvNavExpanded == expanded && tvNavAnimator == null) {
+        if (tvNavExpanded == expanded) {
             return;
         }
         tvNavExpanded = expanded;
-        if (tvNavAnimator != null) {
-            tvNavAnimator.cancel();
-            tvNavAnimator = null;
-        }
         ViewGroup.LayoutParams params = tvNavRail.getLayoutParams();
         int targetWidth = dp(expanded ? TV_NAV_EXPANDED_WIDTH_DP : TV_NAV_COLLAPSED_WIDTH_DP);
         if (params.width == targetWidth) {
             updateNavigationLabels(expanded);
             return;
         }
-
-        tvNavAnimator = ValueAnimator.ofInt(params.width, targetWidth);
-        tvNavAnimator.setDuration(170L);
-        tvNavAnimator.addUpdateListener(valueAnimator -> {
-            if (tvNavRail == null) {
-                return;
-            }
-            ViewGroup.LayoutParams layoutParams = tvNavRail.getLayoutParams();
-            layoutParams.width = (int) valueAnimator.getAnimatedValue();
-            tvNavRail.setLayoutParams(layoutParams);
-        });
-        tvNavAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(android.animation.Animator animation) {
-                if (animation == tvNavAnimator) {
-                    tvNavAnimator = null;
-                }
-            }
-        });
-        tvNavAnimator.start();
+        params.width = targetWidth;
+        tvNavRail.setLayoutParams(params);
         updateNavigationLabels(expanded);
+        if (tvNavRail.getBackground() instanceof RefractiveGlassDrawable) {
+            ((RefractiveGlassDrawable) tvNavRail.getBackground()).invalidateOpticalCache();
+        }
     }
 
     private void updateNavigationLabels(boolean visible) {
@@ -780,17 +807,22 @@ public class MainActivity extends Activity {
                 continue;
             }
             ViewGroup group = (ViewGroup) child;
+            if ("nav-row".equals(group.getTag()) && group instanceof LinearLayout) {
+                LinearLayout navRow = (LinearLayout) group;
+                navRow.setGravity(visible ? Gravity.CENTER_VERTICAL : Gravity.CENTER);
+                navRow.setPadding(visible ? dp(9) : 0, 0, visible ? dp(9) : 0, 0);
+            }
             for (int innerIndex = 0; innerIndex < group.getChildCount(); innerIndex++) {
                 View candidate = group.getChildAt(innerIndex);
                 if ("nav-label".equals(candidate.getTag())) {
                     candidate.animate().cancel();
-                    candidate.setVisibility(View.VISIBLE);
-                    candidate.animate().alpha(visible ? 1f : 0f).setDuration(visible ? 170L : 90L)
-                        .withEndAction(() -> {
-                            if (!visible && !tvNavExpanded) {
-                                candidate.setVisibility(View.INVISIBLE);
-                            }
-                        }).start();
+                    if (visible) {
+                        candidate.setAlpha(1f);
+                        candidate.setVisibility(View.VISIBLE);
+                    } else {
+                        candidate.setAlpha(0f);
+                        candidate.setVisibility(View.GONE);
+                    }
                 }
             }
         }
@@ -845,45 +877,58 @@ public class MainActivity extends Activity {
     }
 
     private void renderSearchAndMode() {
+        controlsGlassPanel = new LinearLayout(this);
+        controlsGlassPanel.setOrientation(LinearLayout.VERTICAL);
+        controlsGlassPanel.setClipChildren(false);
+        controlsGlassPanel.setClipToPadding(false);
+        controlsGlassPanel.setPadding(dp(16), dp(18), dp(16), dp(16));
+        controlsGlassPanel.setBackground(makeLensDrawable(Color.TRANSPARENT, 22, false));
+        controlsGlassPanel.setElevation(dp(10));
+
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, 0, 0, dp(isTvLandscape() ? 18 : 10));
+        row.setClipChildren(false);
+        row.setClipToPadding(false);
+        row.setPadding(0, 0, 0, 0);
 
         EditText input = new EditText(this);
         input.setSingleLine(true);
         input.setText(query);
         input.setHint("files".equals(page) ? "Поиск папок и видео" : "Поиск видео");
         input.setTextSize(isTvLandscape() ? 14 : (isTvLayout() ? 18 : 15));
-        input.setTextColor(TEXT);
-        input.setHintTextColor(MUTED);
+        input.setTextColor(DARK);
+        input.setHintTextColor(Color.rgb(94, 104, 99));
         input.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         input.setPadding(dp(14), 0, dp(14), 0);
         input.setCompoundDrawablePadding(dp(10));
         Drawable searchIcon = getDrawable(R.drawable.ic_search_tv);
         if (searchIcon != null) {
-            searchIcon.setTint(MUTED);
+            searchIcon.setTint(DARK);
             searchIcon.setBounds(0, 0, dp(21), dp(21));
             input.setCompoundDrawables(searchIcon, null, null, null);
         }
-        input.setBackground(makeRoundDrawable(CARD, LINE, 10));
+        input.setBackground(makeRoundDrawable(WHITE_CONTROL, 0, 18));
         input.setOnEditorActionListener((v, actionId, event) -> {
             query = input.getText().toString();
             render();
             return true;
         });
         input.setOnFocusChangeListener((v, hasFocus) -> {
-            input.setBackground(makeRoundDrawable(hasFocus ? Color.argb(225, 46, 58, 73) : CARD, hasFocus ? Color.WHITE : LINE, 10, hasFocus ? 2 : 1));
+            input.setTranslationY(0);
+            input.setElevation(hasFocus ? dp(12) : 0);
+            input.setHintTextColor(hasFocus ? DARK : Color.rgb(94, 104, 99));
             if (!hasFocus) {
                 query = input.getText().toString();
             }
         });
-        row.addView(input, new LinearLayout.LayoutParams(0, dp(isTvLandscape() ? 44 : (isTvLayout() ? 56 : 44)), 1));
+        row.addView(input, new LinearLayout.LayoutParams(0, dp(isTvLandscape() ? 48 : (isTvLayout() ? 58 : 46)), 1));
 
         addInlineSpace(row, 12);
         row.addView(modeButton(R.drawable.ic_grid_tv, "grid"));
         addInlineSpace(row, 6);
         row.addView(modeButton(R.drawable.ic_list_tv, "list"));
-        content.addView(row);
+        controlsGlassPanel.addView(row);
+        content.addView(withBottomMargin(controlsGlassPanel, isTvLandscape() ? 14 : 10));
     }
 
     private ImageView modeButton(int iconResource, String mode) {
@@ -909,27 +954,29 @@ public class MainActivity extends Activity {
 
     private void updateModeButton(ImageView button, boolean selected, boolean hasFocus) {
         button.setBackground(makeRoundDrawable(
-            hasFocus ? Color.rgb(246, 249, 247) : (selected ? SURFACE_SELECTED : CARD),
-            hasFocus ? 0 : (selected ? LINE : Color.TRANSPARENT),
-            8,
-            1
+            hasFocus ? Color.WHITE : (selected ? ACTIVE_CONTROL : CATEGORY_IDLE),
+            0,
+            12
         ));
-        button.setColorFilter(hasFocus ? DARK : (selected ? ACCENT : MUTED));
-        button.setScaleX(hasFocus ? 1.055f : 1f);
-        button.setScaleY(hasFocus ? 1.055f : 1f);
+        button.setColorFilter(hasFocus ? DARK : (selected ? ACTIVE_ICON : DARK));
+        button.setScaleX(1f);
+        button.setScaleY(1f);
+        button.setTranslationY(0);
         button.setElevation(hasFocus ? dp(10) : 0);
     }
 
     private void renderVideosPage() {
         renderFolderChips();
         List<VideoFile> list = repository.getVideos(selectedFolderId, query);
+        LinearLayout listPanel = glassContentPanel();
+        content.addView(listPanel);
         if ("grid".equals(viewMode)) {
-            renderVideoGrid(list);
+            renderVideoGrid(list, listPanel);
         } else {
             for (VideoFile video : list) {
                 View card = videoCard(video, false);
                 rememberTvFocus(card);
-                content.addView(card);
+                listPanel.addView(card);
             }
         }
     }
@@ -937,10 +984,13 @@ public class MainActivity extends Activity {
     private void renderFolderChips() {
         HorizontalScrollView scroll = new HorizontalScrollView(this);
         scroll.setHorizontalScrollBarEnabled(false);
+        scroll.setClipChildren(false);
+        scroll.setClipToPadding(false);
+        scroll.setPadding(dp(10), dp(14), dp(10), dp(14));
         scroll.setFocusable(false);
         scroll.setFocusableInTouchMode(false);
         LinearLayout row = new LinearLayout(this);
-        row.setPadding(0, 0, 0, dp(8));
+        row.setPadding(0, 0, 0, 0);
         TextView all = chip("Все", "all".equals(selectedFolderId));
         all.setOnClickListener(v -> {
             selectedFolderId = "all";
@@ -958,7 +1008,7 @@ public class MainActivity extends Activity {
             row.addView(chip);
         }
         scroll.addView(row);
-        content.addView(scroll);
+        (controlsGlassPanel == null ? content : controlsGlassPanel).addView(scroll);
     }
 
     private void renderFilesPage() {
@@ -982,13 +1032,15 @@ public class MainActivity extends Activity {
             return;
         }
 
+        LinearLayout listPanel = glassContentPanel();
+        content.addView(listPanel);
         if ("grid".equals(viewMode)) {
-            renderEntryGrid(entries);
+            renderEntryGrid(entries, listPanel);
         } else {
             for (FileEntry entry : entries) {
                 View card = entry.type == FileEntry.Type.FOLDER ? folderCard(entry.folder, false) : videoCard(entry.video, false);
                 rememberTvFocus(card);
-                content.addView(card);
+                listPanel.addView(card);
             }
         }
     }
@@ -1020,10 +1072,13 @@ public class MainActivity extends Activity {
     private void renderBreadcrumbs() {
         HorizontalScrollView scroll = new HorizontalScrollView(this);
         scroll.setHorizontalScrollBarEnabled(false);
+        scroll.setClipChildren(false);
+        scroll.setClipToPadding(false);
+        scroll.setPadding(dp(10), dp(14), dp(10), dp(14));
         scroll.setFocusable(false);
         scroll.setFocusableInTouchMode(false);
         LinearLayout row = new LinearLayout(this);
-        row.setPadding(0, 0, 0, dp(8));
+        row.setPadding(0, 0, 0, 0);
 
         TextView rootChip = chip("Все папки", currentDirectoryId == null);
         rootChip.setOnClickListener(v -> {
@@ -1043,7 +1098,7 @@ public class MainActivity extends Activity {
             row.addView(crumb);
         }
         scroll.addView(row);
-        content.addView(scroll);
+        (controlsGlassPanel == null ? content : controlsGlassPanel).addView(scroll);
     }
 
     private void renderCompactSummary(List<FileEntry> entries) {
@@ -1067,7 +1122,7 @@ public class MainActivity extends Activity {
         content.addView(withBottomMargin(row, 8));
     }
 
-    private void renderVideoGrid(List<VideoFile> videos) {
+    private void renderVideoGrid(List<VideoFile> videos, LinearLayout parent) {
         int columns = gridColumns();
         LinearLayout row = null;
         for (int i = 0; i < videos.size(); i++) {
@@ -1077,7 +1132,8 @@ public class MainActivity extends Activity {
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setClipChildren(false);
                 row.setClipToPadding(false);
-                content.addView(withBottomMargin(row, isTvLandscape() ? 14 : (isTvLayout() ? 14 : 8)));
+                row.setPadding(0, dp(7), 0, dp(9));
+                parent.addView(withBottomMargin(row, isTvLandscape() ? 6 : (isTvLayout() ? 8 : 4)));
             }
             View card = videoCard(videos.get(i), true);
             rememberTvFocus(card);
@@ -1088,7 +1144,7 @@ public class MainActivity extends Activity {
         fillGridTail(row, videos.size(), columns);
     }
 
-    private void renderEntryGrid(List<FileEntry> entries) {
+    private void renderEntryGrid(List<FileEntry> entries, LinearLayout parent) {
         int columns = gridColumns();
         LinearLayout row = null;
         for (int i = 0; i < entries.size(); i++) {
@@ -1098,7 +1154,8 @@ public class MainActivity extends Activity {
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setClipChildren(false);
                 row.setClipToPadding(false);
-                content.addView(withBottomMargin(row, isTvLandscape() ? 14 : (isTvLayout() ? 14 : 8)));
+                row.setPadding(0, dp(7), 0, dp(9));
+                parent.addView(withBottomMargin(row, isTvLandscape() ? 6 : (isTvLayout() ? 8 : 4)));
             }
             FileEntry entry = entries.get(i);
             View card = entry.type == FileEntry.Type.FOLDER ? folderCard(entry.folder, true) : videoCard(entry.video, true);
@@ -1118,7 +1175,7 @@ public class MainActivity extends Activity {
         card.setOnClickListener(v -> openPlayer(video));
 
         FrameLayout poster = compact ? new SixteenNineFrameLayout(this) : new FrameLayout(this);
-        poster.setBackground(makeRoundDrawable(Color.rgb(28, 39, 35), 0, 8));
+        poster.setBackground(makeRoundDrawable(Color.rgb(22, 28, 34), 0, 8));
         poster.setClipToOutline(true);
         ImageView posterImage = new ImageView(this);
         posterImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
@@ -1163,12 +1220,13 @@ public class MainActivity extends Activity {
             return;
         }
 
-        new Thread(() -> {
+        posterExecutor.execute(() -> {
             try (Response response = apiClient.client().newCall(new Request.Builder().url(posterUrl).build()).execute()) {
                 if (!response.isSuccessful() || response.body() == null) {
                     return;
                 }
-                Bitmap bitmap = BitmapFactory.decodeStream(response.body().byteStream());
+                byte[] posterBytes = response.body().bytes();
+                Bitmap bitmap = decodePoster(posterBytes);
                 if (bitmap == null) {
                     return;
                 }
@@ -1183,7 +1241,29 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {
                 // Keep the neutral poster placeholder when an image cannot be loaded.
             }
-        }).start();
+        });
+    }
+
+    private Bitmap decodePoster(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+
+        int targetWidth = dp(isTvLayout() ? 360 : 240);
+        int targetHeight = Math.round(targetWidth * 9f / 16f);
+        int sampleSize = 1;
+        while (bounds.outWidth / (sampleSize * 2) >= targetWidth
+            && bounds.outHeight / (sampleSize * 2) >= targetHeight) {
+            sampleSize *= 2;
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = sampleSize;
+        options.inPreferredConfig = Bitmap.Config.RGB_565;
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
     }
 
     private void openPlayer(VideoFile video) {
@@ -1275,7 +1355,8 @@ public class MainActivity extends Activity {
         ImageView icon = new ImageView(this);
         icon.setImageResource(R.drawable.ic_folder_tv);
         icon.setScaleType(ImageView.ScaleType.CENTER);
-        icon.setBackground(makeRoundDrawable(Color.rgb(28, 39, 35), 0, 8));
+        icon.setColorFilter(ACCENT);
+        icon.setBackground(makeRoundDrawable(Color.argb(44, 117, 201, 232), 0, 8));
         int iconSize = isTvLandscape() ? 42 : 50;
         int iconPadding = 10;
         icon.setPadding(dp(iconPadding), dp(iconPadding), dp(iconPadding), dp(iconPadding));
@@ -1311,25 +1392,15 @@ public class MainActivity extends Activity {
         });
 
         FrameLayout poster = new SixteenNineFrameLayout(this);
-        GradientDrawable folderBackground = makeGradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            new int[]{Color.argb(228, 32, 76, 75), Color.argb(220, 27, 43, 56), Color.argb(230, 42, 49, 68)}
-        );
-        folderBackground.setCornerRadius(dp(8));
-        folderBackground.setStroke(dp(1), Color.argb(115, 220, 244, 244));
-        poster.setBackground(folderBackground);
+        poster.setBackground(makeRoundDrawable(Color.rgb(22, 28, 34), 0, 8));
         poster.setClipToOutline(true);
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(R.drawable.ic_folder_tv);
-        icon.setColorFilter(Color.rgb(177, 255, 229));
+        icon.setColorFilter(ACCENT);
         icon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         icon.setPadding(dp(12), dp(12), dp(12), dp(12));
-        icon.setBackground(makeGlassDrawable(
-            Color.argb(115, 240, 255, 255),
-            Color.argb(55, 190, 225, 230),
-            8
-        ));
+        icon.setBackgroundColor(Color.TRANSPARENT);
         int iconSize = isTvLandscape() ? 64 : (isTvLayout() ? 82 : 64);
         FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(dp(iconSize), dp(iconSize), Gravity.CENTER);
         poster.addView(icon, iconParams);
@@ -1543,14 +1614,40 @@ public class MainActivity extends Activity {
             FrameLayout playerStage = new FrameLayout(this);
             playerStage.addView(playerView, new FrameLayout.LayoutParams(-1, -1));
 
+            LinearLayout playerMetadata = new LinearLayout(this);
+            playerMetadata.setOrientation(LinearLayout.VERTICAL);
+            playerMetadata.setPadding(dp(18), dp(12), dp(18), dp(12));
+            playerMetadata.setBackground(makeRoundDrawable(Color.argb(150, 8, 12, 10), 0, 10));
+            playerTitleView = text(selectedVideo.title, 21, Color.WHITE, true);
+            playerTitleView.setMaxLines(1);
+            playerTitleView.setEllipsize(TextUtils.TruncateAt.END);
+            playerSubtitleView = text(playerFileSubtitle(selectedVideo), 12, Color.rgb(205, 215, 210), false);
+            playerSubtitleView.setMaxLines(1);
+            playerSubtitleView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+            playerMetadata.addView(playerTitleView);
+            playerMetadata.addView(playerSubtitleView);
+            playerMetadataPanel = playerMetadata;
+            FrameLayout.LayoutParams metadataParams = new FrameLayout.LayoutParams(
+                Math.min(dp(720), getResources().getDisplayMetrics().widthPixels - dp(80)),
+                -2,
+                Gravity.TOP | Gravity.LEFT
+            );
+            metadataParams.setMargins(dp(40), dp(30), dp(40), 0);
+            playerStage.addView(playerMetadata, metadataParams);
+            playerView.setControllerVisibilityListener(
+                (PlayerView.ControllerVisibilityListener) visibility -> {
+                    if (playerMetadataPanel != null) {
+                        playerMetadataPanel.setVisibility(
+                            visibility == View.VISIBLE ? View.VISIBLE : View.GONE
+                        );
+                    }
+                }
+            );
+
             seekFeedbackView = text("", 18, Color.WHITE, true);
             seekFeedbackView.setGravity(Gravity.CENTER);
             seekFeedbackView.setPadding(dp(22), 0, dp(22), 0);
-            seekFeedbackView.setBackground(makeGlassDrawable(
-                Color.argb(230, 42, 51, 64),
-                Color.argb(210, 17, 24, 34),
-                26
-            ));
+            seekFeedbackView.setBackground(makeLensDrawable(Color.TRANSPARENT, 26, false));
             seekFeedbackView.setVisibility(View.GONE);
             FrameLayout.LayoutParams feedbackParams = new FrameLayout.LayoutParams(-2, dp(52), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
             feedbackParams.bottomMargin = dp(176);
@@ -1610,6 +1707,7 @@ public class MainActivity extends Activity {
                 playbackIndex = currentIndex;
                 selectedVideo = playbackQueue.get(currentIndex);
                 returnFocusedVideoId = selectedVideo.id;
+                updatePlayerMetadata();
             }
 
             @Override
@@ -1641,16 +1739,41 @@ public class MainActivity extends Activity {
 
         if (isTvLayout()) {
             playerView.showController();
-            DefaultTimeBar timeBar = playerView.findViewById(androidx.media3.ui.R.id.exo_progress);
+            schedulePlayerControlsHide();
+            View playPause = playerView.findViewById(androidx.media3.ui.R.id.exo_play_pause);
             playerView.post(() -> {
-                if (timeBar == null || !timeBar.requestFocus()) {
+                if (playPause == null || !playPause.requestFocus()) {
                     playerView.requestFocus();
                 }
             });
         }
     }
 
+    private String playerFileSubtitle(VideoFile video) {
+        if (video == null) {
+            return "";
+        }
+        if (video.path != null && !video.path.isEmpty()) {
+            return video.path;
+        }
+        return video.folderName == null ? "" : video.folderName;
+    }
+
+    private void updatePlayerMetadata() {
+        if (selectedVideo == null) {
+            return;
+        }
+        if (playerTitleView != null) {
+            playerTitleView.setText(selectedVideo.title);
+        }
+        if (playerSubtitleView != null) {
+            playerSubtitleView.setText(playerFileSubtitle(selectedVideo));
+        }
+    }
+
     private void configurePlayerControls(PlayerView view) {
+        view.setClipChildren(false);
+        view.setClipToPadding(false);
         view.setShowRewindButton(false);
         view.setShowFastForwardButton(false);
         view.setShowPreviousButton(true);
@@ -1666,7 +1789,7 @@ public class MainActivity extends Activity {
             timeBar.setBufferedColor(Color.argb(180, 190, 201, 197));
             timeBar.setUnplayedColor(Color.argb(150, 90, 101, 98));
             timeBar.setOnFocusChangeListener((control, hasFocus) -> {
-                control.animate().scaleY(hasFocus ? 1.14f : 1f).setDuration(120L).start();
+                control.animate().translationY(hasFocus ? -dp(2) : 0).setDuration(120L).start();
                 control.setElevation(hasFocus ? dp(6) : 0);
             });
         }
@@ -1682,8 +1805,33 @@ public class MainActivity extends Activity {
         for (int controlId : controlIds) {
             View control = view.findViewById(controlId);
             if (control != null) {
+                allowFocusOverflow(control, view);
                 applyPlayerControlFocus(control);
             }
+        }
+
+        View previous = view.findViewById(androidx.media3.ui.R.id.exo_prev);
+        View playPause = view.findViewById(androidx.media3.ui.R.id.exo_play_pause);
+        View next = view.findViewById(androidx.media3.ui.R.id.exo_next);
+        View settings = view.findViewById(androidx.media3.ui.R.id.exo_settings);
+        if (previous != null && playPause != null && next != null) {
+            previous.setNextFocusRightId(playPause.getId());
+            playPause.setNextFocusLeftId(previous.getId());
+            playPause.setNextFocusRightId(next.getId());
+            next.setNextFocusLeftId(playPause.getId());
+            if (timeBar != null) {
+                previous.setNextFocusUpId(timeBar.getId());
+                playPause.setNextFocusUpId(timeBar.getId());
+                next.setNextFocusUpId(timeBar.getId());
+                timeBar.setNextFocusDownId(playPause.getId());
+            }
+            if (settings != null) {
+                next.setNextFocusRightId(settings.getId());
+                settings.setNextFocusLeftId(next.getId());
+            } else {
+                next.setNextFocusRightId(next.getId());
+            }
+            previous.setNextFocusLeftId(previous.getId());
         }
     }
 
@@ -1698,18 +1846,32 @@ public class MainActivity extends Activity {
     private void updatePlayerControlFocus(View control, boolean hasFocus) {
         control.animate().cancel();
         control.animate()
-            .scaleX(hasFocus ? 1.14f : 1f)
-            .scaleY(hasFocus ? 1.14f : 1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .translationY(0)
             .setDuration(hasFocus ? 130L : 90L)
             .start();
         control.setElevation(hasFocus ? dp(18) : dp(2));
         control.setBackground(makeRoundDrawable(
-            hasFocus ? Color.rgb(246, 249, 247) : Color.argb(105, 9, 13, 12),
-            hasFocus ? 0 : Color.argb(90, 255, 255, 255),
+            hasFocus ? Color.rgb(218, 226, 221) : CARD,
+            0,
             999
         ));
         if (control instanceof ImageView) {
             ((ImageView) control).setColorFilter(hasFocus ? DARK : Color.WHITE);
+        }
+    }
+
+    private void allowFocusOverflow(View control, View stopAt) {
+        android.view.ViewParent parent = control.getParent();
+        while (parent instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) parent;
+            group.setClipChildren(false);
+            group.setClipToPadding(false);
+            if (group == stopAt) {
+                break;
+            }
+            parent = group.getParent();
         }
     }
 
@@ -1750,7 +1912,7 @@ public class MainActivity extends Activity {
         LinearLayout nav = new LinearLayout(this);
         nav.setGravity(Gravity.CENTER);
         nav.setPadding(dp(isTvLayout() ? 36 : 10), dp(8), dp(isTvLayout() ? 36 : 10), dp(isTvLayout() ? 18 : 10));
-        nav.setBackgroundColor(Color.rgb(15, 22, 19));
+        nav.setBackgroundColor(Color.rgb(15, 20, 26));
         nav.addView(navButton("Видео", "videos"), new LinearLayout.LayoutParams(0, dp(54), 1));
         nav.addView(navButton("Файлы", "files"), new LinearLayout.LayoutParams(0, dp(54), 1));
         nav.addView(navButton("Админка", "admin"), new LinearLayout.LayoutParams(0, dp(54), 1));
@@ -1776,12 +1938,12 @@ public class MainActivity extends Activity {
     }
 
     private TextView actionButton(String label, int background, int color) {
-        TextView button = text(label, isTvLandscape() ? 13 : (isTvLayout() ? 17 : 14), color, true);
+        TextView button = text(label, isTvLandscape() ? 13 : (isTvLayout() ? 17 : 14), DARK, true);
         button.setGravity(Gravity.CENTER);
         button.setMinHeight(dp(isTvLandscape() ? 42 : (isTvLayout() ? 54 : 42)));
         button.setPadding(dp(isTvLandscape() ? 14 : 12), 0, dp(isTvLandscape() ? 14 : 12), 0);
-        button.setBackground(makeRoundDrawable(background, 0, 8));
-        applyFocus(button, background, LIME, 8, 0);
+        button.setBackground(makeRoundDrawable(WHITE_CONTROL_IDLE, 0, 12));
+        applyFocus(button, WHITE_CONTROL_IDLE, Color.WHITE, 12, 0);
         rememberTvFocus(button);
         return button;
     }
@@ -1802,18 +1964,35 @@ public class MainActivity extends Activity {
         input.setPadding(dp(12), 0, dp(12), 0);
         input.setTextColor(TEXT);
         input.setHintTextColor(MUTED);
-        input.setBackground(makeRoundDrawable(CARD, LINE, 8));
+        input.setBackground(makeLensDrawable(Color.TRANSPARENT, 12, false));
         input.setTextSize(isTvLandscape() ? 14 : (isTvLayout() ? 18 : 15));
-        input.setOnFocusChangeListener((v, hasFocus) -> input.setBackground(makeRoundDrawable(hasFocus ? Color.argb(225, 46, 58, 73) : CARD, hasFocus ? Color.WHITE : LINE, 8, hasFocus ? 2 : 1)));
+        input.setOnFocusChangeListener((v, hasFocus) -> {
+            input.setTranslationY(hasFocus ? -dp(2) : 0);
+            input.setElevation(hasFocus ? dp(12) : 0);
+            input.setHintTextColor(hasFocus ? TEXT : MUTED);
+        });
         return input;
     }
 
     private LinearLayout card() {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(makeRoundDrawable(CARD, 0, 8));
-        card.setClipToOutline(true);
+        card.setBackground(makeLensDrawable(Color.TRANSPARENT, 14, false));
+        card.setClipToOutline(false);
+        card.setElevation(dp(8));
         return card;
+    }
+
+    private LinearLayout glassContentPanel() {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setClipChildren(false);
+        panel.setClipToPadding(false);
+        panel.setPadding(dp(12), dp(10), dp(12), dp(12));
+        panel.setBackground(makeLensDrawable(Color.TRANSPARENT, 18, false));
+        panel.setElevation(dp(8));
+        scrollingGlassPanel = panel;
+        return panel;
     }
 
     private LinearLayout mediaCard() {
@@ -1830,25 +2009,24 @@ public class MainActivity extends Activity {
         FrameLayout preview,
         TextView title
     ) {
-        View focusOutline = new View(this);
-        focusOutline.setAlpha(0f);
-        focusOutline.setBackground(makeRoundDrawable(Color.TRANSPARENT, Color.WHITE, 8, 2));
-        preview.addView(focusOutline, new FrameLayout.LayoutParams(-1, -1));
-
         card.setFocusable(true);
         card.setFocusableInTouchMode(isTvLayout());
         card.setOnFocusChangeListener((view, hasFocus) -> {
             view.animate().cancel();
-            focusOutline.animate().cancel();
-            float scale = isTvLandscape() ? 1.045f : 1.04f;
             view.animate()
-                .scaleX(hasFocus ? scale : 1f)
-                .scaleY(hasFocus ? scale : 1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .translationY(hasFocus ? -dp(4) : 0)
                 .setDuration(hasFocus ? 145L : 110L)
                 .start();
-            view.setElevation(hasFocus ? dp(18) : 0);
-            focusOutline.animate().alpha(hasFocus ? 1f : 0f).setDuration(120L).start();
-            title.setTextColor(hasFocus ? Color.WHITE : TEXT);
+            view.setElevation(hasFocus ? dp(24) : 0);
+            preview.animate().cancel();
+            preview.animate()
+                .translationY(hasFocus ? -dp(3) : 0)
+                .setDuration(hasFocus ? 145L : 110L)
+                .start();
+            preview.setElevation(hasFocus ? dp(16) : 0);
+            title.setTextColor(TEXT);
         });
     }
 
@@ -1865,12 +2043,12 @@ public class MainActivity extends Activity {
     }
 
     private TextView chip(String label, boolean selected) {
-        TextView view = text(label, isTvLandscape() ? 12 : 14, selected ? DARK : TEXT, true);
+        TextView view = text(label, isTvLandscape() ? 12 : 14, DARK, true);
         view.setGravity(Gravity.CENTER);
         view.setPadding(dp(isTvLandscape() ? 10 : 14), 0, dp(isTvLandscape() ? 10 : 14), 0);
-        int normalColor = selected ? LIME : CARD;
+        int normalColor = selected ? ACTIVE_CONTROL : CATEGORY_IDLE;
         view.setBackground(makeRoundDrawable(normalColor, selected ? 0 : LINE, 999));
-        applyFocus(view, normalColor, LIME, 999, selected ? 0 : LINE);
+        applyFocus(view, normalColor, Color.WHITE, 999, selected ? 0 : LINE);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, dp(isTvLandscape() ? 38 : (isTvLayout() ? 46 : 38)));
         params.setMargins(0, 0, dp(isTvLandscape() ? 6 : 8), 0);
         view.setLayoutParams(params);
@@ -2029,20 +2207,16 @@ public class MainActivity extends Activity {
         final int normalTextColor = view instanceof TextView ? ((TextView) view).getCurrentTextColor() : 0;
         view.setOnFocusChangeListener((v, hasFocus) -> {
             boolean textControl = v instanceof TextView;
-            float focusedScale = textControl ? 1.045f : 1.025f;
             v.animate().cancel();
             v.animate()
-                .scaleX(hasFocus ? focusedScale : 1f)
-                .scaleY(hasFocus ? focusedScale : 1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .translationY(0)
                 .setDuration(hasFocus ? 130L : 90L)
                 .start();
             v.setElevation(hasFocus ? dp(isTvLandscape() ? 14 : 16) : 0);
-            v.setBackground(makeRoundDrawable(
-                hasFocus ? (textControl ? Color.rgb(246, 249, 251) : Color.argb(232, 47, 59, 74)) : normalColor,
-                hasFocus ? (textControl ? 0 : Color.WHITE) : normalStrokeColor,
-                radiusDp,
-                hasFocus ? 2 : 1
-            ));
+            int activeBackground = v instanceof TextView ? focusedColor : SURFACE_SELECTED;
+            v.setBackground(makeRoundDrawable(hasFocus ? activeBackground : normalColor, 0, radiusDp));
             if (textControl) {
                 ((TextView) v).setTextColor(hasFocus ? DARK : normalTextColor);
             }
@@ -2069,14 +2243,316 @@ public class MainActivity extends Activity {
         return drawable;
     }
 
-    private GradientDrawable makeGlassDrawable(int startColor, int endColor, int radiusDp) {
-        GradientDrawable drawable = makeGradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            new int[]{startColor, endColor}
-        );
-        drawable.setCornerRadius(dp(radiusDp));
-        drawable.setStroke(dp(1), Color.argb(115, 225, 238, 248));
-        return drawable;
+    private Drawable makeLensDrawable(int tintColor, int radiusDp, boolean focused) {
+        return new RefractiveGlassDrawable(tintColor, dp(radiusDp), focused);
+    }
+
+    private final class RefractiveGlassDrawable extends Drawable {
+        private static final float GLASS_REFRACTIVE_INDEX = 1.5f;
+        private final float radiusPx;
+        private final boolean focused;
+        private final Paint refractionPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        private final Paint backdropPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        private final Matrix backdropMatrix = new Matrix();
+        private final RectF drawBounds = new RectF();
+        private final Path clipPath = new Path();
+        private final int[] drawLocation = new int[]{0, 0};
+        private BitmapShader backdropShader;
+        private Bitmap edgeRefractionBitmap;
+        private int cachedWidth = -1;
+        private int cachedHeight = -1;
+        private int cachedScreenX = Integer.MIN_VALUE;
+        private int cachedScreenY = Integer.MIN_VALUE;
+        private int alpha = 255;
+
+        RefractiveGlassDrawable(int tintColor, float radiusPx, boolean focused) {
+            this.radiusPx = radiusPx;
+            this.focused = focused;
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            drawBounds.set(getBounds());
+            if (drawBounds.isEmpty()) {
+                return;
+            }
+
+            drawLocation[0] = 0;
+            drawLocation[1] = 0;
+            if (getCallback() instanceof View) {
+                ((View) getCallback()).getLocationOnScreen(drawLocation);
+            }
+
+            int save = canvas.save();
+            clipPath.reset();
+            clipPath.addRoundRect(drawBounds, radiusPx, radiusPx, Path.Direction.CW);
+            canvas.clipPath(clipPath);
+
+            drawFixedBlurredBackdrop(canvas, drawBounds, drawLocation);
+
+            ensureOpticalLayers(
+                Math.round(drawBounds.width()),
+                Math.round(drawBounds.height()),
+                drawLocation
+            );
+            if (edgeRefractionBitmap != null) {
+                refractionPaint.setShader(null);
+                refractionPaint.setAlpha(alpha);
+                canvas.drawBitmap(edgeRefractionBitmap, null, drawBounds, refractionPaint);
+            }
+            canvas.restoreToCount(save);
+        }
+
+        private void drawFixedBlurredBackdrop(Canvas canvas, RectF bounds, int[] location) {
+            if (glassBackdropBitmap == null) {
+                return;
+            }
+            float screenWidth = getResources().getDisplayMetrics().widthPixels;
+            float screenHeight = getResources().getDisplayMetrics().heightPixels;
+            float scale = Math.max(
+                screenWidth / glassBackdropBitmap.getWidth(),
+                screenHeight / glassBackdropBitmap.getHeight()
+            );
+            float left = (screenWidth - glassBackdropBitmap.getWidth() * scale) / 2f;
+            float top = (screenHeight - glassBackdropBitmap.getHeight() * scale) / 2f;
+            if (backdropShader == null) {
+                backdropShader = new BitmapShader(
+                    glassBackdropBitmap,
+                    Shader.TileMode.CLAMP,
+                    Shader.TileMode.CLAMP
+                );
+            }
+            backdropMatrix.reset();
+            backdropMatrix.setScale(scale, scale);
+            backdropMatrix.postTranslate(left - location[0], top - location[1]);
+            backdropShader.setLocalMatrix(backdropMatrix);
+            backdropPaint.setShader(backdropShader);
+            backdropPaint.setAlpha(alpha);
+            canvas.drawRoundRect(bounds, radiusPx, radiusPx, backdropPaint);
+            backdropPaint.setShader(null);
+        }
+
+        private void ensureOpticalLayers(int width, int height, int[] location) {
+            if (glassBackdropBitmap == null || glassOpticalPixels == null || width <= 0 || height <= 0) {
+                return;
+            }
+            if (edgeRefractionBitmap != null
+                && cachedWidth == width
+                && cachedHeight == height) {
+                return;
+            }
+
+            cachedWidth = width;
+            cachedHeight = height;
+            cachedScreenX = location[0];
+            cachedScreenY = location[1];
+
+            long area = (long) width * height;
+            if (area > 1_500_000L) {
+                edgeRefractionBitmap = null;
+                return;
+            }
+
+            float opticalScale = area > 1_000_000L ? 0.34f : (area > 300_000L ? 0.5f : 1f);
+            int opticalWidth = Math.max(1, Math.round(width * opticalScale));
+            int opticalHeight = Math.max(1, Math.round(height * opticalScale));
+            float coordinateScale = 1f / opticalScale;
+            edgeRefractionBitmap = Bitmap.createBitmap(
+                opticalWidth,
+                opticalHeight,
+                Bitmap.Config.ARGB_8888
+            );
+
+            int sourceWidth = glassBackdropBitmap.getWidth();
+            int sourceHeight = glassBackdropBitmap.getHeight();
+            int[] refracted = new int[opticalWidth * opticalHeight];
+
+            float screenWidth = getResources().getDisplayMetrics().widthPixels;
+            float screenHeight = getResources().getDisplayMetrics().heightPixels;
+            float backgroundScale = Math.max(screenWidth / sourceWidth, screenHeight / sourceHeight);
+            float backgroundLeft = (screenWidth - sourceWidth * backgroundScale) / 2f;
+            float backgroundTop = (screenHeight - sourceHeight * backgroundScale) / 2f;
+            float radius = Math.min(
+                radiusPx * opticalScale,
+                Math.min(opticalWidth, opticalHeight) / 2f
+            );
+            float bezel = Math.max(
+                dp(9) * opticalScale,
+                Math.min(dp(26) * opticalScale, radius * 0.78f)
+            );
+            float maxDisplacement = Math.min(
+                    dp(focused ? 18 : 15),
+                    Math.min(width, height) * (focused ? 0.23f : 0.20f)
+            );
+            float magnification = 1f;
+            int profileSteps = Math.max(2, (int) Math.ceil(bezel) + 1);
+            float[] displacementProfile = new float[profileSteps];
+            for (int i = 0; i < profileSteps; i++) {
+                float distanceFromEdge = i;
+                float profileX = Math.max(0.015f, Math.min(1f, distanceFromEdge / bezel));
+                float oneMinusX = 1f - profileX;
+                float base = Math.max(0.000001f, 1f - (float) Math.pow(oneMinusX, 4));
+                float slope = (float) (Math.pow(oneMinusX, 3) * Math.pow(base, -0.75));
+                float incidence = (float) Math.atan(slope);
+                float refractedAngle = (float) Math.asin(
+                    Math.sin(incidence) / GLASS_REFRACTIVE_INDEX
+                );
+                float normalizedBend = Math.min(
+                    1f,
+                    (float) Math.tan(incidence - refractedAngle) / 1.12f
+                );
+                displacementProfile[i] = maxDisplacement * normalizedBend;
+            }
+            float halfWidth = opticalWidth / 2f;
+            float halfHeight = opticalHeight / 2f;
+            float coreHalfWidth = Math.max(0f, halfWidth - radius);
+            float coreHalfHeight = Math.max(0f, halfHeight - radius);
+
+            for (int y = 0; y < opticalHeight; y++) {
+                for (int x = 0; x < opticalWidth; x++) {
+                    float localX = x + 0.5f - halfWidth;
+                    float localY = y + 0.5f - halfHeight;
+                    float qx = Math.abs(localX) - coreHalfWidth;
+                    float qy = Math.abs(localY) - coreHalfHeight;
+                    float positiveX = Math.max(qx, 0f);
+                    float positiveY = Math.max(qy, 0f);
+                    float signedDistance = (float) Math.hypot(positiveX, positiveY)
+                        + Math.min(Math.max(qx, qy), 0f) - radius;
+                    if (signedDistance > 0f) {
+                        continue;
+                    }
+
+                    float outwardX;
+                    float outwardY;
+                    if (positiveX > 0f || positiveY > 0f) {
+                        float length = Math.max(0.0001f, (float) Math.hypot(positiveX, positiveY));
+                        outwardX = positiveX / length * Math.signum(localX);
+                        outwardY = positiveY / length * Math.signum(localY);
+                    } else if (qx > qy) {
+                        outwardX = Math.signum(localX);
+                        outwardY = 0f;
+                    } else {
+                        outwardX = 0f;
+                        outwardY = Math.signum(localY);
+                    }
+
+                    float distanceFromEdge = -signedDistance;
+                    if (distanceFromEdge >= bezel) {
+                        continue;
+                    }
+                    float displacement = 0f;
+                    float profilePosition = Math.max(
+                        0f,
+                        Math.min(profileSteps - 1f, distanceFromEdge)
+                    );
+                    int profileStart = (int) profilePosition;
+                    int profileEnd = Math.min(profileSteps - 1, profileStart + 1);
+                    float profileMix = profilePosition - profileStart;
+                    displacement = displacementProfile[profileStart]
+                        + (displacementProfile[profileEnd] - displacementProfile[profileStart])
+                        * profileMix;
+
+                    float sampleScreenX = location[0] + width / 2f
+                        + localX * coordinateScale / magnification
+                        - outwardX * displacement;
+                    float sampleScreenY = location[1] + height / 2f
+                        + localY * coordinateScale / magnification
+                        - outwardY * displacement;
+                    float sourceX = (sampleScreenX - backgroundLeft) / backgroundScale;
+                    float sourceY = (sampleScreenY - backgroundTop) / backgroundScale;
+                    float blurRadius = 0.85f + distanceFromEdge / Math.max(1f, bezel) * 1.15f;
+                    int refractedColor = blurredSample(
+                        glassOpticalPixels, sourceWidth, sourceHeight, sourceX, sourceY, blurRadius
+                    );
+                    refracted[y * opticalWidth + x] = refractedColor;
+                }
+            }
+
+            edgeRefractionBitmap.setPixels(
+                refracted,
+                0,
+                opticalWidth,
+                0,
+                0,
+                opticalWidth,
+                opticalHeight
+            );
+        }
+
+        private void invalidateOpticalCache() {
+            cachedWidth = -1;
+            cachedHeight = -1;
+            invalidateSelf();
+        }
+
+        private int bilinearSample(int[] pixels, int width, int height, float x, float y) {
+            float clampedX = Math.max(0f, Math.min(width - 1.001f, x));
+            float clampedY = Math.max(0f, Math.min(height - 1.001f, y));
+            int x0 = (int) clampedX;
+            int y0 = (int) clampedY;
+            int x1 = Math.min(width - 1, x0 + 1);
+            int y1 = Math.min(height - 1, y0 + 1);
+            float fx = clampedX - x0;
+            float fy = clampedY - y0;
+            int c00 = pixels[y0 * width + x0];
+            int c10 = pixels[y0 * width + x1];
+            int c01 = pixels[y1 * width + x0];
+            int c11 = pixels[y1 * width + x1];
+            int red = bilerp(Color.red(c00), Color.red(c10), Color.red(c01), Color.red(c11), fx, fy);
+            int green = bilerp(Color.green(c00), Color.green(c10), Color.green(c01), Color.green(c11), fx, fy);
+            int blue = bilerp(Color.blue(c00), Color.blue(c10), Color.blue(c01), Color.blue(c11), fx, fy);
+            return Color.rgb(red, green, blue);
+        }
+
+        private int blurredSample(
+            int[] pixels,
+            int width,
+            int height,
+            float x,
+            float y,
+            float blurRadius
+        ) {
+            int center = bilinearSample(pixels, width, height, x, y);
+            int left = bilinearSample(pixels, width, height, x - blurRadius, y);
+            int right = bilinearSample(pixels, width, height, x + blurRadius, y);
+            int top = bilinearSample(pixels, width, height, x, y - blurRadius);
+            int bottom = bilinearSample(pixels, width, height, x, y + blurRadius);
+            int red = (Color.red(center) * 4 + Color.red(left) + Color.red(right)
+                + Color.red(top) + Color.red(bottom)) / 8;
+            int green = (Color.green(center) * 4 + Color.green(left) + Color.green(right)
+                + Color.green(top) + Color.green(bottom)) / 8;
+            int blue = (Color.blue(center) * 4 + Color.blue(left) + Color.blue(right)
+                + Color.blue(top) + Color.blue(bottom)) / 8;
+            return Color.rgb(red, green, blue);
+        }
+
+        private int bilerp(int c00, int c10, int c01, int c11, float fx, float fy) {
+            float top = c00 + (c10 - c00) * fx;
+            float bottom = c01 + (c11 - c01) * fx;
+            return Math.round(top + (bottom - top) * fy);
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            this.alpha = alpha;
+            invalidateSelf();
+        }
+
+        @Override
+        public void setColorFilter(ColorFilter colorFilter) {
+            invalidateSelf();
+        }
+
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
+
+        @Override
+        public void getOutline(Outline outline) {
+            outline.setRoundRect(getBounds(), radiusPx);
+            outline.setAlpha(focused ? 0.92f : 0.72f);
+        }
     }
 
     private int dp(int value) {
@@ -2111,7 +2587,16 @@ public class MainActivity extends Activity {
             player.release();
             player = null;
         }
+        if (playerView != null) {
+            playerView.removeCallbacks(hidePlayerControls);
+            playerView.setControllerVisibilityListener(
+                (PlayerView.ControllerVisibilityListener) null
+            );
+        }
         playerView = null;
+        playerMetadataPanel = null;
+        playerTitleView = null;
+        playerSubtitleView = null;
         seekFeedbackView = null;
         lastPlayerSeekAtMs = 0L;
         playerSeekStartedAtMs = 0L;

@@ -1,4 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AccountCenter, isAdministrator } from "./Accounts";
+import { PosterContext, PosterControl } from "./PosterControl";
 import {
   ArrowLeft,
   ChevronRight,
@@ -8,6 +10,7 @@ import {
   FolderPlus,
   Grid2X2,
   HardDrive,
+  ImagePlus,
   List,
   Lock,
   LogOut,
@@ -24,6 +27,7 @@ import {
 } from "lucide-react";
 import {
   addFolder,
+  authExpiredEvent,
   browseServerFolders,
   deleteFolder,
   getFolderEntries,
@@ -32,7 +36,8 @@ import {
   getVideos,
   loginAdmin,
   rescanFolder,
-  updateFolder
+  updateFolder,
+  updateVideoPoster
 } from "./api";
 import type {
   AdminSession,
@@ -54,6 +59,14 @@ function normalizeVideoPath(path: string) {
 
 function getVideoDedupeKey(video: VideoFile) {
   return normalizeVideoPath(video.path) || video.id;
+}
+
+function withFreshPoster(video: VideoFile): VideoFile {
+  const separator = video.posterUrl.includes("?") ? "&" : "?";
+  return {
+    ...video,
+    posterUrl: `${video.posterUrl}${separator}v=${Date.now()}`
+  };
 }
 
 function isUnknownFolderVideo(video: VideoFile, knownFolderIds: Set<string>) {
@@ -128,7 +141,7 @@ function App() {
   const [loadError, setLoadError] = useState("");
   const [session, setSession] = useState<AdminSession | null>(() => {
     const raw = localStorage.getItem(sessionStorageKey);
-    return raw ? (JSON.parse(raw) as AdminSession) : null;
+    try { return raw ? (JSON.parse(raw) as AdminSession) : null; } catch { return null; }
   });
 
   const refreshData = useCallback(async () => {
@@ -146,8 +159,19 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const resetExpiredSession = () => {
+      setSession(null);
+      setSelectedVideo(null);
+      setActiveVideoId(null);
+    };
+
+    window.addEventListener(authExpiredEvent, resetExpiredSession);
+    return () => window.removeEventListener(authExpiredEvent, resetExpiredSession);
+  }, []);
+
+  useEffect(() => {
     refreshData();
-  }, [refreshData]);
+  }, [refreshData, session]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -228,10 +252,10 @@ function App() {
     return () => {
       isCurrent = false;
     };
-  }, [currentFolderId, folders]);
+  }, [currentFolderId, folders, session]);
 
   const rootFolders = folders.filter((folder) => folder.isRoot);
-  const isAdminSession = Boolean(session);
+  const isAdminSession = isAdministrator(session);
   const enabledFolders = rootFolders.filter((folder) => folder.enabled);
   const visibleRootFolders = isAdminSession ? rootFolders : enabledFolders;
   const currentFolder = folders.find((folder) => folder.id === currentFolderId) ?? null;
@@ -382,13 +406,11 @@ function App() {
   const handleLogin = (nextSession: AdminSession) => {
     localStorage.setItem(sessionStorageKey, JSON.stringify(nextSession));
     setSession(nextSession);
-    refreshData();
   };
 
   const handleLogout = () => {
     localStorage.removeItem(sessionStorageKey);
     setSession(null);
-    refreshData();
   };
 
   const handleFolderCreated = ({ folder }: { folder: VaultFolder }) => {
@@ -397,6 +419,17 @@ function App() {
 
   const handleFolderUpdated = (folder: VaultFolder) => {
     setFolders((current) => current.map((item) => (item.id === folder.id ? folder : item)));
+  };
+
+  const handleVideoUpdated = (video: VideoFile) => {
+    const nextVideo = withFreshPoster(video);
+    setVideos((current) => current.map((item) => (item.id === nextVideo.id ? nextVideo : item)));
+    setFileEntries((current) =>
+      current.map((entry) =>
+        entry.type === "video" && entry.video.id === nextVideo.id ? { ...entry, video: nextVideo } : entry
+      )
+    );
+    setSelectedVideo((current) => (current?.id === nextVideo.id ? nextVideo : current));
   };
 
   const handleFolderDeleted = async (folderId: string) => {
@@ -417,7 +450,7 @@ function App() {
   const pageEyebrow = page === "files" ? "Проводник" : page === "admin" ? "Доступ и папки" : "Открытый просмотр";
 
   return (
-    <div className={`app-shell page-${page}`}>
+    <PosterContext.Provider value={isAdminSession ? handleVideoUpdated : null}><div className={`app-shell page-${page}`}>
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">
@@ -475,15 +508,17 @@ function App() {
             <p>Восстанавливаем открытый плеер после обновления страницы.</p>
           </section>
         ) : page === "admin" ? (
-          <AdminPage
+          <AccountCenter session={session} onLogin={handleLogin} onLogout={handleLogout}><AdminPage
             folders={rootFolders}
+            videos={videos}
             session={session}
             onLogin={handleLogin}
             onLogout={handleLogout}
             onFolderCreated={handleFolderCreated}
             onFolderUpdated={handleFolderUpdated}
             onFolderDeleted={handleFolderDeleted}
-          />
+            onVideoUpdated={handleVideoUpdated}
+          /></AccountCenter>
         ) : (
           <>
             <header className="topbar">
@@ -554,7 +589,7 @@ function App() {
           </>
         )}
       </main>
-    </div>
+    </div></PosterContext.Provider>
   );
 }
 
@@ -711,6 +746,7 @@ function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; 
 
   return (
     <article className="video-item">
+      <PosterControl video={video} />
       <button className="poster-button" onClick={onPlay} aria-label={`Открыть ${video.title}`}>
         <img src={video.posterUrl} alt="" />
         <span className="play-badge">
@@ -763,6 +799,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
       </section>
 
       <section className="player-details">
+        <PosterControl video={video} />
         <div>
           <FileVideo size={18} />
           <span>{video.codec}</span>
@@ -786,20 +823,24 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
 
 function AdminPage({
   folders,
+  videos,
   session,
   onLogin,
   onLogout,
   onFolderCreated,
   onFolderUpdated,
-  onFolderDeleted
+  onFolderDeleted,
+  onVideoUpdated
 }: {
   folders: VaultFolder[];
+  videos: VideoFile[];
   session: AdminSession | null;
   onLogin: (session: AdminSession) => void;
   onLogout: () => void;
   onFolderCreated: (payload: { folder: VaultFolder }) => void;
   onFolderUpdated: (folder: VaultFolder) => void;
   onFolderDeleted: (folderId: string) => Promise<void>;
+  onVideoUpdated: (video: VideoFile) => void;
 }) {
   const [login, setLogin] = useState("admin");
   const [password, setPassword] = useState("");
@@ -811,6 +852,19 @@ function AdminPage({
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
   const [updatingFolderId, setUpdatingFolderId] = useState<string | null>(null);
+  const [posterQuery, setPosterQuery] = useState("");
+  const [updatingPosterId, setUpdatingPosterId] = useState<string | null>(null);
+
+  const filteredPosterVideos = useMemo(() => {
+    const normalizedQuery = posterQuery.trim().toLocaleLowerCase();
+    if (!normalizedQuery) {
+      return videos;
+    }
+
+    return videos.filter((video) =>
+      [video.title, video.path, video.folderName].some((value) => value.toLocaleLowerCase().includes(normalizedQuery))
+    );
+  }, [posterQuery, videos]);
 
   const submitLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -916,6 +970,28 @@ function AdminPage({
     }
   };
 
+  const changePoster = async (video: VideoFile, file: File) => {
+    const supportedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+    if (!supportedTypes.has(file.type)) {
+      setError("Для постера выберите изображение JPEG, PNG или WebP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Размер постера не должен превышать 10 МБ.");
+      return;
+    }
+
+    setUpdatingPosterId(video.id);
+    setError("");
+    try {
+      onVideoUpdated(await updateVideoPoster(video.id, file));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Не удалось сменить постер.");
+    } finally {
+      setUpdatingPosterId(null);
+    }
+  };
+
   return (
     <>
       <header className="topbar admin-topbar">
@@ -1004,9 +1080,85 @@ function AdminPage({
               />
             ))}
           </div>
+
+          <section className="poster-manager admin-page-card">
+            <header className="poster-manager-header">
+              <div>
+                <h2>Постеры видео</h2>
+                <span>{videos.length} видео</span>
+              </div>
+              <label className="admin-video-search">
+                <Search size={18} />
+                <input
+                  value={posterQuery}
+                  onChange={(event) => setPosterQuery(event.target.value)}
+                  placeholder="Найти видео"
+                />
+              </label>
+            </header>
+
+            <div className="poster-video-list">
+              {filteredPosterVideos.map((video) => (
+                <AdminPosterRow
+                  key={video.id}
+                  video={video}
+                  isUpdating={updatingPosterId === video.id}
+                  disabled={updatingPosterId !== null}
+                  onChange={(file) => changePoster(video, file)}
+                />
+              ))}
+              {filteredPosterVideos.length === 0 && <p className="poster-list-empty">Видео не найдены.</p>}
+            </div>
+          </section>
         </section>
       )}
     </>
+  );
+}
+
+function AdminPosterRow({
+  video,
+  isUpdating,
+  disabled,
+  onChange
+}: {
+  video: VideoFile;
+  isUpdating: boolean;
+  disabled: boolean;
+  onChange: (file: File) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  return (
+    <article className="poster-video-row">
+      <img src={video.posterUrl} alt="" />
+      <div>
+        <strong>{video.title}</strong>
+        <span>{video.path}</span>
+      </div>
+      <input
+        ref={inputRef}
+        className="visually-hidden"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) {
+            onChange(file);
+          }
+        }}
+      />
+      <button
+        type="button"
+        className="icon-button"
+        onClick={() => inputRef.current?.click()}
+        disabled={disabled}
+        title={isUpdating ? "Загрузка постера" : "Сменить постер"}
+      >
+        <ImagePlus size={19} />
+      </button>
+    </article>
   );
 }
 

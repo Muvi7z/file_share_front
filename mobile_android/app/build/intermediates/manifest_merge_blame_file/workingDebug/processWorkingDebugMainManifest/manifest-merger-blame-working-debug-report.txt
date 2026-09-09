@@ -5,8 +5,11 @@
 5    android:versionName="1.0.3-working" >
 6
 7    <uses-sdk
+7-->INJECTED
 8        android:minSdkVersion="24"
+8-->INJECTED
 9        android:targetSdkVersion="35" />
+9-->INJECTED
 10
 11    <uses-permission android:name="android.permission.INTERNET" />
 11-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:3:5-67
@@ -29,26 +32,27 @@
 19-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:6:63-87
 20
 21    <permission
-21-->[androidx.core:core:1.9.0] C:\Users\CodexSandboxOffline\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:22:5-24:47
+21-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:22:5-24:47
 22        android:name="com.localvideovault.mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-22-->[androidx.core:core:1.9.0] C:\Users\CodexSandboxOffline\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:23:9-81
+22-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:23:9-81
 23        android:protectionLevel="signature" />
-23-->[androidx.core:core:1.9.0] C:\Users\CodexSandboxOffline\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:24:9-44
+23-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:24:9-44
 24
 25    <uses-permission android:name="com.localvideovault.mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-25-->[androidx.core:core:1.9.0] C:\Users\CodexSandboxOffline\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:26:5-97
-25-->[androidx.core:core:1.9.0] C:\Users\CodexSandboxOffline\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:26:22-94
+25-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:26:5-97
+25-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:26:22-94
 26
 27    <application
 27-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:8:5-27:19
 28        android:allowBackup="true"
 28-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:9:9-35
 29        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-29-->[androidx.core:core:1.9.0] C:\Users\CodexSandboxOffline\.gradle\caches\8.10.2\transforms\7e7086c419c93c07d9ba425f4911a705\transformed\core-1.9.0\AndroidManifest.xml:28:18-86
+29-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:28:18-86
 30        android:banner="@drawable/tv_banner"
 30-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:10:9-45
 31        android:debuggable="true"
 32        android:extractNativeLibs="false"
+32-->INJECTED
 33        android:icon="@mipmap/ic_launcher"
 33-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:11:9-43
 34        android:label="@string/app_name"

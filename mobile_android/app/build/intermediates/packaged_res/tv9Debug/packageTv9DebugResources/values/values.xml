@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="launcher_background">#111817</color>
+    <color name="launcher_background">#0B0F14</color>
     <string name="app_name">Video Vault</string>
     <string name="backend_api_base_url">http://192.168.1.30:5544/api</string>
     <string name="backend_api_fallback_url">http://10.0.2.2:5544/api</string>

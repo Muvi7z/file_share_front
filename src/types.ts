@@ -45,6 +45,16 @@ export type FileBrowserEntry =
 export type AdminSession = {
   token: string;
   login: string;
+  role?: "admin" | "user";
+  userId?: string;
+};
+
+export type Account = {
+  id: string;
+  login: string;
+  role: "admin" | "user";
+  status: "pending" | "active" | "blocked" | "rejected";
+  createdAt: string;
 };
 
 export type ServerFolderEntry = {

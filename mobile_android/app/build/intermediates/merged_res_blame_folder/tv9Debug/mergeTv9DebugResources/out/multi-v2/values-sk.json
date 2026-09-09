@@ -4,7 +4,7 @@
             "outputFile": "com.localvideovault.mobile.app-mergeTv9DebugResources-11:/values-sk/values-sk.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Ochir\\.gradle\\caches\\8.10.2\\transforms\\d1901aac95e406516a2e36c8e74d4808\\transformed\\media3-exoplayer-1.5.1\\res\\values-sk\\values-sk.xml",
+                    "source": "C:\\Users\\Ochir\\.gradle\\caches\\9.4.1\\transforms\\e37e7315cfeab6e71b1c469999f13684\\transformed\\media3-exoplayer-1.5.1\\res\\values-sk\\values-sk.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10",
                         "startColumns": "4,4,4,4,4,4,4,4,4",
@@ -21,24 +21,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Ochir\\.gradle\\caches\\8.10.2\\transforms\\7e7086c419c93c07d9ba425f4911a705\\transformed\\core-1.9.0\\res\\values-sk\\values-sk.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "100",
-                        "endOffsets": "151"
-                    },
-                    "to": {
-                        "startLines": "73",
-                        "startColumns": "4",
-                        "startOffsets": "4747",
-                        "endColumns": "100",
-                        "endOffsets": "4843"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Ochir\\.gradle\\caches\\8.10.2\\transforms\\b35dd951584ecaef15e7ade1acff10fd\\transformed\\media3-ui-1.5.1\\res\\values-sk\\values-sk.xml",
+                    "source": "C:\\Users\\Ochir\\.gradle\\caches\\9.4.1\\transforms\\d4b923dc5a1e39649fb5d38c0e7441e8\\transformed\\media3-ui-1.5.1\\res\\values-sk\\values-sk.xml",
                     "from": {
                         "startLines": "2,11,17,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -54,6 +37,23 @@
                         "endLines": "10,16,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72",
                         "endColumns": "17,12,12,80,79,81,102,98,78,64,90,93,69,65,64,76,121,116,120,73,81,72,81,99,98,66,64,52,57,47,60,71,73,62,72,64,59,64,51,63,77,77,53,65",
                         "endOffsets": "288,619,933,1014,1094,1176,1279,1378,1457,1522,1613,1707,1777,1843,1908,1985,2107,2224,2345,2419,2501,2574,2656,2756,2855,2922,2987,3711,3769,3817,3878,3950,4024,4087,4160,4225,4285,4350,4402,4466,4544,4622,4676,4742"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Ochir\\.gradle\\caches\\9.4.1\\transforms\\7241f257c8a6819728a3f1dfe976f7ce\\transformed\\core-1.9.0\\res\\values-sk\\values-sk.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    },
+                    "to": {
+                        "startLines": "73",
+                        "startColumns": "4",
+                        "startOffsets": "4747",
+                        "endColumns": "100",
+                        "endOffsets": "4843"
                     }
                 }
             ]

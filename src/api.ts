@@ -1,5 +1,6 @@
 ﻿import type {
   AdminSession,
+  Account,
   FileBrowserEntry,
   Folder,
   ServerFolderBrowseResponse,
@@ -7,6 +8,7 @@
 } from "./types";
 
 const sessionStorageKey = "local-video-vault-admin";
+export const authExpiredEvent = "local-video-vault-auth-expired";
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "/api";
 
 function authToken() {
@@ -26,7 +28,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = authToken();
   const headers = new Headers(options.headers);
 
-  if (options.body && !headers.has("Content-Type")) {
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   if (token) {
@@ -34,6 +36,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+  if (response.status === 401 && token) {
+    localStorage.removeItem(sessionStorageKey);
+    window.dispatchEvent(new Event(authExpiredEvent));
+  }
   if (!response.ok) {
     let message = `API error ${response.status}`;
     try {
@@ -90,6 +96,16 @@ export async function getVideo(videoId: string): Promise<VideoFile> {
   return request<VideoFile>(`/videos/${encodeURIComponent(videoId)}`);
 }
 
+export async function updateVideoPoster(videoId: string, poster: File): Promise<VideoFile> {
+  const body = new FormData();
+  body.append("poster", poster);
+
+  return request<VideoFile>(`/videos/${encodeURIComponent(videoId)}/poster`, {
+    method: "PUT",
+    body
+  });
+}
+
 export async function getFolders(): Promise<Folder[]> {
   const payload = await requestArray<Folder & { videosCount?: number }>("/folders");
   return payload.map(normalizeFolder);
@@ -131,3 +147,13 @@ export async function updateFolder(folderId: string, payload: { name?: string; e
 export async function rescanFolder(folderId: string): Promise<void> {
   await request<void>(`/folders/${encodeURIComponent(folderId)}/rescan`);
 }
+
+export const registerUser = (payload: { login: string; password: string }) =>
+  request<void>("/auth/register", { method: "POST", body: JSON.stringify(payload) });
+export const getAccounts = () => request<Account[]>("/admin/users");
+export const updateAccount = (id: string, payload: Partial<Pick<Account, "login" | "role" | "status">>) =>
+  request<Account>(`/admin/users/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
+export const deleteAccount = (id: string) => request<void>(`/admin/users/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const revokeSessions = (id: string) => request<void>(`/admin/users/${encodeURIComponent(id)}/sessions`, { method: "DELETE" });
+export const changePassword = (currentPassword: string, password: string) =>
+  request<void>("/auth/password", { method: "PUT", body: JSON.stringify({ currentPassword, password }) });
