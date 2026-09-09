@@ -1,11 +1,38 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Check, X, Users, Inbox, Folder, LogOut, RefreshCw, Trash2, Save, Shield, KeyRound } from "lucide-react";
-import { changePassword, deleteAccount, getAccounts, loginAdmin, registerUser, revokeSessions, updateAccount } from "./api";
+import { Ban, Check, CircleX, Clock3, X, Users, Inbox, Folder, LogOut, RefreshCw, Trash2, Save, Shield, KeyRound } from "lucide-react";
+import { changePassword, deleteAccount, getAccounts, getInactiveAccountStatus, loginAdmin, registerUser, revokeSessions, updateAccount, type InactiveAccountStatus } from "./api";
 import type { Account, AdminSession } from "./types";
 
 export const isAdministrator = (session: AdminSession | null) => session?.role === "admin";
 const statusNames = { pending: "Ожидает", active: "Активен", blocked: "Заблокирован", rejected: "Отклонён" };
 const message = (error: unknown) => error instanceof Error ? error.message : "Не удалось выполнить действие";
+
+const authStatusContent = {
+  pending: {
+    title: "Статус аккаунта: на рассмотрении",
+    description: "Заявка уже отправлена администратору. Вход станет доступен после одобрения.",
+    icon: Clock3
+  },
+  blocked: {
+    title: "Статус аккаунта: заблокирован",
+    description: "Доступ к аккаунту временно закрыт. Обратитесь к администратору.",
+    icon: Ban
+  },
+  rejected: {
+    title: "Статус аккаунта: заявка отклонена",
+    description: "Администратор отклонил заявку на доступ.",
+    icon: CircleX
+  }
+} satisfies Record<InactiveAccountStatus, { title: string; description: string; icon: typeof Clock3 }>;
+
+export function AccountAuthStatus({ status }: { status: InactiveAccountStatus }) {
+  const content = authStatusContent[status];
+  const Icon = content.icon;
+  return <div className={`auth-account-status ${status}`} role="status">
+    <Icon size={22} aria-hidden="true" />
+    <div><strong>{content.title}</strong><span>{content.description}</span></div>
+  </div>;
+}
 
 export function AccountCenter({ session, onLogin, onLogout, children }: {
   session: AdminSession | null; onLogin: (value: AdminSession) => void; onLogout: () => void; children: ReactNode;
@@ -67,22 +94,23 @@ function AuthForm({ onLogin }: { onLogin: (value: AdminSession) => void }) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [accountStatus, setAccountStatus] = useState<InactiveAccountStatus | null>(null);
   const [error, setError] = useState(""); const [notice, setNotice] = useState(""); const [busy, setBusy] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const form = e.currentTarget;
     if (register && password !== confirm) { setError("Пароли не совпадают"); return; }
-    setBusy(true); setError(""); setNotice("");
-    try { if (register) { await registerUser({ login: login.trim(), password }); form.reset(); setLogin(""); setPassword(""); setConfirm(""); setNotice("Заявка отправлена. Вход станет доступен после одобрения администратором."); }
+    setBusy(true); setError(""); setNotice(""); setAccountStatus(null);
+    try { if (register) { const result = await registerUser({ login: login.trim(), password }); form.reset(); setLogin(""); setPassword(""); setConfirm(""); setAccountStatus(result.status === "pending" ? "pending" : null); }
       else { onLogin(await loginAdmin(login.trim(), password)); }
-    } catch (err) { setError(message(err)); } finally { setBusy(false); }
+    } catch (err) { const nextStatus = getInactiveAccountStatus(err); if (nextStatus) setAccountStatus(nextStatus); else setError(message(err)); } finally { setBusy(false); }
   }
   return <section className="account-center auth-center"><p className="eyebrow">VIDEO VAULT</p><h1>{register ? "Создать аккаунт" : "Вход в аккаунт"}</h1>
-    <div className="account-tabs"><button disabled={busy} aria-current={!register ? "page" : undefined} onClick={() => { setRegister(false); setPassword(""); setConfirm(""); setError(""); setNotice(""); }}>Вход</button><button disabled={busy} aria-current={register ? "page" : undefined} onClick={() => { setRegister(true); setPassword(""); setConfirm(""); setError(""); setNotice(""); }}>Регистрация</button></div>
-    <form className="account-form" onSubmit={submit}><label>Логин<input name="login" required autoComplete="username" maxLength={64} value={login} onChange={event => setLogin(event.target.value)} /></label>
-      <label>Пароль<input name="password" type="password" required minLength={register ? 12 : 1} autoComplete={register ? "new-password" : "current-password"} placeholder={register ? "Не менее 12 символов" : ""} value={password} onChange={event => setPassword(event.target.value)} /></label>
+    <div className="account-tabs"><button disabled={busy} aria-current={!register ? "page" : undefined} onClick={() => { setRegister(false); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Вход</button><button disabled={busy} aria-current={register ? "page" : undefined} onClick={() => { setRegister(true); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Регистрация</button></div>
+    <form className="account-form" onSubmit={submit}><label>Логин<input name="login" required autoComplete="username" maxLength={64} value={login} onChange={event => { setLogin(event.target.value); setAccountStatus(null); }} /></label>
+      <label>Пароль<input name="password" type="password" required autoComplete={register ? "new-password" : "current-password"} value={password} onChange={event => { setPassword(event.target.value); setAccountStatus(null); }} /></label>
       {register && <label>Повторите пароль<input name="confirm" type="password" required autoComplete="new-password" value={confirm} onChange={event => setConfirm(event.target.value)} /></label>}
-      {error && <p className="error" role="alert">{error}</p>}{notice && <p className="account-notice" role="status">{notice}</p>}
-      {!register && <button type="button" className="credential-fill-button" disabled={busy} onClick={() => { setLogin("admin"); setPassword("admin"); setError(""); }}><KeyRound size={18} /><span>Заполнить admin / admin</span></button>}
+      {error && <p className="error" role="alert">{error}</p>}{notice && <p className="account-notice" role="status">{notice}</p>}{accountStatus && <AccountAuthStatus status={accountStatus} />}
+      {!register && <button type="button" className="credential-fill-button" disabled={busy} onClick={() => { setLogin("admin"); setPassword("admin"); setError(""); setAccountStatus(null); }}><KeyRound size={18} /><span>Заполнить admin / admin</span></button>}
       <button className="primary-button" disabled={busy}>{busy ? "Отправка…" : register ? "Отправить заявку" : "Войти"}</button></form></section>;
 }
 
@@ -106,5 +134,5 @@ function PasswordForm() {
     if (data.get("password") !== data.get("confirm")) { setError("Пароли не совпадают"); return; }
     setBusy(true); try { await changePassword(String(data.get("current")), String(data.get("password"))); form.reset(); setNotice("Пароль изменён"); } catch (err) { setError(message(err)); } finally { setBusy(false); }
   }
-  return <form className="account-form" onSubmit={submit}><h2>Смена пароля</h2><label>Текущий пароль<input name="current" type="password" required autoComplete="current-password" /></label><label>Новый пароль<input name="password" type="password" minLength={12} required autoComplete="new-password" /></label><label>Повторите пароль<input name="confirm" type="password" required autoComplete="new-password" /></label>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status" className="account-notice">{notice}</p>}<button className="primary-button" disabled={busy}>Сохранить пароль</button></form>;
+  return <form className="account-form" onSubmit={submit}><h2>Смена пароля</h2><label>Текущий пароль<input name="current" type="password" required autoComplete="current-password" /></label><label>Новый пароль<input name="password" type="password" required autoComplete="new-password" /></label><label>Повторите пароль<input name="confirm" type="password" required autoComplete="new-password" /></label>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status" className="account-notice">{notice}</p>}<button className="primary-button" disabled={busy}>Сохранить пароль</button></form>;
 }

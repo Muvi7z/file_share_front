@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccountCenter, isAdministrator } from "./Accounts";
+import { AccountAuthStatus, AccountCenter, isAdministrator } from "./Accounts";
 import { PosterContext, PosterControl } from "./PosterControl";
 import {
   ArrowLeft,
@@ -32,6 +32,7 @@ import {
   deleteFolder,
   getFolderEntries,
   getFolders,
+  getInactiveAccountStatus,
   getVideo,
   getVideos,
   loginAdmin,
@@ -39,6 +40,7 @@ import {
   updateFolder,
   updateVideoPoster
 } from "./api";
+import type { InactiveAccountStatus } from "./api";
 import type {
   AdminSession,
   FileBrowserEntry,
@@ -844,6 +846,7 @@ function AdminPage({
 }) {
   const [login, setLogin] = useState("admin");
   const [password, setPassword] = useState("");
+  const [accountStatus, setAccountStatus] = useState<InactiveAccountStatus | null>(null);
   const [path, setPath] = useState("D:\\Video");
   const [error, setError] = useState("");
   const [isBusy, setBusy] = useState(false);
@@ -870,11 +873,17 @@ function AdminPage({
     event.preventDefault();
     setBusy(true);
     setError("");
+    setAccountStatus(null);
 
     try {
       onLogin(await loginAdmin(login, password));
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Ошибка входа.");
+      const nextStatus = getInactiveAccountStatus(nextError);
+      if (nextStatus) {
+        setAccountStatus(nextStatus);
+      } else {
+        setError(nextError instanceof Error ? nextError.message : "Ошибка входа.");
+      }
     } finally {
       setBusy(false);
     }
@@ -1011,18 +1020,19 @@ function AdminPage({
         <form className="admin-form admin-page-card" onSubmit={submitLogin}>
           <label>
             Логин
-            <input value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" />
+            <input value={login} onChange={(event) => { setLogin(event.target.value); setAccountStatus(null); }} autoComplete="username" />
           </label>
           <label>
             Пароль
             <input
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => { setPassword(event.target.value); setAccountStatus(null); }}
               type="password"
               autoComplete="current-password"
             />
           </label>
           {error && <p className="error">{error}</p>}
+          {accountStatus && <AccountAuthStatus status={accountStatus} />}
           <button className="primary-button" disabled={isBusy}>
             <Lock size={18} />
             <span>Войти</span>

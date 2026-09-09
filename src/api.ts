@@ -1,15 +1,48 @@
 ﻿import type {
   AdminSession,
   Account,
+  AccountStatus,
   FileBrowserEntry,
   Folder,
   ServerFolderBrowseResponse,
   VideoFile
 } from "./types";
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export type InactiveAccountStatus = Exclude<AccountStatus, "active">;
+
+export function getInactiveAccountStatus(error: unknown): InactiveAccountStatus | null {
+  if (!(error instanceof ApiError)) {
+    return null;
+  }
+
+  switch (error.code) {
+    case "account_pending":
+      return "pending";
+    case "account_blocked":
+      return "blocked";
+    case "account_rejected":
+      return "rejected";
+    default:
+      return null;
+  }
+}
+
 const sessionStorageKey = "local-video-vault-admin";
 export const authExpiredEvent = "local-video-vault-auth-expired";
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "/api";
+const apiFallbackBaseUrl = (import.meta.env.VITE_API_FALLBACK_BASE_URL as string | undefined)?.replace(/\/$/, "")
+  || "http://10.0.85.2:5544/api";
 
 function authToken() {
   const raw = localStorage.getItem(sessionStorageKey);
@@ -35,20 +68,36 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+  } catch (primaryError) {
+    if (!apiFallbackBaseUrl || apiFallbackBaseUrl === apiBaseUrl) {
+      throw primaryError;
+    }
+    response = await fetch(`${apiFallbackBaseUrl}${path}`, { ...options, headers });
+  }
   if (response.status === 401 && token) {
     localStorage.removeItem(sessionStorageKey);
     window.dispatchEvent(new Event(authExpiredEvent));
   }
   if (!response.ok) {
     let message = `API error ${response.status}`;
+    let code: string | undefined;
     try {
-      const payload = (await response.json()) as { message?: string; error?: string };
-      message = payload.message || payload.error || message;
+      const payload = (await response.json()) as { message?: unknown; error?: unknown; code?: unknown };
+      if (typeof payload.message === "string" && payload.message) {
+        message = payload.message;
+      } else if (typeof payload.error === "string" && payload.error) {
+        message = payload.error;
+      }
+      if (typeof payload.code === "string" && payload.code) {
+        code = payload.code;
+      }
     } catch {
       // Keep the HTTP status fallback when the backend does not return JSON.
     }
-    throw new Error(message);
+    throw new ApiError(message, response.status, code);
   }
 
   if (response.status === 204) {
@@ -149,7 +198,7 @@ export async function rescanFolder(folderId: string): Promise<void> {
 }
 
 export const registerUser = (payload: { login: string; password: string }) =>
-  request<void>("/auth/register", { method: "POST", body: JSON.stringify(payload) });
+  request<{ status: AccountStatus }>("/auth/register", { method: "POST", body: JSON.stringify(payload) });
 export const getAccounts = () => request<Account[]>("/admin/users");
 export const updateAccount = (id: string, payload: Partial<Pick<Account, "login" | "role" | "status">>) =>
   request<Account>(`/admin/users/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
