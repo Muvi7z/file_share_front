@@ -4,6 +4,8 @@ import { PosterContext, PosterControl } from "./PosterControl";
 import {
   ArrowLeft,
   ChevronRight,
+  Download,
+  File as FileIcon,
   FileVideo,
   Folder,
   FolderOpen,
@@ -11,6 +13,7 @@ import {
   Grid2X2,
   HardDrive,
   ImagePlus,
+  Image as ImageIcon,
   List,
   Lock,
   LogOut,
@@ -31,6 +34,7 @@ import {
   browseServerFolders,
   deleteFolder,
   getFolderEntries,
+  getFileDownloadUrl,
   getFolders,
   getInactiveAccountStatus,
   getVideo,
@@ -48,6 +52,7 @@ import type {
   Page,
   ServerFolderBrowseResponse,
   ServerFolderEntry,
+  SharedFile,
   VideoFile,
   ViewMode
 } from "./types";
@@ -290,6 +295,11 @@ function App() {
                 return;
               }
 
+              if (entry.type === "file") {
+                mergedEntries.push(entry);
+                return;
+              }
+
               const videoEntry = toUnknownFolderVideoEntry(entry.video, knownFolderIds);
               if (!videoEntry) {
                 return;
@@ -330,6 +340,13 @@ function App() {
     return entries.filter((entry) => {
       if (entry.type === "folder") {
         return entry.folder.name.toLowerCase().includes(normalizedQuery);
+      }
+
+      if (entry.type === "file") {
+        return [entry.file.name, entry.file.path, entry.file.mimeType]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery);
       }
 
       return [entry.video.title, entry.video.folderName, entry.video.codec, entry.video.resolution]
@@ -403,6 +420,14 @@ function App() {
     setPage(playerReturnPageRef.current);
     setSelectedVideo(null);
     setActiveVideoId(null);
+  };
+
+  const openAllVideos = () => {
+    setSelectedFolder("all");
+    setPage("videos");
+    setSelectedVideo(null);
+    setActiveVideoId(null);
+    scrollToTop();
   };
 
   const handleLogin = (nextSession: AdminSession) => {
@@ -480,7 +505,7 @@ function App() {
         </nav>
 
         <nav className="folder-nav" aria-label="Папки">
-          <button className={selectedFolder === "all" ? "active" : ""} onClick={() => setSelectedFolder("all")}>
+          <button className={selectedFolder === "all" ? "active" : ""} onClick={openAllVideos}>
             <span>Все видео</span>
             <b>{videos.length}</b>
           </button>
@@ -541,7 +566,7 @@ function App() {
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder={page === "files" ? "Поиск по папкам и видео" : "Поиск по названию, папке, кодеку"}
+                  placeholder={page === "files" ? "Поиск по папкам, видео и файлам" : "Поиск по названию, папке, кодеку"}
                 />
               </label>
 
@@ -633,8 +658,10 @@ function FileBrowser({
   onOpenRoot: () => void;
   onOpenVideo: (video: VideoFile) => void;
 }) {
+  const [previewFile, setPreviewFile] = useState<SharedFile | null>(null);
   const folderCount = entries.filter((entry) => entry.type === "folder").length;
   const videoCount = entries.filter((entry) => entry.type === "video").length;
+  const fileCount = entries.filter((entry) => entry.type === "file").length;
 
   return (
     <>
@@ -652,26 +679,127 @@ function FileBrowser({
         <strong>{currentFolder?.name ?? "Корень"}</strong>
         <span>{folderCount} папок</span>
         <span>{videoCount} видео</span>
+        <span>{fileCount} файлов</span>
       </section>
 
       {entries.length === 0 ? (
         <section className="empty-folder">
           <FolderOpen size={34} />
           <h2>Папка пустая</h2>
-          <p>Внутри нет вложенных папок и видеофайлов.</p>
+          <p>Внутри нет вложенных папок и файлов.</p>
         </section>
       ) : (
         <section className={viewMode === "tiles" ? "file-grid" : "file-list"} aria-label="Все файлы">
           {entries.map((entry) =>
             entry.type === "folder" ? (
               <FolderItem key={entry.folder.id} folder={entry.folder} onOpen={() => onOpenFolder(entry.folder)} />
-            ) : (
+            ) : entry.type === "video" ? (
               <VideoItem key={entry.video.id} video={entry.video} mode={viewMode} onPlay={() => onOpenVideo(entry.video)} />
+            ) : (
+              <FileItem key={entry.file.id} file={entry.file} onPreview={() => setPreviewFile(entry.file)} />
             )
           )}
         </section>
       )}
+      {previewFile && <ImageViewer file={previewFile} onClose={() => setPreviewFile(null)} />}
     </>
+  );
+}
+
+function isImageFile(file: SharedFile) {
+  if (file.mimeType.toLowerCase().startsWith("image/")) {
+    return true;
+  }
+
+  return /\.(avif|bmp|gif|jpe?g|png|webp)$/i.test(file.name);
+}
+
+function getFileExtension(fileName: string) {
+  const name = fileName.split(/[\\/]/).pop() ?? fileName;
+  const dotIndex = name.lastIndexOf(".");
+  if (dotIndex <= 0 || dotIndex === name.length - 1) {
+    return "ФАЙЛ";
+  }
+
+  return name.slice(dotIndex + 1).toUpperCase();
+}
+
+function FileItem({ file, onPreview }: { file: SharedFile; onPreview: () => void }) {
+  const image = isImageFile(file);
+  const extension = getFileExtension(file.name);
+  const fileUrl = getFileDownloadUrl(file.id);
+  const content = (
+    <>
+      <span className={image ? "file-preview image" : "file-preview"}>
+        {image ? <img src={fileUrl} alt="" loading="lazy" /> : <FileIcon size={34} />}
+      </span>
+      <span className="file-copy">
+        <strong>{file.name}</strong>
+        <span className="file-meta">
+          <b>{extension}</b>
+          {file.size && <small>{file.size}</small>}
+        </span>
+      </span>
+      <span className="file-action-icon" aria-hidden="true">
+        {image ? <ImageIcon size={18} /> : <Download size={18} />}
+      </span>
+    </>
+  );
+
+  return (
+    <article className="shared-file-card">
+      {image ? (
+        <button className="shared-file-open" onClick={onPreview} aria-label={`Открыть изображение ${file.name}`}>
+          {content}
+        </button>
+      ) : (
+        <a className="shared-file-open" href={fileUrl} download={file.name} aria-label={`Скачать ${file.name}`}>
+          {content}
+        </a>
+      )}
+    </article>
+  );
+}
+
+function ImageViewer({ file, onClose }: { file: SharedFile; onClose: () => void }) {
+  const fileUrl = getFileDownloadUrl(file.id);
+  const extension = getFileExtension(file.name);
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop image-viewer-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) {
+        onClose();
+      }
+    }}>
+      <section className="image-viewer" role="dialog" aria-modal="true" aria-label={`Просмотр ${file.name}`}>
+        <header className="image-viewer-header">
+          <div>
+            <strong>{file.name}</strong>
+            <span>{extension}{file.size ? ` · ${file.size}` : ""} · {file.path}</span>
+          </div>
+          <div className="image-viewer-actions">
+            <a className="icon-button" href={fileUrl} download={file.name} title="Скачать">
+              <Download size={18} />
+            </a>
+            <button className="icon-button" onClick={onClose} title="Закрыть">
+              <X size={18} />
+            </button>
+          </div>
+        </header>
+        <div className="image-viewer-stage">
+          <img src={fileUrl} alt={file.name} />
+        </div>
+      </section>
+    </div>
   );
 }
 

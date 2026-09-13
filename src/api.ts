@@ -44,6 +44,10 @@ const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.re
 const apiFallbackBaseUrl = (import.meta.env.VITE_API_FALLBACK_BASE_URL as string | undefined)?.replace(/\/$/, "")
   || "http://10.0.85.2:5544/api";
 
+export function getFileDownloadUrl(fileId: string) {
+  return `${apiBaseUrl}/files/${encodeURIComponent(fileId)}/download`;
+}
+
 function authToken() {
   const raw = localStorage.getItem(sessionStorageKey);
   if (!raw) {

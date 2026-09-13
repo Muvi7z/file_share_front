@@ -32,6 +32,17 @@ export type Folder = {
   lastScanAt: string;
 };
 
+export type SharedFile = {
+  id: string;
+  name: string;
+  path: string;
+  folderId: string;
+  size: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  mimeType: string;
+};
+
 export type FileBrowserEntry =
   | {
       type: "folder";
@@ -40,6 +51,10 @@ export type FileBrowserEntry =
   | {
       type: "video";
       video: VideoFile;
+    }
+  | {
+      type: "file";
+      file: SharedFile;
     };
 
 export type AdminSession = {

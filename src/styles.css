@@ -423,7 +423,8 @@ h1 {
 }
 
 .video-item,
-.folder-card {
+.folder-card,
+.shared-file-card {
   overflow: hidden;
   border: 1px solid #dce4e1;
   border-radius: 8px;
@@ -448,6 +449,10 @@ h1 {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   padding: 12px;
+}
+
+.file-list .shared-file-card {
+  min-height: 82px;
 }
 
 .file-list .video-item {
@@ -553,6 +558,186 @@ h1 {
 .folder-card-meta b {
   background: #fff4cf;
   color: #7a4d00;
+}
+
+.shared-file-open {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 36px;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  align-items: center;
+  padding: 12px;
+  background: transparent;
+  color: #17201f;
+  text-align: left;
+  text-decoration: none;
+}
+
+.file-grid .shared-file-open {
+  grid-template-columns: minmax(0, 1fr) 36px;
+  grid-template-rows: 132px auto;
+  align-items: stretch;
+}
+
+.file-preview {
+  display: grid;
+  width: 76px;
+  height: 58px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #eaf0ee;
+  color: #53635f;
+}
+
+.file-grid .file-preview {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 132px;
+}
+
+.file-preview.image {
+  background: #111817;
+}
+
+.file-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 180ms ease;
+}
+
+.shared-file-open:hover .file-preview img {
+  transform: scale(1.04);
+}
+
+.file-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.file-copy strong {
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.file-copy small {
+  overflow: hidden;
+  color: #697a75;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.file-meta b {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #e6eee9;
+  color: #42534d;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.file-action-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 6px;
+  background: #eef3f1;
+  color: #53635f;
+}
+
+.shared-file-open:hover .file-action-icon {
+  background: #d6ff6f;
+  color: #111817;
+}
+
+.image-viewer-backdrop {
+  padding: 18px;
+  background: rgba(5, 10, 9, 0.88);
+}
+
+.image-viewer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1180px, 100%);
+  height: min(860px, calc(100vh - 36px));
+  overflow: hidden;
+  border: 1px solid #31413c;
+  border-radius: 8px;
+  background: #0c1211;
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.55);
+}
+
+.image-viewer-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #263631;
+}
+
+.image-viewer-header > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.image-viewer-header strong,
+.image-viewer-header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-viewer-header strong {
+  color: #ffffff;
+}
+
+.image-viewer-header span {
+  color: #9aaba5;
+  font-size: 12px;
+}
+
+.image-viewer-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.image-viewer-actions .icon-button {
+  background: #1b2723;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.image-viewer-stage {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  overflow: auto;
+  padding: 14px;
+}
+
+.image-viewer-stage img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .empty-folder {
@@ -1366,6 +1551,10 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .file-list .shared-file-open {
+    grid-template-columns: 76px minmax(0, 1fr) 36px;
+  }
+
   .file-list .folder-card-meta {
     justify-content: flex-start;
     padding: 0 12px 12px;
@@ -1408,6 +1597,35 @@ dd {
   .file-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+  }
+
+  .file-grid .shared-file-open {
+    grid-template-rows: 92px auto;
+    padding: 8px;
+  }
+
+  .file-grid .file-preview {
+    height: 92px;
+  }
+
+  .file-grid .file-copy strong {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 13px;
+  }
+
+  .image-viewer-backdrop {
+    padding: 0;
+  }
+
+  .image-viewer {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
   }
 
   .video-grid .poster-button,
