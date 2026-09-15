@@ -14,6 +14,7 @@ export type VideoFile = {
   codec: string;
   resolution: string;
   posterUrl: string;
+  posterRevision?: number;
   streamUrl: string;
   path: string;
 };

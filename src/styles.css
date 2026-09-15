@@ -895,15 +895,22 @@ h1 {
   min-height: 124px;
 }
 
-.poster-button img {
+.poster-button .poster-thumbnail {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 180ms ease;
 }
 
-.poster-button:hover img {
+.poster-button:hover img.poster-thumbnail {
   transform: scale(1.04);
+}
+
+.poster-placeholder {
+  display: grid;
+  place-items: center;
+  background: #dfe7e4;
+  color: #73827e;
 }
 
 .play-badge {
@@ -1404,7 +1411,7 @@ dd {
   border-radius: 8px;
 }
 
-.poster-video-row > img {
+.poster-video-row > .poster-thumbnail {
   width: 112px;
   aspect-ratio: 16 / 9;
   border-radius: 6px;
@@ -1983,7 +1990,7 @@ dd {
     padding: 8px;
   }
 
-  .poster-video-row > img {
+  .poster-video-row > .poster-thumbnail {
     width: 88px;
   }
 

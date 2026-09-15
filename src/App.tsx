@@ -53,6 +53,7 @@ import {
   getFolders,
   getInactiveAccountStatus,
   getVideo,
+  getVideoPosterUrl,
   getVideos,
   loginAdmin,
   rescanFolder,
@@ -84,10 +85,9 @@ function getVideoDedupeKey(video: VideoFile) {
 }
 
 function withFreshPoster(video: VideoFile): VideoFile {
-  const separator = video.posterUrl.includes("?") ? "&" : "?";
   return {
     ...video,
-    posterUrl: `${video.posterUrl}${separator}v=${Date.now()}`
+    posterRevision: Date.now()
   };
 }
 
@@ -271,8 +271,6 @@ function App() {
   useEffect(() => {
     const resetExpiredSession = () => {
       setSession(null);
-      setSelectedVideo(null);
-      setActiveVideoId(null);
     };
 
     window.addEventListener(authExpiredEvent, resetExpiredSession);
@@ -355,6 +353,7 @@ function App() {
     getFolderEntries(currentFolderId)
       .then((entries) => {
         if (isCurrent) {
+          setLoadError("");
           setFileEntries(Array.isArray(entries) ? entries : []);
         }
       })
@@ -1025,6 +1024,31 @@ function parseDurationSeconds(value: VideoFile["duration"]) {
   return null;
 }
 
+function PosterImage({ video }: { video: VideoFile }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const posterUrl = getVideoPosterUrl(video.id, video.posterRevision);
+  const posterUnavailable = failedUrl === posterUrl;
+
+  if (posterUnavailable) {
+    return (
+      <span className="poster-thumbnail poster-placeholder" aria-hidden="true">
+        <FileVideo size={30} />
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="poster-thumbnail"
+      src={posterUrl}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailedUrl(posterUrl)}
+    />
+  );
+}
+
 function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; onPlay: () => void }) {
   const duration = formatDuration(video.duration);
 
@@ -1032,7 +1056,7 @@ function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; 
     <article className="video-item">
       <PosterControl video={video} />
       <button className="poster-button" onClick={onPlay} aria-label={`Открыть ${video.title}`}>
-        <img src={video.posterUrl} alt="" />
+        <PosterImage video={video} />
         <span className="play-badge">
           <Play size={18} fill="currentColor" />
         </span>
@@ -1339,7 +1363,11 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
           revealControls();
         }}>
         <div className="video-stage">
-          <video ref={mediaRef} autoPlay playsInline preload="metadata" poster={video.posterUrl} src={video.streamUrl}
+          <video ref={mediaRef}
+          autoPlay
+          playsInline
+          preload="metadata"
+          poster={getVideoPosterUrl(video.id, video.posterRevision)} src={video.streamUrl}
             onPointerDown={(event) => {
               lastPointerWasTouch.current = event.pointerType === "touch";
               if (lastPointerWasTouch.current) touchStart.current = { x: event.clientX, y: event.clientY };
@@ -1762,7 +1790,7 @@ function AdminPosterRow({
 
   return (
     <article className="poster-video-row">
-      <img src={video.posterUrl} alt="" />
+      <PosterImage video={video} />
       <div>
         <strong>{video.title}</strong>
         <span>{video.path}</span>

@@ -48,6 +48,15 @@ export function getFileDownloadUrl(fileId: string) {
   return `${apiBaseUrl}/files/${encodeURIComponent(fileId)}/download`;
 }
 
+export function getVideoPosterUrl(videoId: string, revision?: number) {
+  const url = `${apiBaseUrl}/videos/${encodeURIComponent(videoId)}/poster`;
+  return revision ? `${url}?v=${revision}` : url;
+}
+
+type RequestOptions = RequestInit & {
+  retryWithoutAuth?: boolean;
+};
+
 function authToken() {
   const raw = localStorage.getItem(sessionStorageKey);
   if (!raw) {
@@ -61,8 +70,16 @@ function authToken() {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = authToken();
+function clearStoredSession() {
+  localStorage.removeItem(sessionStorageKey);
+  window.dispatchEvent(new Event(authExpiredEvent));
+}
+
+function isAuthorizationError(error: unknown): error is ApiError {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
+
+async function fetchApi(path: string, options: RequestInit, token: string | null): Promise<Response> {
   const headers = new Headers(options.headers);
 
   if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
@@ -70,20 +87,31 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
+  } else {
+    headers.delete("Authorization");
   }
 
-  let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+    return await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
   } catch (primaryError) {
     if (!apiFallbackBaseUrl || apiFallbackBaseUrl === apiBaseUrl) {
       throw primaryError;
     }
-    response = await fetch(`${apiFallbackBaseUrl}${path}`, { ...options, headers });
+    return fetch(`${apiFallbackBaseUrl}${path}`, { ...options, headers });
   }
-  if (response.status === 401 && token) {
-    localStorage.removeItem(sessionStorageKey);
-    window.dispatchEvent(new Event(authExpiredEvent));
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { retryWithoutAuth = false, ...requestOptions } = options;
+  const token = authToken();
+
+  let response = await fetchApi(path, requestOptions, token);
+  const authorizationFailed = response.status === 401 || response.status === 403;
+  if (authorizationFailed && token && retryWithoutAuth) {
+    clearStoredSession();
+    response = await fetchApi(path, requestOptions, null);
+  } else if (response.status === 401 && token) {
+    clearStoredSession();
   }
   if (!response.ok) {
     let message = `API error ${response.status}`;
@@ -111,7 +139,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function requestArray<T>(path: string, options: RequestInit = {}): Promise<T[]> {
+async function requestArray<T>(path: string, options: RequestOptions = {}): Promise<T[]> {
   const payload = await request<unknown>(path, options);
   return Array.isArray(payload) ? (payload as T[]) : [];
 }
@@ -142,32 +170,64 @@ export async function browseServerFolders(path: string | null): Promise<ServerFo
 
 
 export async function getVideos(): Promise<VideoFile[]> {
-  return requestArray<VideoFile>("/videos");
+  return requestArray<VideoFile>("/videos", { retryWithoutAuth: true });
 }
 
 export async function getVideo(videoId: string): Promise<VideoFile> {
-  return request<VideoFile>(`/videos/${encodeURIComponent(videoId)}`);
+  try {
+    return await request<VideoFile>(`/videos/${encodeURIComponent(videoId)}`, { retryWithoutAuth: true });
+  } catch (error) {
+    if (!isAuthorizationError(error)) {
+      throw error;
+    }
+
+    const video = (await getVideos()).find((item) => item.id === videoId);
+    if (!video) {
+      throw error;
+    }
+    return video;
+  }
 }
 
 export async function updateVideoPoster(videoId: string, poster: File): Promise<VideoFile> {
   const body = new FormData();
   body.append("poster", poster);
 
-  return request<VideoFile>(`/videos/${encodeURIComponent(videoId)}/poster`, {
+  await request<unknown>(`/videos/${encodeURIComponent(videoId)}/poster`, {
     method: "PUT",
     body
   });
+
+  return getVideo(videoId);
 }
 
 export async function getFolders(): Promise<Folder[]> {
-  const payload = await requestArray<Folder & { videosCount?: number }>("/folders");
+  const payload = await requestArray<Folder & { videosCount?: number }>("/folders", { retryWithoutAuth: true });
   return payload.map(normalizeFolder);
 }
 
 export async function getFolderEntries(folderId: string | null): Promise<FileBrowserEntry[]> {
   const path = folderId ? `/folders/${encodeURIComponent(folderId)}/entries` : "/folders/root/entries";
-  const payload = await requestArray<FileBrowserEntry>(path);
-  return payload.map(normalizeFileBrowserEntry);
+  try {
+    const payload = await requestArray<FileBrowserEntry>(path, { retryWithoutAuth: true });
+    return payload.map(normalizeFileBrowserEntry);
+  } catch (error) {
+    if (!isAuthorizationError(error)) {
+      throw error;
+    }
+
+    const [folders, videos] = await Promise.all([getFolders(), getVideos()]);
+    const folderEntries: FileBrowserEntry[] = folders
+      .filter((folder) => folderId ? folder.parentId === folderId : folder.isRoot)
+      .map((folder) => ({ type: "folder", folder }));
+    const videoEntries: FileBrowserEntry[] = folderId
+      ? videos
+          .filter((video) => video.parentFolderId === folderId)
+          .map((video) => ({ type: "video", video }))
+      : [];
+
+    return [...folderEntries, ...videoEntries];
+  }
 }
 
 export async function loginAdmin(login: string, password: string): Promise<AdminSession> {
