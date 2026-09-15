@@ -56,8 +56,11 @@ import com.localvideovault.mobile.model.VideoFile;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -102,6 +105,9 @@ public class MainActivity extends Activity {
     private String selectedFolderId = "all";
     private String currentDirectoryId = null;
     private String query = "";
+    private String sortField = "name";
+    private boolean sortAscending = true;
+    private final Collator nameCollator = Collator.getInstance(new Locale("ru"));
     private boolean isAdmin = false;
     private boolean isLoading = false;
     private boolean isEntriesLoading = false;
@@ -155,6 +161,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         apiClient = new ApiClient(this);
+        sortField = getPreferences(MODE_PRIVATE).getString("sortField", "name");
+        sortAscending = getPreferences(MODE_PRIVATE).getBoolean("sortAscending", true);
+        nameCollator.setStrength(Collator.PRIMARY);
         enterTvFullscreen();
         refreshData();
     }
@@ -924,11 +933,64 @@ public class MainActivity extends Activity {
         row.addView(input, new LinearLayout.LayoutParams(0, dp(isTvLandscape() ? 48 : (isTvLayout() ? 58 : 46)), 1));
 
         addInlineSpace(row, 12);
+        if (isTvLandscape()) {
+            TextView sort = sortButton();
+            row.addView(sort, new LinearLayout.LayoutParams(dp(138), dp(48)));
+            addInlineSpace(row, 8);
+        }
         row.addView(modeButton(R.drawable.ic_grid_tv, "grid"));
         addInlineSpace(row, 6);
         row.addView(modeButton(R.drawable.ic_list_tv, "list"));
         controlsGlassPanel.addView(row);
+        if (!isTvLandscape()) {
+            TextView sort = sortButton();
+            LinearLayout.LayoutParams sortParams = new LinearLayout.LayoutParams(-1, dp(isTvLayout() ? 50 : 42));
+            sortParams.setMargins(0, dp(8), 0, 0);
+            controlsGlassPanel.addView(sort, sortParams);
+        }
         content.addView(withBottomMargin(controlsGlassPanel, isTvLandscape() ? 14 : 10));
+    }
+
+    private TextView sortButton() {
+        TextView button = text(sortButtonLabel(), isTvLandscape() ? 12 : (isTvLayout() ? 16 : 14), DARK, true);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(10), 0, dp(10), 0);
+        button.setBackground(makeRoundDrawable(WHITE_CONTROL_IDLE, 0, 12));
+        button.setContentDescription("Выбрать сортировку файлов");
+        applyFocus(button, WHITE_CONTROL_IDLE, Color.WHITE, 12, 0);
+        rememberTvFocus(button);
+        button.setOnClickListener(v -> showSortDialog());
+        return button;
+    }
+
+    private String sortButtonLabel() {
+        if ("date".equals(sortField)) {
+            return sortAscending ? "Дата: старые" : "Дата: новые";
+        }
+        return sortAscending ? "Имя: А-Я" : "Имя: Я-А";
+    }
+
+    private void showSortDialog() {
+        String[] options = {"Имя: А-Я", "Имя: Я-А", "Дата: новые", "Дата: старые"};
+        int selected = "date".equals(sortField) ? (sortAscending ? 3 : 2) : (sortAscending ? 0 : 1);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle("Сортировка")
+            .setSingleChoiceItems(options, selected, null)
+            .setNegativeButton("Отмена", null)
+            .create();
+        dialog.setOnShowListener(ignored -> {
+            dialog.getListView().setOnItemClickListener((parent, view, position, id) -> {
+                sortField = position >= 2 ? "date" : "name";
+                sortAscending = position == 0 || position == 3;
+                getPreferences(MODE_PRIVATE).edit()
+                    .putString("sortField", sortField)
+                    .putBoolean("sortAscending", sortAscending)
+                    .apply();
+                dialog.dismiss();
+                render();
+            });
+        });
+        dialog.show();
     }
 
     private ImageView modeButton(int iconResource, String mode) {
@@ -967,7 +1029,7 @@ public class MainActivity extends Activity {
 
     private void renderVideosPage() {
         renderFolderChips();
-        List<VideoFile> list = repository.getVideos(selectedFolderId, query);
+        List<VideoFile> list = sortVideos(repository.getVideos(selectedFolderId, query));
         LinearLayout listPanel = glassContentPanel();
         content.addView(listPanel);
         if ("grid".equals(viewMode)) {
@@ -1014,7 +1076,7 @@ public class MainActivity extends Activity {
     private void renderFilesPage() {
         renderBreadcrumbs();
         ensureDirectoryEntriesLoaded();
-        List<FileEntry> entries = filterEntries(currentEntries, query);
+        List<FileEntry> entries = sortEntries(filterEntries(currentEntries, query));
         renderCompactSummary(entries);
 
         if (isEntriesLoading) {
@@ -1067,6 +1129,65 @@ public class MainActivity extends Activity {
             }
         }
         return result;
+    }
+
+    private List<VideoFile> sortVideos(List<VideoFile> videos) {
+        List<VideoFile> result = new ArrayList<>(videos);
+        Collections.sort(result, (left, right) -> {
+            int comparison = "date".equals(sortField)
+                ? compareDates(left.modifiedAt, right.modifiedAt)
+                : compareNames(left.title, right.title);
+            return comparison != 0 ? comparison : nameCollator.compare(left.title, right.title);
+        });
+        return result;
+    }
+
+    private List<FileEntry> sortEntries(List<FileEntry> entries) {
+        List<FileEntry> result = new ArrayList<>(entries);
+        Collections.sort(result, (left, right) -> {
+            boolean leftIsFolder = left.type == FileEntry.Type.FOLDER;
+            boolean rightIsFolder = right.type == FileEntry.Type.FOLDER;
+            if (leftIsFolder != rightIsFolder) {
+                return leftIsFolder ? -1 : 1;
+            }
+
+            int comparison = "date".equals(sortField)
+                ? compareDates(entryDate(left), entryDate(right))
+                : compareNames(entryName(left), entryName(right));
+            return comparison != 0 ? comparison : nameCollator.compare(entryName(left), entryName(right));
+        });
+        return result;
+    }
+
+    private int compareNames(String left, String right) {
+        int comparison = nameCollator.compare(safeText(left), safeText(right));
+        return sortAscending ? comparison : -comparison;
+    }
+
+    private int compareDates(String left, String right) {
+        boolean leftMissing = safeText(left).isEmpty();
+        boolean rightMissing = safeText(right).isEmpty();
+        if (leftMissing != rightMissing) {
+            return leftMissing ? 1 : -1;
+        }
+        int comparison = safeText(left).compareToIgnoreCase(safeText(right));
+        return sortAscending ? comparison : -comparison;
+    }
+
+    private String entryName(FileEntry entry) {
+        return entry.type == FileEntry.Type.FOLDER && entry.folder != null
+            ? entry.folder.name
+            : (entry.video == null ? "" : entry.video.title);
+    }
+
+    private String entryDate(FileEntry entry) {
+        return entry.type == FileEntry.Type.FOLDER && entry.folder != null
+            ? entry.folder.lastScanAt
+            : (entry.video == null ? "" : entry.video.modifiedAt);
+    }
+
+    private String safeText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private void renderBreadcrumbs() {
@@ -1282,13 +1403,13 @@ public class MainActivity extends Activity {
         playbackIndex = -1;
 
         if ("files".equals(page)) {
-            for (FileEntry entry : filterEntries(currentEntries, query)) {
+            for (FileEntry entry : sortEntries(filterEntries(currentEntries, query))) {
                 if (entry.type == FileEntry.Type.VIDEO && entry.video != null) {
                     playbackQueue.add(entry.video);
                 }
             }
         } else {
-            playbackQueue.addAll(repository.getVideos(selectedFolderId, query));
+            playbackQueue.addAll(sortVideos(repository.getVideos(selectedFolderId, query)));
         }
 
         for (int index = 0; index < playbackQueue.size(); index++) {

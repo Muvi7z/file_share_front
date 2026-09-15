@@ -1,4 +1,4 @@
-#Tue Aug 11 23:17:48 IRKT 2026
+#Mon Sep 14 00:59:37 IRKT 2026
 base.0=C\:\\Users\\Ochir\\Documents\\file_share\\mobile_android\\app\\build\\intermediates\\dex\\workingDebug\\mergeExtDexWorkingDebug\\classes.dex
 base.1=C\:\\Users\\Ochir\\Documents\\file_share\\mobile_android\\app\\build\\intermediates\\dex\\workingDebug\\mergeProjectDexWorkingDebug\\0\\classes.dex
 base.2=C\:\\Users\\Ochir\\Documents\\file_share\\mobile_android\\app\\build\\intermediates\\dex\\workingDebug\\mergeProjectDexWorkingDebug\\13\\classes.dex

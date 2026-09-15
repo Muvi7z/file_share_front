@@ -2,7 +2,20 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { AccountAuthStatus, AccountCenter, isAdministrator } from "./Accounts";
 import { PosterContext, PosterControl } from "./PosterControl";
 import {
+  ArrowDown,
+  Check,
+  ChevronDown,
+  Pause,
+  RotateCcw,
+  RotateCw,
+  Maximize,
+  Minimize,
+  Volume2,
+  VolumeX,
+  ArrowDownAZ,
   ArrowLeft,
+  ArrowUp,
+  CalendarDays,
   ChevronRight,
   Download,
   File as FileIcon,
@@ -25,6 +38,8 @@ import {
   Search,
   Settings,
   Shield,
+  Smartphone,
+  Monitor,
   Trash2,
   X
 } from "lucide-react";
@@ -111,13 +126,78 @@ type RouteState = {
   selectedFolder: string;
   query: string;
   viewMode: ViewMode;
+  sortField: SortField;
+  sortDirection: SortDirection;
   videoId: string | null;
 };
+
+type SortField = "name" | "date";
+type SortDirection = "asc" | "desc";
+
+const nameCollator = new Intl.Collator("ru", { numeric: true, sensitivity: "base" });
+
+function normalizeSortText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function compareNames(left: string, right: string) {
+  return nameCollator.compare(normalizeSortText(left), normalizeSortText(right));
+}
+
+function compareDates(left: string, right: string, direction: SortDirection) {
+  const leftTime = Date.parse(normalizeSortText(left));
+  const rightTime = Date.parse(normalizeSortText(right));
+  const hasLeftDate = Number.isFinite(leftTime);
+  const hasRightDate = Number.isFinite(rightTime);
+
+  if (!hasLeftDate && !hasRightDate) return 0;
+  if (!hasLeftDate) return 1;
+  if (!hasRightDate) return -1;
+  return direction === "asc" ? leftTime - rightTime : rightTime - leftTime;
+}
+
+function compareVideos(left: VideoFile, right: VideoFile, field: SortField, direction: SortDirection) {
+  const comparison = field === "date"
+    ? compareDates(left.modifiedAt, right.modifiedAt, direction)
+    : compareNames(left.title, right.title) * (direction === "asc" ? 1 : -1);
+  return comparison || compareNames(left.title, right.title);
+}
+
+function getEntryName(entry: FileBrowserEntry) {
+  if (entry.type === "folder") return entry.folder.name;
+  if (entry.type === "file") return entry.file.name;
+  return entry.video.title;
+}
+
+function getEntryDate(entry: FileBrowserEntry) {
+  if (entry.type === "folder") return entry.folder.lastScanAt;
+  if (entry.type === "file") return entry.file.modifiedAt;
+  return entry.video.modifiedAt;
+}
+
+function compareFileEntries(
+  left: FileBrowserEntry,
+  right: FileBrowserEntry,
+  field: SortField,
+  direction: SortDirection
+) {
+  const leftIsFolder = left.type === "folder";
+  const rightIsFolder = right.type === "folder";
+  if (leftIsFolder !== rightIsFolder) {
+    return leftIsFolder ? -1 : 1;
+  }
+
+  const comparison = field === "date"
+    ? compareDates(getEntryDate(left), getEntryDate(right), direction)
+    : compareNames(getEntryName(left), getEntryName(right)) * (direction === "asc" ? 1 : -1);
+  return comparison || compareNames(getEntryName(left), getEntryName(right));
+}
 
 function readRouteState(): RouteState {
   const params = new URLSearchParams(window.location.search);
   const page = params.get("page");
   const view = params.get("view");
+  const sortField: SortField = params.get("sort") === "date" ? "date" : "name";
 
   return {
     page: page === "files" || page === "player" || page === "admin" ? page : "videos",
@@ -125,6 +205,8 @@ function readRouteState(): RouteState {
     selectedFolder: params.get("selected") || "all",
     query: params.get("q") || "",
     viewMode: view === "list" ? "list" : "tiles",
+    sortField,
+    sortDirection: params.has("order") ? (params.get("order") === "desc" ? "desc" : "asc") : (sortField === "date" ? "desc" : "asc"),
     videoId: params.get("video")
   };
 }
@@ -143,6 +225,27 @@ function App() {
   const [selectedFolder, setSelectedFolder] = useState(initialRouteState.selectedFolder);
   const [query, setQuery] = useState(initialRouteState.query);
   const [viewMode, setViewMode] = useState<ViewMode>(initialRouteState.viewMode);
+  const [sortField, setSortField] = useState<SortField>(initialRouteState.sortField);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(initialRouteState.sortDirection);
+  useEffect(() => {
+    const closeSortMenu = (event: PointerEvent | KeyboardEvent) => {
+      const menu = document.querySelector<HTMLDetailsElement>(".sort-menu[open]");
+      if (!menu) return;
+      if (event instanceof KeyboardEvent) {
+        if (event.key !== "Escape") return;
+        menu.open = false;
+        menu.querySelector("summary")?.focus();
+      } else if (event.target instanceof Node && !menu.contains(event.target)) {
+        menu.open = false;
+      }
+    };
+    document.addEventListener("pointerdown", closeSortMenu);
+    document.addEventListener("keydown", closeSortMenu);
+    return () => {
+      document.removeEventListener("pointerdown", closeSortMenu);
+      document.removeEventListener("keydown", closeSortMenu);
+    };
+  }, []);
   const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(initialRouteState.videoId);
   const [loadError, setLoadError] = useState("");
@@ -198,6 +301,12 @@ function App() {
     if (viewMode !== "tiles") {
       params.set("view", viewMode);
     }
+    if (sortField !== "name") {
+      params.set("sort", sortField);
+    }
+    if (sortDirection !== "asc") {
+      params.set("order", sortDirection);
+    }
     if (page === "player") {
       const videoId = selectedVideo?.id ?? activeVideoId;
       if (videoId) {
@@ -207,7 +316,7 @@ function App() {
 
     const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`;
     window.history.replaceState(null, "", nextUrl);
-  }, [activeVideoId, currentFolderId, page, query, selectedFolder, selectedVideo, viewMode]);
+  }, [activeVideoId, currentFolderId, page, query, selectedFolder, selectedVideo, sortDirection, sortField, viewMode]);
 
   useEffect(() => {
     if (page !== "player" || selectedVideo || !activeVideoId) {
@@ -278,8 +387,8 @@ function App() {
         .includes(query.toLowerCase().trim());
 
       return folderIsVisible && matchesFolder && matchesQuery;
-    });
-  }, [query, selectedFolder, videos, visibleRootFolders]);
+    }).sort((left, right) => compareVideos(left, right, sortField, sortDirection));
+  }, [query, selectedFolder, sortDirection, sortField, videos, visibleRootFolders]);
 
   const visibleFileEntries = useMemo(() => {
     const entries =
@@ -333,28 +442,28 @@ function App() {
           })()
         : fileEntries;
     const normalizedQuery = query.toLowerCase().trim();
-    if (!normalizedQuery) {
-      return entries;
-    }
+    const filteredEntries = normalizedQuery
+      ? entries.filter((entry) => {
+          if (entry.type === "folder") {
+            return entry.folder.name.toLowerCase().includes(normalizedQuery);
+          }
 
-    return entries.filter((entry) => {
-      if (entry.type === "folder") {
-        return entry.folder.name.toLowerCase().includes(normalizedQuery);
-      }
+          if (entry.type === "file") {
+            return [entry.file.name, entry.file.path, entry.file.mimeType]
+              .join(" ")
+              .toLowerCase()
+              .includes(normalizedQuery);
+          }
 
-      if (entry.type === "file") {
-        return [entry.file.name, entry.file.path, entry.file.mimeType]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery);
-      }
+          return [entry.video.title, entry.video.folderName, entry.video.codec, entry.video.resolution]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedQuery);
+        })
+      : entries;
 
-      return [entry.video.title, entry.video.folderName, entry.video.codec, entry.video.resolution]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery);
-    });
-  }, [currentFolderId, fileEntries, folders, query, videos]);
+    return [...filteredEntries].sort((left, right) => compareFileEntries(left, right, sortField, sortDirection));
+  }, [currentFolderId, fileEntries, folders, query, sortDirection, sortField, videos]);
 
   const isMobileLayout = () => window.matchMedia("(max-width: 860px)").matches;
 
@@ -570,21 +679,64 @@ function App() {
                 />
               </label>
 
-              <div className="segmented" role="group" aria-label="Вид списка">
+              <div className="toolbar-controls">
+                <details className="sort-menu">
+                  <summary>{sortField === "name" ? <ArrowDownAZ size={18} /> : <CalendarDays size={18} />}<span>{sortField === "name" ? "По имени" : "По дате"}</span><ChevronDown size={16} /></summary>
+                  <div className="sort-options">
+                  <button
+                    className={sortField === "name" ? "selected" : ""}
+                    onClick={(event) => {
+                      setSortField("name");
+                      setSortDirection("asc");
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                    }}
+                    title="Сортировать по имени"
+                  >
+                    <ArrowDownAZ size={18} />
+                    <span>Имя</span>
+                    {sortField === "name" && <Check size={16} />}
+                  </button>
+                  <button
+                    className={sortField === "date" ? "selected" : ""}
+                    onClick={(event) => {
+                      setSortField("date");
+                      setSortDirection("desc");
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                    }}
+                    title="Сортировать по дате"
+                  >
+                    <CalendarDays size={18} />
+                    <span>Дата</span>
+                    {sortField === "date" && <Check size={16} />}
+                  </button>
+                  </div>
+                </details>
+
                 <button
-                  className={viewMode === "tiles" ? "selected" : ""}
-                  onClick={() => setViewMode("tiles")}
-                  title="Плитка"
+                  className="sort-direction"
+                  onClick={() => setSortDirection((current) => current === "asc" ? "desc" : "asc")}
+                  title={sortDirection === "asc" ? "По возрастанию" : "По убыванию"}
+                  aria-label={sortDirection === "asc" ? "По возрастанию" : "По убыванию"}
                 >
-                  <Grid2X2 size={18} />
+                  {sortDirection === "asc" ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
                 </button>
-                <button
-                  className={viewMode === "list" ? "selected" : ""}
-                  onClick={() => setViewMode("list")}
-                  title="Список"
-                >
-                  <List size={18} />
-                </button>
+
+                <div className="segmented" role="group" aria-label="Вид списка">
+                  <button
+                    className={viewMode === "tiles" ? "selected" : ""}
+                    onClick={() => setViewMode("tiles")}
+                    title="Плитка"
+                  >
+                    <Grid2X2 size={18} />
+                  </button>
+                  <button
+                    className={viewMode === "list" ? "selected" : ""}
+                    onClick={() => setViewMode("list")}
+                    title="Список"
+                  >
+                    <List size={18} />
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -807,20 +959,22 @@ function FolderItem({ folder, onOpen }: { folder: VaultFolder; onOpen: () => voi
   const isEmpty = folder.videoCount === 0 && folder.childFolderCount === 0;
 
   return (
-    <article className="folder-card">
+    <article className="folder-card folder-card-refined">
       <button className="folder-open-button" onClick={onOpen} aria-label={`Открыть папку ${folder.name}`}>
-        <span className="folder-icon">
-          <Folder size={30} fill="currentColor" />
+        <span className="folder-icon" aria-hidden="true">
+          <Folder size={30} strokeWidth={1.5} fill="currentColor" />
         </span>
-        <span>
+        <span className="folder-copy">
           <strong>{folder.name}</strong>
+          <span className="folder-card-meta">
+            {isEmpty ? <span>Пустая папка</span> : <>
+              <span><Folder size={13} aria-hidden="true" />{folder.childFolderCount}<span className="visually-hidden"> папок</span></span>
+              <span><FileVideo size={13} aria-hidden="true" />{folder.videoCount}<span className="visually-hidden"> видео</span></span>
+            </>}
+          </span>
         </span>
+        <ChevronRight className="folder-chevron" size={18} aria-hidden="true" />
       </button>
-      <div className="folder-card-meta">
-        <span>{folder.childFolderCount} папок</span>
-        <span>{folder.videoCount} видео</span>
-        {isEmpty && <b>Пустая</b>}
-      </div>
     </article>
   );
 }
@@ -892,7 +1046,7 @@ function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; 
         </div>
         <dl>
           <div>
-            <dt>Размер</dt>
+            <dt className="visually-hidden">Размер</dt>
             <dd>{video.size}</dd>
           </div>
           {mode === "list" && (
@@ -909,6 +1063,248 @@ function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; 
 
 function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void }) {
   const duration = formatDuration(video.duration);
+  const mediaRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [waiting, setWaiting] = useState(true);
+  const [error, setError] = useState("");
+  const [speed, setSpeed] = useState(1);
+  const [position, setPosition] = useState(0);
+  const [length, setLength] = useState(0);
+  const [buffered, setBuffered] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [isLandscape, setIsLandscape] = useState(() => window.matchMedia("(orientation: landscape)").matches);
+  const [forcedLandscape, setForcedLandscape] = useState(false);
+  const [isAppFullscreen, setIsAppFullscreen] = useState(false);
+  const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
+  const [tapFeedback, setTapFeedback] = useState<"left" | "right" | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTap = useRef<{ time: number; side: "left" | "right" } | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const ignoreTouchClick = useRef(false);
+  const lastPointerWasTouch = useRef(false);
+  const revealControls = () => {
+    setControlsVisible(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setControlsVisible(false), 3000);
+  };
+  const toggleTouchControls = () => {
+    setControlsVisible((current) => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      if (current) return false;
+      hideTimer.current = setTimeout(() => setControlsVisible(false), 3000);
+      return true;
+    });
+  };
+  useEffect(() => () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+  }, []);
+  useEffect(() => {
+    if (!isAppFullscreen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isAppFullscreen]);
+  useEffect(() => {
+    const orientationQuery = window.matchMedia("(orientation: landscape)");
+    const updateOrientation = () => {
+      if (!forcedLandscape) setIsLandscape(orientationQuery.matches);
+    };
+    orientationQuery.addEventListener("change", updateOrientation);
+    return () => orientationQuery.removeEventListener("change", updateOrientation);
+  }, [forcedLandscape]);
+  useEffect(() => {
+    const resetOrientation = () => {
+      const fullscreenActive = Boolean(document.fullscreenElement);
+      setIsNativeFullscreen(fullscreenActive);
+      if (fullscreenActive) return;
+      setIsAppFullscreen(false);
+      setForcedLandscape(false);
+      setIsLandscape(window.matchMedia("(orientation: landscape)").matches);
+      const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
+      orientation?.unlock?.();
+    };
+    document.addEventListener("fullscreenchange", resetOrientation);
+    return () => document.removeEventListener("fullscreenchange", resetOrientation);
+  }, []);
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !("MediaMetadata" in window)) return;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: video.title,
+        album: video.folderName,
+        artwork: video.posterUrl ? [{ src: video.posterUrl }] : []
+      });
+    } catch {
+      navigator.mediaSession.metadata = null;
+    }
+
+    const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
+      play: () => { void mediaRef.current?.play(); },
+      pause: () => mediaRef.current?.pause(),
+      seekbackward: (details) => seek(-(details.seekOffset ?? 5)),
+      seekforward: (details) => seek(details.seekOffset ?? 5)
+    };
+    for (const [action, handler] of Object.entries(handlers)) {
+      try {
+        navigator.mediaSession.setActionHandler(action as MediaSessionAction, handler ?? null);
+      } catch {
+        // Some mobile browsers expose Media Session but support only part of its actions.
+      }
+    }
+
+    return () => {
+      navigator.mediaSession.metadata = null;
+      for (const action of ["play", "pause", "seekbackward", "seekforward"] as MediaSessionAction[]) {
+        try {
+          navigator.mediaSession.setActionHandler(action, null);
+        } catch {
+          // Ignore actions unsupported by the current browser.
+        }
+      }
+    };
+  }, [video]);
+  const clock = (seconds: number) => {
+    const value = Math.floor(Number.isFinite(seconds) ? seconds : 0);
+    return `${value >= 3600 ? `${Math.floor(value / 3600)}:` : ""}${String(Math.floor(value / 60) % 60).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+  };
+  const fullscreen = async () => {
+    revealControls();
+
+    if (document.fullscreenElement) {
+      const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
+      orientation?.unlock?.();
+      setForcedLandscape(false);
+      setIsAppFullscreen(false);
+      await document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+
+    if (isAppFullscreen) {
+      setIsAppFullscreen(false);
+      setForcedLandscape(false);
+      setIsLandscape(window.matchMedia("(orientation: landscape)").matches);
+      return;
+    }
+
+    const media = mediaRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+    try {
+      if (stageRef.current?.requestFullscreen) {
+        await stageRef.current.requestFullscreen({ navigationUI: "hide" });
+        return;
+      }
+      if (media?.webkitEnterFullscreen) {
+        media.webkitEnterFullscreen();
+        return;
+      }
+    } catch {
+      // Fall through to the in-page fullscreen mode when the browser rejects fullscreen.
+    }
+
+    setIsAppFullscreen(true);
+  };
+  const changeOrientation = async () => {
+    const nextLandscape = !(forcedLandscape || isLandscape);
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (value: "landscape" | "portrait") => Promise<void>;
+      unlock?: () => void;
+    };
+
+    setError("");
+    if (!nextLandscape) {
+      setForcedLandscape(false);
+      setIsLandscape(false);
+      try {
+        if (!document.fullscreenElement && stageRef.current?.requestFullscreen) {
+          await stageRef.current.requestFullscreen({ navigationUI: "hide" });
+        }
+        if (orientation?.lock) {
+          await orientation.lock("portrait");
+        } else {
+          orientation?.unlock?.();
+          if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined);
+        }
+      } catch {
+        orientation?.unlock?.();
+        if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined);
+      }
+      return;
+    }
+
+    try {
+      if (!document.fullscreenElement && stageRef.current?.requestFullscreen) {
+        await stageRef.current.requestFullscreen();
+      }
+      if (!orientation?.lock) throw new Error("Orientation lock is unavailable");
+      await orientation.lock("landscape");
+      setForcedLandscape(false);
+      setIsLandscape(true);
+    } catch {
+      setForcedLandscape(true);
+      setIsLandscape(true);
+      if (!document.fullscreenElement) setIsAppFullscreen(true);
+    }
+  };
+  const togglePlayback = () => {
+    const media = mediaRef.current;
+    if (!media) return;
+    if (media.paused) void media.play().catch(() => {
+      setWaiting(false);
+      setPlaying(false);
+      setError("");
+    });
+    else media.pause();
+  };
+  function seek(seconds: number) {
+    const media = mediaRef.current;
+    if (media && Number.isFinite(media.duration)) media.currentTime = Math.max(0, Math.min(media.duration, media.currentTime + seconds));
+  }
+  const showTapFeedback = (side: "left" | "right") => {
+    setTapFeedback(side);
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(() => setTapFeedback(null), 550);
+  };
+  const handleVideoPointerUp = (event: { pointerType: string; clientX: number; clientY: number; currentTarget: HTMLVideoElement }) => {
+    lastPointerWasTouch.current = event.pointerType === "touch";
+    if (!lastPointerWasTouch.current) return;
+
+    ignoreTouchClick.current = true;
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 18) {
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const side: "left" | "right" = event.clientX < bounds.left + bounds.width / 2 ? "left" : "right";
+    const now = Date.now();
+    const previous = lastTap.current;
+
+    if (previous && previous.side === side && now - previous.time <= 320) {
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+      lastTap.current = null;
+      seek(side === "left" ? -5 : 5);
+      showTapFeedback(side);
+      revealControls();
+      return;
+    }
+
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    lastTap.current = { time: now, side };
+    tapTimer.current = setTimeout(() => {
+      lastTap.current = null;
+      toggleTouchControls();
+    }, 320);
+  };
 
   return (
     <>
@@ -924,8 +1320,105 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
         </div>
       </header>
 
-      <section className="player-surface">
-        <video controls autoPlay playsInline preload="auto" poster={video.posterUrl} src={video.streamUrl} />
+      <section className={`player-surface custom-player ${controlsVisible || !playing || waiting || error ? "controls-visible" : ""} ${forcedLandscape ? "forced-landscape" : ""} ${isAppFullscreen ? "app-fullscreen" : ""}`} ref={stageRef}
+        tabIndex={0} aria-label="Видеоплеер" onPointerMove={revealControls} onFocus={revealControls}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && isAppFullscreen) {
+            event.preventDefault();
+            setIsAppFullscreen(false);
+            setForcedLandscape(false);
+            return;
+          }
+          if (event.target !== event.currentTarget && event.target !== mediaRef.current) return;
+          if ([" ", "k", "ArrowLeft", "ArrowRight", "f", "m"].includes(event.key)) event.preventDefault();
+          if (event.key === " " || event.key === "k") togglePlayback();
+          if (event.key === "ArrowLeft") seek(-10);
+          if (event.key === "ArrowRight") seek(10);
+          if (event.key === "f") void fullscreen();
+          if (event.key === "m" && mediaRef.current) mediaRef.current.muted = !mediaRef.current.muted;
+          revealControls();
+        }}>
+        <div className="video-stage">
+          <video ref={mediaRef} autoPlay playsInline preload="metadata" poster={video.posterUrl} src={video.streamUrl}
+            onPointerDown={(event) => {
+              lastPointerWasTouch.current = event.pointerType === "touch";
+              if (lastPointerWasTouch.current) touchStart.current = { x: event.clientX, y: event.clientY };
+              else ignoreTouchClick.current = false;
+            }}
+            onPointerUp={handleVideoPointerUp}
+            onPointerCancel={() => { touchStart.current = null; ignoreTouchClick.current = false; }}
+            onClick={() => {
+              if (ignoreTouchClick.current) {
+                ignoreTouchClick.current = false;
+                return;
+              }
+              togglePlayback();
+              revealControls();
+            }}
+            onDoubleClick={() => { if (!lastPointerWasTouch.current) void fullscreen(); }}
+            onTimeUpdate={event => setPosition(event.currentTarget.currentTime)}
+            onDurationChange={event => setLength(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
+            onProgress={event => { const ranges = event.currentTarget.buffered; setBuffered(ranges.length ? ranges.end(ranges.length - 1) : 0); }}
+            onVolumeChange={event => { setVolume(event.currentTarget.volume); setMuted(event.currentTarget.muted); }}
+            onPlay={() => { setPlaying(true); setError(""); revealControls(); }} onPause={() => setPlaying(false)}
+            onWaiting={() => setWaiting(true)} onPlaying={() => setWaiting(false)}
+            onCanPlay={() => setWaiting(false)} onEnded={() => setPlaying(false)}
+            onError={() => { setWaiting(false); setError("Не удалось открыть видео. Проверьте доступность файла и поддерживаемый формат."); }} />
+          {waiting && !error && <div className="player-loading" role="status"><RefreshCw className="spin" size={22} /><span>Загрузка видео</span></div>}
+          {!waiting && !error && (controlsVisible || !playing) && (
+            <button className="center-play" onClick={() => { togglePlayback(); revealControls(); }} aria-label={playing ? "Пауза" : "Воспроизвести"}>
+              {playing ? <Pause size={34} fill="currentColor" /> : <Play size={38} fill="currentColor" />}
+            </button>
+          )}
+          {tapFeedback && (
+            <div className={`tap-seek-feedback ${tapFeedback}`} aria-live="polite">
+              {tapFeedback === "left" ? <RotateCcw size={28} /> : <RotateCw size={28} />}
+              <span>{tapFeedback === "left" ? "−5" : "+5"}</span>
+            </div>
+          )}
+          <button
+            className="orientation-toggle"
+            onClick={(event) => { event.stopPropagation(); void changeOrientation(); }}
+            title={forcedLandscape || isLandscape ? "Вертикальная ориентация" : "Горизонтальная ориентация"}
+            aria-label={forcedLandscape || isLandscape ? "Переключить в вертикальную ориентацию" : "Переключить в горизонтальную ориентацию"}
+          >
+            {forcedLandscape || isLandscape ? <Smartphone size={20} /> : <Monitor size={20} />}
+          </button>
+        </div>
+        <div className="player-overlay">
+        <input className="player-timeline" type="range" min={0} max={length || 1} step={0.1} value={Math.min(position, length)} disabled={!length} aria-label="Позиция воспроизведения" aria-valuetext={`${clock(position)} из ${clock(length)}`}
+          style={{ background: `linear-gradient(to right, #d6ff6f ${length ? position / length * 100 : 0}%, #ffffff70 ${length ? position / length * 100 : 0}%, #ffffff70 ${length ? buffered / length * 100 : 0}%, #ffffff30 ${length ? buffered / length * 100 : 0}%)` }}
+          onChange={event => { const value = Number(event.target.value); if (mediaRef.current) mediaRef.current.currentTime = value; setPosition(value); revealControls(); }} />
+        <div className="playback-tools">
+          <button className="seek-control" onClick={() => seek(-10)} title="Назад на 10 секунд" aria-label="Назад на 10 секунд"><RotateCcw size={20} /><small>10</small></button>
+          <button className="playback-primary" onClick={togglePlayback} title={playing ? "Пауза" : "Воспроизвести"} aria-label={playing ? "Пауза" : "Воспроизвести"}>{playing ? <Pause size={22} /> : <Play size={22} />}</button>
+          <button className="seek-control" onClick={() => seek(10)} title="Вперёд на 10 секунд" aria-label="Вперёд на 10 секунд"><RotateCw size={20} /><small>10</small></button>
+          <button className="player-mute-button" onClick={() => { if (mediaRef.current) mediaRef.current.muted = !muted; }} title={muted ? "Включить звук" : "Выключить звук"} aria-label={muted ? "Включить звук" : "Выключить звук"}>{muted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+          <input className="player-volume" type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume} aria-label="Громкость" onChange={event => { if (mediaRef.current) { mediaRef.current.volume = Number(event.target.value); mediaRef.current.muted = false; } }} />
+          <span className="player-clock">{clock(position)} / {clock(length)}</span>
+          <details className="player-speed-menu" onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.removeAttribute("open");
+          }}>
+            <summary aria-label={`Скорость воспроизведения ${speed}×`}>{speed}×</summary>
+            <div className="player-speed-options">
+              {[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => (
+                <button key={value} className={speed === value ? "selected" : ""} onClick={(event) => {
+                  setSpeed(value);
+                  if (mediaRef.current) mediaRef.current.playbackRate = value;
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                }}>
+                  <span>{value}×</span>
+                  {speed === value && <Check size={15} />}
+                </button>
+              ))}
+            </div>
+          </details>
+          <button title={isAppFullscreen || isNativeFullscreen ? "Выйти из полноэкранного режима" : "Полный экран"} aria-label={isAppFullscreen || isNativeFullscreen ? "Выйти из полноэкранного режима" : "Полный экран"} onClick={() => { void fullscreen(); }}>
+            {isAppFullscreen || isNativeFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+          </button>
+        </div>
+        </div>
+        {error && <p className="player-message" role="alert">{error}</p>}
       </section>
 
       <section className="player-details">
