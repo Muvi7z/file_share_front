@@ -1,6 +1,5 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AccountAuthStatus, AccountCenter, isAdministrator } from "./Accounts";
-import { PosterContext, PosterControl } from "./PosterControl";
 import {
   ArrowDown,
   Check,
@@ -75,6 +74,85 @@ import type {
 
 const sessionStorageKey = "local-video-vault-admin";
 const unknownFolderName = "\u041f\u0430\u043f\u043a\u0430 \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u0430";
+const posterPreviewCache = new Map<string, string>();
+const pendingPosterPreviews = new Map<string, Promise<string>>();
+const posterPreviewQueue: Array<{
+  url: string;
+  resolve: (value: string) => void;
+  reject: (reason: unknown) => void;
+}> = [];
+let activePosterPreviewLoads = 0;
+
+async function createPosterPreview(url: string) {
+  const response = await fetch(url, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`Poster request failed: ${response.status}`);
+  let blob = await response.blob();
+
+  if ("createImageBitmap" in window && "OffscreenCanvas" in window) {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      const targetRatio = 16 / 9;
+      const sourceRatio = bitmap.width / bitmap.height;
+      const sourceWidth = sourceRatio > targetRatio ? bitmap.height * targetRatio : bitmap.width;
+      const sourceHeight = sourceRatio > targetRatio ? bitmap.height : bitmap.width / targetRatio;
+      const sourceX = (bitmap.width - sourceWidth) / 2;
+      const sourceY = (bitmap.height - sourceHeight) / 2;
+      const canvas = new OffscreenCanvas(480, 270);
+      const context = canvas.getContext("2d", { alpha: false });
+      context?.drawImage(bitmap, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, 480, 270);
+      bitmap.close();
+      if (context) blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.74 });
+    } catch {
+      // The original poster remains usable when off-thread resizing is unavailable.
+    }
+  }
+
+  return URL.createObjectURL(blob);
+}
+
+function runPosterPreviewQueue() {
+  while (activePosterPreviewLoads < 2 && posterPreviewQueue.length > 0) {
+    const item = posterPreviewQueue.shift();
+    if (!item) return;
+    activePosterPreviewLoads += 1;
+    void createPosterPreview(item.url)
+      .then((previewUrl) => {
+        posterPreviewCache.set(item.url, previewUrl);
+        if (posterPreviewCache.size > 96) {
+          const oldest = posterPreviewCache.entries().next().value as [string, string] | undefined;
+          if (oldest) {
+            posterPreviewCache.delete(oldest[0]);
+            URL.revokeObjectURL(oldest[1]);
+          }
+        }
+        item.resolve(previewUrl);
+      })
+      .catch(item.reject)
+      .finally(() => {
+        pendingPosterPreviews.delete(item.url);
+        activePosterPreviewLoads -= 1;
+        runPosterPreviewQueue();
+      });
+  }
+}
+
+function loadPosterPreview(url: string) {
+  const cached = posterPreviewCache.get(url);
+  if (cached) return Promise.resolve(cached);
+  const pending = pendingPosterPreviews.get(url);
+  if (pending) return pending;
+
+  let resolveRequest!: (value: string) => void;
+  let rejectRequest!: (reason: unknown) => void;
+  const request = new Promise<string>((resolve, reject) => {
+    resolveRequest = resolve;
+    rejectRequest = reject;
+  });
+  pendingPosterPreviews.set(url, request);
+  posterPreviewQueue.unshift({ url, resolve: resolveRequest, reject: rejectRequest });
+  runPosterPreviewQueue();
+  return request;
+}
 
 function normalizeVideoPath(path: string) {
   return path.trim().replace(/\\/g, "/").replace(/\/+/g, "/").toLowerCase();
@@ -585,7 +663,7 @@ function App() {
   const pageEyebrow = page === "files" ? "Проводник" : page === "admin" ? "Доступ и папки" : "Открытый просмотр";
 
   return (
-    <PosterContext.Provider value={isAdminSession ? handleVideoUpdated : null}><div className={`app-shell page-${page}`}>
+    <div className={`app-shell page-${page}`}>
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">
@@ -646,6 +724,7 @@ function App() {
           <AccountCenter session={session} onLogin={handleLogin} onLogout={handleLogout}><AdminPage
             folders={rootFolders}
             videos={videos}
+            scrollContainerRef={contentRef}
             session={session}
             onLogin={handleLogin}
             onLogout={handleLogout}
@@ -767,7 +846,7 @@ function App() {
           </>
         )}
       </main>
-    </div></PosterContext.Provider>
+    </div>
   );
 }
 
@@ -1025,25 +1104,70 @@ function parseDurationSeconds(value: VideoFile["duration"]) {
 }
 
 function PosterImage({ video }: { video: VideoFile }) {
+  const containerRef = useRef<HTMLElement | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [loadedPoster, setLoadedPoster] = useState<{ requestUrl: string; previewUrl: string } | null>(null);
   const posterUrl = getVideoPosterUrl(video.id, video.posterRevision);
   const posterUnavailable = failedUrl === posterUrl;
 
+  useEffect(() => {
+    if (shouldLoad) return;
+    const container = containerRef.current;
+    if (!container || !("IntersectionObserver" in window)) {
+      setShouldLoad(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setShouldLoad(true);
+        observer.disconnect();
+      },
+      { rootMargin: "120px 0px" }
+    );
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  useEffect(() => {
+    if (!shouldLoad) return;
+    let cancelled = false;
+    void loadPosterPreview(posterUrl)
+      .then((previewUrl) => {
+        if (!cancelled) setLoadedPoster({ requestUrl: posterUrl, previewUrl });
+      })
+      .catch(() => {
+        if (!cancelled) setFailedUrl(posterUrl);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [posterUrl, shouldLoad]);
+
   if (posterUnavailable) {
     return (
-      <span className="poster-thumbnail poster-placeholder" aria-hidden="true">
+      <span ref={containerRef} className="poster-thumbnail poster-placeholder" aria-hidden="true">
         <FileVideo size={30} />
       </span>
     );
   }
 
+  if (!shouldLoad || loadedPoster?.requestUrl !== posterUrl) {
+    return <span ref={containerRef} className="poster-thumbnail poster-skeleton" aria-hidden="true" />;
+  }
+
   return (
     <img
       className="poster-thumbnail"
-      src={posterUrl}
+      src={loadedPoster.previewUrl}
       alt=""
+      width={320}
+      height={180}
       loading="lazy"
       decoding="async"
+      fetchPriority="low"
       onError={() => setFailedUrl(posterUrl)}
     />
   );
@@ -1054,7 +1178,6 @@ function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; 
 
   return (
     <article className="video-item">
-      <PosterControl video={video} />
       <button className="poster-button" onClick={onPlay} aria-label={`Открыть ${video.title}`}>
         <PosterImage video={video} />
         <span className="play-badge">
@@ -1450,7 +1573,6 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
       </section>
 
       <section className="player-details">
-        <PosterControl video={video} />
         <div>
           <FileVideo size={18} />
           <span>{video.codec}</span>
@@ -1475,6 +1597,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
 function AdminPage({
   folders,
   videos,
+  scrollContainerRef,
   session,
   onLogin,
   onLogout,
@@ -1485,6 +1608,7 @@ function AdminPage({
 }: {
   folders: VaultFolder[];
   videos: VideoFile[];
+  scrollContainerRef: RefObject<HTMLElement | null>;
   session: AdminSession | null;
   onLogin: (session: AdminSession) => void;
   onLogout: () => void;
@@ -1505,18 +1629,32 @@ function AdminPage({
   const [editingFolderName, setEditingFolderName] = useState("");
   const [updatingFolderId, setUpdatingFolderId] = useState<string | null>(null);
   const [posterQuery, setPosterQuery] = useState("");
+  const [posterFolderId, setPosterFolderId] = useState("all");
   const [updatingPosterId, setUpdatingPosterId] = useState<string | null>(null);
+
+  const posterFolders = useMemo(() => {
+    const counts = new Map<string, number>();
+    videos.forEach((video) => counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1));
+    return folders
+      .map((folder) => ({ id: folder.id, name: folder.name, count: counts.get(folder.id) ?? 0 }))
+      .filter((folder) => folder.count > 0)
+      .sort((left, right) => left.name.localeCompare(right.name, "ru", { numeric: true }));
+  }, [folders, videos]);
 
   const filteredPosterVideos = useMemo(() => {
     const normalizedQuery = posterQuery.trim().toLocaleLowerCase();
-    if (!normalizedQuery) {
-      return videos;
-    }
+    return videos.filter((video) => {
+      const matchesFolder = posterFolderId === "all" || video.folderId === posterFolderId;
+      const matchesQuery = !normalizedQuery ||
+        [video.title, video.path, video.folderName].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+      return matchesFolder && matchesQuery;
+    });
+  }, [posterFolderId, posterQuery, videos]);
 
-    return videos.filter((video) =>
-      [video.title, video.path, video.folderName].some((value) => value.toLocaleLowerCase().includes(normalizedQuery))
-    );
-  }, [posterQuery, videos]);
+  useEffect(() => {
+    if (posterFolderId === "all" || posterFolders.some((folder) => folder.id === posterFolderId)) return;
+    setPosterFolderId("all");
+  }, [posterFolderId, posterFolders]);
 
   const submitLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -1756,22 +1894,152 @@ function AdminPage({
               </label>
             </header>
 
-            <div className="poster-video-list">
-              {filteredPosterVideos.map((video) => (
-                <AdminPosterRow
-                  key={video.id}
-                  video={video}
-                  isUpdating={updatingPosterId === video.id}
-                  disabled={updatingPosterId !== null}
-                  onChange={(file) => changePoster(video, file)}
-                />
+            <nav className="poster-folder-strip" aria-label="Фильтр видео по папкам">
+              <button
+                type="button"
+                className={posterFolderId === "all" ? "selected" : ""}
+                aria-pressed={posterFolderId === "all"}
+                onClick={() => setPosterFolderId("all")}
+              >
+                <span>Все видео</span>
+                <b>{videos.length}</b>
+              </button>
+              {posterFolders.map((folder) => (
+                <button
+                  type="button"
+                  key={folder.id}
+                  className={posterFolderId === folder.id ? "selected" : ""}
+                  aria-pressed={posterFolderId === folder.id}
+                  onClick={() => setPosterFolderId(folder.id)}
+                  title={folder.name}
+                >
+                  <span>{folder.name}</span>
+                  <b>{folder.count}</b>
+                </button>
               ))}
-              {filteredPosterVideos.length === 0 && <p className="poster-list-empty">Видео не найдены.</p>}
-            </div>
+            </nav>
+
+            <VirtualPosterGrid
+              videos={filteredPosterVideos}
+              scrollContainerRef={scrollContainerRef}
+              updatingPosterId={updatingPosterId}
+              disabled={updatingPosterId !== null}
+              onChange={changePoster}
+            />
           </section>
         </section>
       )}
     </>
+  );
+}
+
+function VirtualPosterGrid({
+  videos,
+  scrollContainerRef,
+  updatingPosterId,
+  disabled,
+  onChange
+}: {
+  videos: VideoFile[];
+  scrollContainerRef: RefObject<HTMLElement | null>;
+  updatingPosterId: string | null;
+  disabled: boolean;
+  onChange: (video: VideoFile, file: File) => void;
+}) {
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const [metrics, setMetrics] = useState({ width: 0, scrollTop: 0, viewportHeight: 800, gridTop: 0 });
+
+  const measure = useCallback(() => {
+    const grid = gridRef.current;
+    const scroller = scrollContainerRef.current;
+    if (!grid || !scroller) return;
+    const gridRect = grid.getBoundingClientRect();
+    const scrollerRect = scroller.getBoundingClientRect();
+    const next = {
+      width: grid.clientWidth,
+      scrollTop: scroller.scrollTop,
+      viewportHeight: scroller.clientHeight,
+      gridTop: gridRect.top - scrollerRect.top + scroller.scrollTop
+    };
+    setMetrics((current) =>
+      current.width === next.width &&
+      current.scrollTop === next.scrollTop &&
+      current.viewportHeight === next.viewportHeight &&
+      Math.abs(current.gridTop - next.gridTop) < 1
+        ? current
+        : next
+    );
+  }, [scrollContainerRef]);
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    const scroller = scrollContainerRef.current;
+    if (!grid || !scroller) return;
+    const scheduleMeasure = () => {
+      if (animationFrameRef.current !== null) return;
+      animationFrameRef.current = requestAnimationFrame(() => {
+        animationFrameRef.current = null;
+        measure();
+      });
+    };
+    const resizeObserver = new ResizeObserver(scheduleMeasure);
+    resizeObserver.observe(grid);
+    resizeObserver.observe(scroller);
+    scroller.addEventListener("scroll", scheduleMeasure, { passive: true });
+    measure();
+    return () => {
+      resizeObserver.disconnect();
+      scroller.removeEventListener("scroll", scheduleMeasure);
+      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [measure, scrollContainerRef, videos.length]);
+
+  if (videos.length === 0) {
+    return <p className="poster-list-empty">Видео не найдены.</p>;
+  }
+
+  const mobile = metrics.width <= 560;
+  const gap = mobile ? 8 : 14;
+  const minimumColumnWidth = mobile ? 166 : 280;
+  const columns = Math.max(1, Math.floor((metrics.width + gap) / (minimumColumnWidth + gap)));
+  const columnWidth = columns > 0 ? (metrics.width - gap * (columns - 1)) / columns : metrics.width;
+  const cardHeight = columnWidth * 9 / 16 + (mobile ? 56 : 60);
+  const rowHeight = cardHeight + gap;
+  const rowCount = Math.ceil(videos.length / columns);
+  const localScrollTop = Math.max(0, metrics.scrollTop - metrics.gridTop);
+  const firstRow = Math.max(0, Math.floor(localScrollTop / rowHeight) - 2);
+  const lastRow = Math.min(rowCount, Math.ceil((localScrollTop + metrics.viewportHeight) / rowHeight) + 3);
+  const firstIndex = firstRow * columns;
+  const lastIndex = Math.min(videos.length, lastRow * columns);
+  const totalHeight = Math.max(0, rowCount * rowHeight - gap);
+
+  return (
+    <div ref={gridRef} className="poster-virtual-grid" style={{ height: totalHeight }}>
+      {videos.slice(firstIndex, lastIndex).map((video, sliceIndex) => {
+        const index = firstIndex + sliceIndex;
+        const row = Math.floor(index / columns);
+        const column = index % columns;
+        return (
+          <div
+            className="poster-virtual-cell"
+            key={video.id}
+            style={{
+              width: columnWidth,
+              height: cardHeight,
+              transform: `translate3d(${column * (columnWidth + gap)}px, ${row * rowHeight}px, 0)`
+            }}
+          >
+            <AdminPosterRow
+              video={video}
+              isUpdating={updatingPosterId === video.id}
+              disabled={disabled}
+              onChange={(file) => onChange(video, file)}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1789,11 +2057,24 @@ function AdminPosterRow({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <article className="poster-video-row">
-      <PosterImage video={video} />
-      <div>
+    <article className="poster-video-card">
+      <button
+        type="button"
+        className="poster-preview-button"
+        onClick={() => inputRef.current?.click()}
+        disabled={disabled}
+        title={isUpdating ? "Загрузка постера" : "Сменить постер"}
+        aria-label={isUpdating ? `Загрузка постера ${video.title}` : `Сменить постер ${video.title}`}
+      >
+        <PosterImage video={video} />
+        <span className="poster-edit-action">
+          {isUpdating ? <RefreshCw className="spin" size={18} /> : <ImagePlus size={18} />}
+          <span>{isUpdating ? "Загрузка" : "Сменить"}</span>
+        </span>
+      </button>
+      <div className="poster-video-copy">
         <strong>{video.title}</strong>
-        <span>{video.path}</span>
+        <span title={video.path}>{video.folderName}</span>
       </div>
       <input
         ref={inputRef}
@@ -1808,15 +2089,6 @@ function AdminPosterRow({
           }
         }}
       />
-      <button
-        type="button"
-        className="icon-button"
-        onClick={() => inputRef.current?.click()}
-        disabled={disabled}
-        title={isUpdating ? "Загрузка постера" : "Сменить постер"}
-      >
-        <ImagePlus size={19} />
-      </button>
     </article>
   );
 }
