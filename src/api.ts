@@ -43,7 +43,7 @@ const sessionStorageKey = "local-video-vault-admin";
 export const authExpiredEvent = "local-video-vault-auth-expired";
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "/api";
 const apiFallbackBaseUrl = (import.meta.env.VITE_API_FALLBACK_BASE_URL as string | undefined)?.replace(/\/$/, "")
-  || "http://10.0.85.2:5544/api";
+  || apiBaseUrl;
 
 export function getFileDownloadUrl(fileId: string) {
   return `${apiBaseUrl}/files/${encodeURIComponent(fileId)}/download`;
@@ -52,6 +52,14 @@ export function getFileDownloadUrl(fileId: string) {
 export function getVideoPosterUrl(videoId: string, revision?: number) {
   const url = `${apiBaseUrl}/videos/${encodeURIComponent(videoId)}/poster`;
   return revision ? `${url}?v=${revision}` : url;
+}
+
+export async function deleteMediaFile(fileId: string): Promise<void> {
+  await request<void>(`/files/${encodeURIComponent(fileId)}`, { method: "DELETE" });
+}
+
+export async function deleteMediaVideo(videoId: string): Promise<void> {
+  await request<void>(`/videos/${encodeURIComponent(videoId)}`, { method: "DELETE" });
 }
 
 type RequestOptions = RequestInit & {

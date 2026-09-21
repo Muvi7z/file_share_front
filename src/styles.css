@@ -734,13 +734,13 @@ h1 {
 .file-type-preview {
   display: grid;
   max-width: 100%;
-  place-items: center;
+  justify-items: center;
   gap: 7px;
 }
 
 .file-type-preview b {
-  max-width: calc(100% - 12px);
-  overflow: hidden;
+  max-width: none;
+  overflow: visible;
   padding: 3px 7px;
   border: 1px solid #ccd7d2;
   border-radius: 4px;
@@ -748,8 +748,13 @@ h1 {
   font-size: 10px;
   line-height: 1.2;
   letter-spacing: .06em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.file-type-preview svg {
+  flex: 0 0 auto;
 }
 
 .file-grid .file-type-preview svg {
@@ -768,8 +773,14 @@ h1 {
 }
 
 .file-copy strong {
-  overflow-wrap: anywhere;
+  display: -webkit-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   line-height: 1.3;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .file-copy small {
@@ -1394,6 +1405,197 @@ dd {
   padding: 16px;
 }
 
+.admin-media-manager {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.admin-file-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-folder-strip {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 8px;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: #59665e transparent;
+  scrollbar-width: thin;
+}
+
+.admin-folder-strip button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  padding: 8px 11px;
+  border: 1px solid #3a4541;
+  border-radius: 8px;
+  background: #202627;
+  color: #c2cdca;
+}
+
+.admin-folder-strip button:hover {
+  border-color: #687b61;
+  background: #29312f;
+  color: #ffffff;
+}
+
+.admin-folder-strip button.selected {
+  border-color: #d6ff6f;
+  background: #17231f;
+  color: #ffffff;
+}
+
+.admin-folder-strip button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-folder-strip button > b {
+  flex: 0 0 auto;
+  color: #d6ff6f;
+  font-size: 12px;
+}
+
+.admin-file-controls .admin-video-search {
+  width: min(520px, 100%);
+  flex: 1 1 280px;
+}
+
+.admin-file-controls select {
+  width: min(320px, 34vw);
+  min-width: 180px;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #ccd8d4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #182126;
+}
+
+.admin-media-virtual-grid {
+  position: relative;
+  width: 100%;
+  min-height: 1px;
+  contain: layout paint;
+}
+
+.admin-media-virtual-cell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  contain: strict;
+}
+
+.admin-media-virtual-cell .poster-video-card {
+  grid-template-rows: auto 78px;
+}
+
+.admin-media-file-card {
+  grid-template-rows: auto minmax(78px, auto);
+}
+
+.admin-media-file-preview {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  place-items: center;
+  overflow: hidden;
+  background: #111817;
+  color: #aab8b3;
+}
+
+.admin-media-file-preview.image {
+  background: #0b100f;
+}
+
+.admin-media-file-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-media-file-type {
+  display: grid;
+  max-width: calc(100% - 24px);
+  justify-items: center;
+  gap: 8px;
+}
+
+.admin-media-file-type b {
+  max-width: none;
+  overflow: visible;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.admin-media-file-type svg {
+  flex: 0 0 auto;
+}
+
+.admin-media-file-copy {
+  align-content: start;
+}
+
+.poster-video-copy.admin-media-file-copy strong {
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+}
+
+.account-center .admin-sort-menu summary,
+.account-center .admin-sort-direction {
+  height: 42px;
+  border-color: #46504d;
+  background: #202527;
+  color: #d7e0dd;
+}
+
+.account-center .admin-sort-menu[open] summary {
+  border-color: #9acb55;
+  background: #282f2d;
+}
+
+.account-center .admin-sort-menu .sort-options {
+  border-color: #46504d;
+  background: #202527;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+}
+
+.account-center .admin-sort-menu .sort-options button {
+  color: #c4cfcb;
+}
+
+.account-center .admin-sort-menu .sort-options button:hover {
+  background: #303836;
+  color: #ffffff;
+}
+
+.account-center .admin-sort-menu .sort-options button.selected {
+  background: #d6ff6f;
+  color: #111817;
+}
+
+.account-center .admin-sort-direction:hover {
+  border-color: #7e966f;
+  background: #303836;
+  color: #d6ff6f;
+}
+
 .poster-manager-header {
   display: flex;
   align-items: end;
@@ -1506,6 +1708,7 @@ dd {
 }
 
 .poster-video-card {
+  position: relative;
   display: grid;
   grid-template-rows: auto 60px;
   width: 100%;
@@ -1520,6 +1723,27 @@ dd {
   content-visibility: auto;
   contain-intrinsic-size: auto 210px;
   transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.poster-delete-button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 3;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(20, 24, 24, 0.88);
+  color: #ffaaa4;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
+.poster-delete-button:hover:not(:disabled) {
+  background: #7b2929;
+  color: #ffffff;
 }
 
 .poster-video-card:hover {
@@ -1561,25 +1785,291 @@ dd {
 
 .poster-edit-action {
   position: absolute;
-  right: 9px;
-  bottom: 9px;
+  top: 9px;
+  left: 9px;
   z-index: 1;
-  display: inline-flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 6px;
+  background: rgba(20, 24, 24, 0.88);
+  color: #dce7e3;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.poster-preview-button:hover .poster-edit-action {
+  border-color: #d6ff6f;
   background: #d6ff6f;
   color: #111817;
-  font-size: 12px;
-  font-weight: 800;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
 }
 
 .poster-preview-button:disabled .poster-edit-action {
-  background: #89917a;
+  background: rgba(55, 63, 60, 0.92);
+  color: #9ca8a4;
+}
+
+.theme-glass.page-admin .poster-video-card {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(18, 18, 20, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 14px 34px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(16px) saturate(120%);
+}
+
+.theme-glass.page-admin .poster-video-card:hover {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(28, 28, 30, 0.58);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 16px 38px rgba(0, 0, 0, 0.3);
+}
+
+.theme-glass.page-admin .admin-media-file-preview,
+.theme-glass.page-admin .poster-preview-button {
+  background: rgba(7, 7, 8, 0.48);
+}
+
+.theme-glass.page-admin .poster-video-copy {
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.theme-glass.page-admin .poster-delete-button,
+.theme-glass.page-admin .poster-edit-action {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(12, 12, 14, 0.46);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 8px 22px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px) saturate(125%);
+}
+
+.theme-glass.page-admin .poster-preview-button:hover .poster-edit-action {
+  border-color: rgba(255, 255, 255, 0.84);
+  background: rgba(255, 255, 255, 0.9);
+  color: #090909;
+}
+
+.theme-glass.page-admin .poster-delete-button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.84);
+  background: rgba(255, 255, 255, 0.9);
+  color: #090909;
+}
+
+.theme-glass.page-admin .admin-file-controls select,
+.theme-glass.page-admin .admin-video-search,
+.theme-glass.page-admin .admin-sort-menu summary,
+.theme-glass.page-admin .admin-sort-direction,
+.theme-glass.page-admin .admin-file-controls > .icon-button {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(24, 24, 26, 0.46);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+.theme-glass.page-admin .admin-folder-strip button {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(24, 24, 26, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+.theme-glass.page-admin .admin-folder-strip button:hover {
+  border-color: rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.theme-glass.page-admin .admin-folder-strip button.selected {
+  border-color: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.theme-glass.page-admin .content {
+  background: rgba(0, 0, 0, 0.12);
+  color: #f4f4f4;
+}
+
+.theme-glass.page-admin .sidebar {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(5, 5, 6, 0.72);
+  color: #f4f4f4;
+  box-shadow: 14px 0 38px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(18px) saturate(110%);
+}
+
+.theme-glass.page-admin .brand span,
+.theme-glass.page-admin .main-nav button,
+.theme-glass.page-admin .folder-nav button,
+.theme-glass.page-admin .admin-entry,
+.theme-glass.page-admin .account-stats,
+.theme-glass.page-admin .account-tabs button,
+.theme-glass.page-admin .account-center .eyebrow,
+.theme-glass.page-admin .folder-row span,
+.theme-glass.page-admin .folder-meta span,
+.theme-glass.page-admin .poster-manager-header span,
+.theme-glass.page-admin .poster-video-copy span {
+  color: #bdbdbd;
+}
+
+.theme-glass.page-admin .poster-edit-action,
+.theme-glass.page-admin .poster-delete-button,
+.theme-glass.page-admin .admin-media-file-preview,
+.theme-glass.page-admin .admin-folder-strip button,
+.theme-glass.page-admin .admin-video-search,
+.theme-glass.page-admin .admin-sort-menu summary,
+.theme-glass.page-admin .admin-sort-menu .sort-options button,
+.theme-glass.page-admin .admin-sort-direction,
+.theme-glass.page-admin .admin-file-controls > .icon-button {
+  color: #e8e8e8;
+}
+
+.theme-glass.page-admin .account-center h1,
+.theme-glass.page-admin .account-center h2,
+.theme-glass.page-admin .poster-manager-header h2,
+.theme-glass.page-admin .poster-video-card strong,
+.theme-glass.page-admin .folder-row strong {
+  color: #f5f5f5;
+}
+
+.theme-glass.page-admin .brand-mark {
+  border-color: rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.9);
+  color: #080808;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.theme-glass.page-admin .main-nav button:hover,
+.theme-glass.page-admin .main-nav .active,
+.theme-glass.page-admin .folder-nav button:hover,
+.theme-glass.page-admin .folder-nav .active,
+.theme-glass.page-admin .admin-entry:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  backdrop-filter: blur(12px) saturate(110%);
+}
+
+.theme-glass.page-admin .folder-nav b,
+.theme-glass.page-admin .account-stats strong,
+.theme-glass.page-admin .admin-folder-strip button > b {
+  color: #ffffff;
+}
+
+.theme-glass.page-admin .account-tabs button[aria-current="page"] {
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+.theme-glass.page-admin .account-tabs b {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.theme-glass.page-admin .account-center .admin-page-card {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(15, 15, 17, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 18px 42px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px) saturate(115%);
+}
+
+.theme-glass.page-admin .account-center input,
+.theme-glass.page-admin .account-center select,
+.theme-glass.page-admin .account-center .icon-button,
+.theme-glass.page-admin .account-center .ghost-button,
+.theme-glass.page-admin .credential-fill-button,
+.theme-glass.page-admin .danger-button,
+.theme-glass.page-admin .status {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f2f2f2;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(12px) saturate(110%);
+}
+
+.theme-glass.page-admin .account-center .icon-button:hover:not(:disabled),
+.theme-glass.page-admin .account-center .ghost-button:hover:not(:disabled),
+.theme-glass.page-admin .credential-fill-button:hover,
+.theme-glass.page-admin .danger-button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.theme-glass.page-admin .account-center .primary-button,
+.theme-glass.page-admin .status.enabled {
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.9);
+  color: #090909;
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.theme-glass.page-admin .account-center input:focus-visible,
+.theme-glass.page-admin .account-center select:focus-visible,
+.theme-glass.page-admin .account-center button:focus-visible,
+.theme-glass.page-admin .admin-video-search:focus-within,
+.theme-glass.page-admin .folder-name-cell input:focus {
+  border-color: rgba(255, 255, 255, 0.72);
+  outline-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+}
+
+.theme-glass.page-admin .account-center .admin-sort-menu[open] summary,
+.theme-glass.page-admin .account-center .admin-sort-direction:hover {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.theme-glass.page-admin .account-center .admin-sort-menu .sort-options {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(12, 12, 14, 0.86);
+  backdrop-filter: blur(18px) saturate(110%);
+}
+
+.theme-glass.page-admin .account-center .admin-sort-menu .sort-options button:hover,
+.theme-glass.page-admin .account-center .admin-sort-menu .sort-options button.selected {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.theme-glass.page-admin .account-avatar,
+.theme-glass.page-admin .account-notice,
+.theme-glass.page-admin .auth-account-status,
+.theme-glass.page-admin .auth-account-status.pending,
+.theme-glass.page-admin .auth-account-status.blocked,
+.theme-glass.page-admin .auth-account-status.rejected {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.theme-glass.page-admin .account-status.pending,
+.theme-glass.page-admin .account-status.active,
+.theme-glass.page-admin .account-status.blocked,
+.theme-glass.page-admin .account-status.rejected,
+.theme-glass.page-admin .auth-account-status span,
+.theme-glass.page-admin .auth-account-status.pending span,
+.theme-glass.page-admin .auth-account-status.blocked span,
+.theme-glass.page-admin .auth-account-status.rejected span {
+  color: #c8c8c8;
+}
+
+.theme-glass.page-admin .error {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .poster-video-copy {
@@ -1925,6 +2415,19 @@ dd {
   .admin-video-search {
     width: 100%;
   }
+
+  .admin-file-controls {
+    width: 100%;
+  }
+
+  .admin-file-controls select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-file-controls .admin-video-search {
+    flex: 1;
+  }
 }
 
 @media (max-width: 560px) {
@@ -1983,10 +2486,6 @@ dd {
   }
 
   .file-grid .file-copy strong {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
     font-size: 13px;
   }
 
@@ -2161,6 +2660,10 @@ dd {
     padding: 10px;
   }
 
+  .admin-media-manager {
+    padding: 10px;
+  }
+
   .poster-video-card {
     grid-template-rows: auto 56px;
   }
@@ -2175,16 +2678,10 @@ dd {
   }
 
   .poster-edit-action {
-    right: 7px;
-    bottom: 7px;
-    min-width: 32px;
-    min-height: 32px;
-    justify-content: center;
-    padding: 6px;
-  }
-
-  .poster-edit-action > span {
-    display: none;
+    top: 7px;
+    left: 7px;
+    width: 32px;
+    height: 32px;
   }
 
   .add-folder {

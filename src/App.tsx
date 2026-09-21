@@ -53,6 +53,8 @@ import {
   authExpiredEvent,
   browseServerFolders,
   deleteFolder,
+  deleteMediaFile,
+  deleteMediaVideo,
   getFolderEntries,
   getFileDownloadUrl,
   getFolders,
@@ -737,6 +739,17 @@ function App() {
     setSelectedVideo((current) => (current?.id === nextVideo.id ? nextVideo : current));
   };
 
+  const handleVideoDeleted = (videoId: string) => {
+    setVideos((current) => current.filter((video) => video.id !== videoId));
+    setFileEntries((current) => current.filter((entry) => entry.type !== "video" || entry.video.id !== videoId));
+    setSelectedVideo((current) => (current?.id === videoId ? null : current));
+    setActiveVideoId((current) => (current === videoId ? null : current));
+  };
+
+  const handleFileDeleted = (fileId: string) => {
+    setFileEntries((current) => current.filter((entry) => entry.type !== "file" || entry.file.id !== fileId));
+  };
+
   const handleFolderDeleted = async (folderId: string) => {
     await deleteFolder(folderId);
     await refreshData();
@@ -821,6 +834,7 @@ function App() {
         {page === "settings" ? (<SettingsPanel theme={theme} wallpaper={wallpaper} session={session} onThemeChange={setTheme} onWallpaperChange={setWallpaper} onLogin={handleLogin} onLogout={handleLogout} />) : page === "admin" ? (
           <AccountCenter session={session} onLogin={handleLogin} onLogout={handleLogout}><AdminPage
             folders={rootFolders}
+            allFolders={folders}
             videos={videos}
             scrollContainerRef={contentRef}
             session={session}
@@ -830,6 +844,8 @@ function App() {
             onFolderUpdated={handleFolderUpdated}
             onFolderDeleted={handleFolderDeleted}
             onVideoUpdated={handleVideoUpdated}
+            onVideoDeleted={handleVideoDeleted}
+            onFileDeleted={handleFileDeleted}
           /></AccountCenter>
         ) : (
           <div className="browse-page" hidden={page === "player"}>
@@ -1842,6 +1858,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
 
 function AdminPage({
   folders,
+  allFolders,
   videos,
   scrollContainerRef,
   session,
@@ -1850,9 +1867,12 @@ function AdminPage({
   onFolderCreated,
   onFolderUpdated,
   onFolderDeleted,
-  onVideoUpdated
+  onVideoUpdated,
+  onVideoDeleted,
+  onFileDeleted
 }: {
   folders: VaultFolder[];
+  allFolders: VaultFolder[];
   videos: VideoFile[];
   scrollContainerRef: RefObject<HTMLElement | null>;
   session: AdminSession | null;
@@ -1862,6 +1882,8 @@ function AdminPage({
   onFolderUpdated: (folder: VaultFolder) => void;
   onFolderDeleted: (folderId: string) => Promise<void>;
   onVideoUpdated: (video: VideoFile) => void;
+  onVideoDeleted: (videoId: string) => void;
+  onFileDeleted: (fileId: string) => void;
 }) {
   const [login, setLogin] = useState("admin");
   const [password, setPassword] = useState("");
@@ -1874,33 +1896,8 @@ function AdminPage({
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
   const [updatingFolderId, setUpdatingFolderId] = useState<string | null>(null);
-  const [posterQuery, setPosterQuery] = useState("");
-  const [posterFolderId, setPosterFolderId] = useState("all");
   const [updatingPosterId, setUpdatingPosterId] = useState<string | null>(null);
-
-  const posterFolders = useMemo(() => {
-    const counts = new Map<string, number>();
-    videos.forEach((video) => counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1));
-    return folders
-      .map((folder) => ({ id: folder.id, name: folder.name, count: counts.get(folder.id) ?? 0 }))
-      .filter((folder) => folder.count > 0)
-      .sort((left, right) => left.name.localeCompare(right.name, "ru", { numeric: true }));
-  }, [folders, videos]);
-
-  const filteredPosterVideos = useMemo(() => {
-    const normalizedQuery = posterQuery.trim().toLocaleLowerCase();
-    return videos.filter((video) => {
-      const matchesFolder = posterFolderId === "all" || video.folderId === posterFolderId;
-      const matchesQuery = !normalizedQuery ||
-        [video.title, video.path, video.folderName].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
-      return matchesFolder && matchesQuery;
-    });
-  }, [posterFolderId, posterQuery, videos]);
-
-  useEffect(() => {
-    if (posterFolderId === "all" || posterFolders.some((folder) => folder.id === posterFolderId)) return;
-    setPosterFolderId("all");
-  }, [posterFolderId, posterFolders]);
+  const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null);
 
   const submitLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -2034,6 +2031,24 @@ function AdminPage({
     }
   };
 
+  const deleteVideoItem = async (video: VideoFile) => {
+    const shouldDelete = window.confirm(`Удалить видео «${video.title}» из медиатеки?`);
+    if (!shouldDelete) return false;
+
+    setDeletingVideoId(video.id);
+    setError("");
+    try {
+      await deleteMediaVideo(video.id);
+      onVideoDeleted(video.id);
+      return true;
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Не удалось удалить видео.");
+      return false;
+    } finally {
+      setDeletingVideoId(null);
+    }
+  };
+
   return (
     <>
       <header className="topbar admin-topbar">
@@ -2124,73 +2139,252 @@ function AdminPage({
             ))}
           </div>
 
-          <section className="poster-manager admin-page-card">
-            <header className="poster-manager-header">
-              <div>
-                <h2>Постеры видео</h2>
-                <span>{videos.length} видео</span>
-              </div>
-              <label className="admin-video-search">
-                <Search size={18} />
-                <input
-                  value={posterQuery}
-                  onChange={(event) => setPosterQuery(event.target.value)}
-                  placeholder="Найти видео"
-                />
-              </label>
-            </header>
-
-            <nav className="poster-folder-strip" aria-label="Фильтр видео по папкам">
-              <button
-                type="button"
-                className={posterFolderId === "all" ? "selected" : ""}
-                aria-pressed={posterFolderId === "all"}
-                onClick={() => setPosterFolderId("all")}
-              >
-                <span>Все видео</span>
-                <b>{videos.length}</b>
-              </button>
-              {posterFolders.map((folder) => (
-                <button
-                  type="button"
-                  key={folder.id}
-                  className={posterFolderId === folder.id ? "selected" : ""}
-                  aria-pressed={posterFolderId === folder.id}
-                  onClick={() => setPosterFolderId(folder.id)}
-                  title={folder.name}
-                >
-                  <span>{folder.name}</span>
-                  <b>{folder.count}</b>
-                </button>
-              ))}
-            </nav>
-
-            <VirtualPosterGrid
-              videos={filteredPosterVideos}
-              scrollContainerRef={scrollContainerRef}
-              updatingPosterId={updatingPosterId}
-              disabled={updatingPosterId !== null}
-              onChange={changePoster}
-            />
-          </section>
+          <AdminMediaManager
+            folders={allFolders}
+            videos={videos}
+            scrollContainerRef={scrollContainerRef}
+            updatingPosterId={updatingPosterId}
+            deletingVideoId={deletingVideoId}
+            disabled={updatingPosterId !== null || deletingVideoId !== null}
+            onVideoChange={changePoster}
+            onVideoDelete={deleteVideoItem}
+            onFileDeleted={onFileDeleted}
+          />
         </section>
       )}
     </>
   );
 }
 
-function VirtualPosterGrid({
+function AdminMediaManager({
+  folders,
   videos,
   scrollContainerRef,
   updatingPosterId,
+  deletingVideoId,
   disabled,
-  onChange
+  onVideoChange,
+  onVideoDelete,
+  onFileDeleted
 }: {
+  folders: VaultFolder[];
   videos: VideoFile[];
   scrollContainerRef: RefObject<HTMLElement | null>;
   updatingPosterId: string | null;
+  deletingVideoId: string | null;
   disabled: boolean;
-  onChange: (video: VideoFile, file: File) => void;
+  onVideoChange: (video: VideoFile, file: File) => void;
+  onVideoDelete: (video: VideoFile) => Promise<boolean>;
+  onFileDeleted: (fileId: string) => void;
+}) {
+  const sortedFolders = useMemo(
+    () => [...folders].sort((left, right) => left.path.localeCompare(right.path, "ru", { numeric: true })),
+    [folders]
+  );
+  const selectableFolders = useMemo(() => {
+    const rootFolders = sortedFolders.filter((folder) => folder.isRoot);
+    return rootFolders.length > 0 ? rootFolders : sortedFolders;
+  }, [sortedFolders]);
+  const [folderId, setFolderId] = useState("");
+  const [entries, setEntries] = useState<FileBrowserEntry[]>([]);
+  const [query, setQuery] = useState("");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [loading, setLoading] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (folderId && selectableFolders.some((folder) => folder.id === folderId)) return;
+    const firstFolder = selectableFolders[0];
+    setFolderId(firstFolder?.id ?? "");
+  }, [folderId, selectableFolders]);
+
+  const loadMedia = useCallback(async () => {
+    if (!folderId) {
+      setEntries([]);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      setEntries(await getFolderEntries(folderId));
+    } catch (nextError) {
+      setEntries([]);
+      setError(nextError instanceof Error ? nextError.message : "Не удалось загрузить файлы и видео.");
+    } finally {
+      setLoading(false);
+    }
+  }, [folderId]);
+
+  useEffect(() => {
+    void loadMedia();
+  }, [loadMedia]);
+
+  const mediaEntries = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    const currentVideos = new Map(videos.map((video) => [video.id, video]));
+
+    return entries
+      .filter((entry) => entry.type === "file" || entry.type === "video")
+      .map((entry) => entry.type === "video"
+        ? { ...entry, video: currentVideos.get(entry.video.id) ?? entry.video }
+        : entry)
+      .filter((entry) => {
+        if (!normalizedQuery) return true;
+        const values = entry.type === "video"
+          ? [entry.video.title, entry.video.path, entry.video.folderName]
+          : [entry.file.name, entry.file.path, entry.file.extension];
+        return values.some((value) => value?.toLocaleLowerCase().includes(normalizedQuery));
+      })
+      .sort((left, right) => compareFileEntries(left, right, sortField, sortDirection));
+  }, [entries, query, sortDirection, sortField, videos]);
+
+  const removeFile = async (file: SharedFile) => {
+    const displayName = getFileDisplayName(file);
+    if (!window.confirm(`Удалить файл «${displayName}» из медиатеки? Это действие нельзя отменить.`)) return;
+
+    setDeletingFileId(file.id);
+    setError("");
+    try {
+      await deleteMediaFile(file.id);
+      setEntries((current) => current.filter((entry) => entry.type !== "file" || entry.file.id !== file.id));
+      onFileDeleted(file.id);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Не удалось удалить файл.");
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
+
+  const removeVideo = async (video: VideoFile) => {
+    if (!await onVideoDelete(video)) return;
+    setEntries((current) => current.filter((entry) => entry.type !== "video" || entry.video.id !== video.id));
+  };
+
+  return (
+    <section className="admin-media-manager admin-page-card">
+      <header className="poster-manager-header">
+        <div>
+          <h2>Файлы и видео</h2>
+          <span>{mediaEntries.length} объектов в выбранной папке</span>
+        </div>
+      </header>
+
+      <nav className="admin-folder-strip" aria-label="Папка медиатеки">
+        {selectableFolders.map((folder) => (
+          <button
+            type="button"
+            key={folder.id}
+            className={folderId === folder.id ? "selected" : ""}
+            aria-pressed={folderId === folder.id}
+            onClick={() => setFolderId(folder.id)}
+            title={folder.path || folder.name}
+          >
+            <Folder size={16} />
+            <span>{folder.name}</span>
+            <b>{folder.filesCount}</b>
+          </button>
+        ))}
+      </nav>
+
+      <div className="admin-file-controls">
+        <label className="admin-video-search">
+          <Search size={18} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти файл или видео" />
+        </label>
+        <details className="sort-menu admin-sort-menu">
+          <summary>
+            {sortField === "name" ? <ArrowDownAZ size={18} /> : <CalendarDays size={18} />}
+            <span>{sortField === "name" ? "По имени" : "По дате"}</span>
+            <ChevronDown size={16} />
+          </summary>
+          <div className="sort-options">
+            <button
+              type="button"
+              className={sortField === "name" ? "selected" : ""}
+              onClick={(event) => {
+                setSortField("name");
+                setSortDirection("asc");
+                event.currentTarget.closest("details")?.removeAttribute("open");
+              }}
+            >
+              <ArrowDownAZ size={18} />
+              <span>Имя</span>
+              {sortField === "name" && <Check size={16} />}
+            </button>
+            <button
+              type="button"
+              className={sortField === "date" ? "selected" : ""}
+              onClick={(event) => {
+                setSortField("date");
+                setSortDirection("desc");
+                event.currentTarget.closest("details")?.removeAttribute("open");
+              }}
+            >
+              <CalendarDays size={18} />
+              <span>Дата</span>
+              {sortField === "date" && <Check size={16} />}
+            </button>
+          </div>
+        </details>
+        <button
+          className="sort-direction admin-sort-direction"
+          type="button"
+          onClick={() => setSortDirection((current) => current === "asc" ? "desc" : "asc")}
+          title={sortDirection === "asc" ? "По возрастанию" : "По убыванию"}
+          aria-label={sortDirection === "asc" ? "По возрастанию" : "По убыванию"}
+        >
+          {sortDirection === "asc" ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
+        </button>
+        <button className="icon-button" type="button" onClick={() => void loadMedia()} disabled={loading} title="Обновить медиатеку">
+          <RefreshCw className={loading ? "spin" : undefined} size={18} />
+        </button>
+      </div>
+
+      {error && <p className="error" role="alert">{error}</p>}
+      {!loading && mediaEntries.length === 0 ? (
+        <p className="poster-list-empty">Файлы и видео не найдены.</p>
+      ) : (
+        <VirtualAdminMediaGrid
+          entries={mediaEntries}
+          scrollContainerRef={scrollContainerRef}
+          updatingPosterId={updatingPosterId}
+          deletingVideoId={deletingVideoId}
+          deletingFileId={deletingFileId}
+          disabled={disabled || deletingFileId !== null}
+          onVideoChange={onVideoChange}
+          onVideoDelete={(video) => void removeVideo(video)}
+          onFileDelete={(file) => void removeFile(file)}
+        />
+      )}
+    </section>
+  );
+}
+
+type AdminMediaEntry = Exclude<FileBrowserEntry, { type: "folder" }>;
+
+function VirtualAdminMediaGrid({
+  entries,
+  scrollContainerRef,
+  updatingPosterId,
+  deletingVideoId,
+  deletingFileId,
+  disabled,
+  onVideoChange,
+  onVideoDelete,
+  onFileDelete
+}: {
+  entries: AdminMediaEntry[];
+  scrollContainerRef: RefObject<HTMLElement | null>;
+  updatingPosterId: string | null;
+  deletingVideoId: string | null;
+  deletingFileId: string | null;
+  disabled: boolean;
+  onVideoChange: (video: VideoFile, file: File) => void;
+  onVideoDelete: (video: VideoFile) => void;
+  onFileDelete: (file: SharedFile) => void;
 }) {
   const gridRef = useRef<HTMLDivElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -2200,14 +2394,19 @@ function VirtualPosterGrid({
     const grid = gridRef.current;
     const scroller = scrollContainerRef.current;
     if (!grid || !scroller) return;
+
+    const mobileLayout = window.matchMedia("(max-width: 860px)").matches;
     const gridRect = grid.getBoundingClientRect();
     const scrollerRect = scroller.getBoundingClientRect();
     const next = {
       width: grid.clientWidth,
-      scrollTop: scroller.scrollTop,
-      viewportHeight: scroller.clientHeight,
-      gridTop: gridRect.top - scrollerRect.top + scroller.scrollTop
+      scrollTop: mobileLayout ? window.scrollY : scroller.scrollTop,
+      viewportHeight: mobileLayout ? window.innerHeight : scroller.clientHeight,
+      gridTop: mobileLayout
+        ? gridRect.top + window.scrollY
+        : gridRect.top - scrollerRect.top + scroller.scrollTop
     };
+
     setMetrics((current) =>
       current.width === next.width &&
       current.scrollTop === next.scrollTop &&
@@ -2222,6 +2421,7 @@ function VirtualPosterGrid({
     const grid = gridRef.current;
     const scroller = scrollContainerRef.current;
     if (!grid || !scroller) return;
+
     const scheduleMeasure = () => {
       if (animationFrameRef.current !== null) return;
       animationFrameRef.current = requestAnimationFrame(() => {
@@ -2233,55 +2433,69 @@ function VirtualPosterGrid({
     resizeObserver.observe(grid);
     resizeObserver.observe(scroller);
     scroller.addEventListener("scroll", scheduleMeasure, { passive: true });
+    window.addEventListener("scroll", scheduleMeasure, { passive: true });
+    window.addEventListener("resize", scheduleMeasure);
     measure();
+
     return () => {
       resizeObserver.disconnect();
       scroller.removeEventListener("scroll", scheduleMeasure);
+      window.removeEventListener("scroll", scheduleMeasure);
+      window.removeEventListener("resize", scheduleMeasure);
       if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [measure, scrollContainerRef, videos.length]);
+  }, [entries.length, measure, scrollContainerRef]);
 
-  if (videos.length === 0) {
-    return <p className="poster-list-empty">Видео не найдены.</p>;
-  }
-
-  const mobile = metrics.width <= 560;
-  const gap = mobile ? 8 : 14;
-  const minimumColumnWidth = mobile ? 166 : 280;
+  const compact = metrics.width <= 560;
+  const gap = compact ? 10 : 14;
+  const minimumColumnWidth = compact ? 240 : 260;
   const columns = Math.max(1, Math.floor((metrics.width + gap) / (minimumColumnWidth + gap)));
   const columnWidth = columns > 0 ? (metrics.width - gap * (columns - 1)) / columns : metrics.width;
-  const cardHeight = columnWidth * 9 / 16 + (mobile ? 56 : 60);
+  const cardHeight = columnWidth * 9 / 16 + 78;
   const rowHeight = cardHeight + gap;
-  const rowCount = Math.ceil(videos.length / columns);
+  const rowCount = Math.ceil(entries.length / columns);
   const localScrollTop = Math.max(0, metrics.scrollTop - metrics.gridTop);
   const firstRow = Math.max(0, Math.floor(localScrollTop / rowHeight) - 2);
   const lastRow = Math.min(rowCount, Math.ceil((localScrollTop + metrics.viewportHeight) / rowHeight) + 3);
   const firstIndex = firstRow * columns;
-  const lastIndex = Math.min(videos.length, lastRow * columns);
+  const lastIndex = Math.min(entries.length, lastRow * columns);
   const totalHeight = Math.max(0, rowCount * rowHeight - gap);
 
   return (
-    <div ref={gridRef} className="poster-virtual-grid" style={{ height: totalHeight }}>
-      {videos.slice(firstIndex, lastIndex).map((video, sliceIndex) => {
+    <div ref={gridRef} className="admin-media-virtual-grid" style={{ height: totalHeight }}>
+      {entries.slice(firstIndex, lastIndex).map((entry, sliceIndex) => {
         const index = firstIndex + sliceIndex;
         const row = Math.floor(index / columns);
         const column = index % columns;
+        const key = entry.type === "video" ? `video-${entry.video.id}` : `file-${entry.file.id}`;
+
         return (
           <div
-            className="poster-virtual-cell"
-            key={video.id}
+            className="admin-media-virtual-cell"
+            key={key}
             style={{
               width: columnWidth,
               height: cardHeight,
               transform: `translate3d(${column * (columnWidth + gap)}px, ${row * rowHeight}px, 0)`
             }}
           >
-            <AdminPosterRow
-              video={video}
-              isUpdating={updatingPosterId === video.id}
-              disabled={disabled}
-              onChange={(file) => onChange(video, file)}
-            />
+            {entry.type === "video" ? (
+              <AdminPosterRow
+                video={entry.video}
+                isUpdating={updatingPosterId === entry.video.id}
+                isDeleting={deletingVideoId === entry.video.id}
+                disabled={disabled}
+                onChange={(file) => onVideoChange(entry.video, file)}
+                onDelete={() => onVideoDelete(entry.video)}
+              />
+            ) : (
+              <AdminFileTile
+                file={entry.file}
+                isDeleting={deletingFileId === entry.file.id}
+                disabled={disabled}
+                onDelete={() => onFileDelete(entry.file)}
+              />
+            )}
           </div>
         );
       })}
@@ -2289,21 +2503,89 @@ function VirtualPosterGrid({
   );
 }
 
+function AdminFileTile({
+  file,
+  isDeleting,
+  disabled,
+  onDelete
+}: {
+  file: SharedFile;
+  isDeleting: boolean;
+  disabled: boolean;
+  onDelete: () => void;
+}) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const image = isImageFile(file) && !previewFailed;
+  const displayName = getFileDisplayName(file);
+  const extension = getFileExtension(file);
+  const extensionLabel = extension === "ФАЙЛ" ? extension : `.${extension}`;
+
+  useEffect(() => setPreviewFailed(false), [file.id]);
+
+  return (
+    <article className="poster-video-card admin-media-file-card">
+      <button
+        type="button"
+        className="poster-delete-button"
+        onClick={onDelete}
+        disabled={disabled}
+        title="Удалить файл"
+        aria-label={`Удалить файл ${displayName}`}
+      >
+        {isDeleting ? <RefreshCw className="spin" size={17} /> : <Trash2 size={17} />}
+      </button>
+      <div className={image ? "admin-media-file-preview image" : "admin-media-file-preview"}>
+        {image ? (
+          <img
+            src={getFileDownloadUrl(file.id)}
+            alt=""
+            loading="lazy"
+            onError={() => setPreviewFailed(true)}
+          />
+        ) : (
+          <span className="admin-media-file-type" aria-hidden="true">
+            {isImageFile(file) ? <ImageIcon size={42} /> : <FileIcon size={42} />}
+            <b>{extensionLabel}</b>
+          </span>
+        )}
+      </div>
+      <div className="poster-video-copy admin-media-file-copy">
+        <strong title={displayName}>{displayName}</strong>
+        <span title={file.path}>{[extensionLabel, getFileDisplaySize(file)].filter(Boolean).join(" · ")}</span>
+      </div>
+    </article>
+  );
+}
+
 function AdminPosterRow({
   video,
   isUpdating,
+  isDeleting,
   disabled,
-  onChange
+  onChange,
+  onDelete
 }: {
   video: VideoFile;
   isUpdating: boolean;
+  isDeleting: boolean;
   disabled: boolean;
   onChange: (file: File) => void;
+  onDelete: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <article className="poster-video-card">
+      <button
+        type="button"
+        className="poster-delete-button"
+        onClick={onDelete}
+        disabled={disabled}
+        title="Удалить видео"
+        aria-label={`Удалить видео ${video.title}`}
+      >
+        {isDeleting ? <RefreshCw className="spin" size={17} /> : <Trash2 size={17} />}
+      </button>
       <button
         type="button"
         className="poster-preview-button"
@@ -2315,7 +2597,6 @@ function AdminPosterRow({
         <PosterImage video={video} />
         <span className="poster-edit-action">
           {isUpdating ? <RefreshCw className="spin" size={18} /> : <ImagePlus size={18} />}
-          <span>{isUpdating ? "Загрузка" : "Сменить"}</span>
         </span>
       </button>
       <div className="poster-video-copy">
