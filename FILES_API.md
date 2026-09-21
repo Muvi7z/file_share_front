@@ -12,14 +12,57 @@
   "type": "file",
   "file": {
     "id": "file-id",
-    "name": "photo.jpg",
+    "name": "photo",
     "path": "D:\\Media\\photo.jpg",
     "folderId": "folder-id",
-    "size": "2.4 MB",
+    "folderName": "Media",
+    "parentFolderId": "parent-folder-id",
+    "extension": "jpg",
+    "mimeType": "image/jpeg",
+    "size": "2516582",
     "sizeBytes": 2516582,
-    "modifiedAt": "2026-09-13T12:00:00Z",
-    "mimeType": "image/jpeg"
+    "modifiedAt": "2026-09-13T12:00:00Z"
   }
+}
+```
+
+`extension` можно возвращать как `jpg` или `.jpg`: фронтенд убирает начальную
+точку и приводит расширение к единому виду. Если `name` уже заканчивается этим
+расширением, оно не добавляется повторно. Числовая строка в `size` отображается
+в человекочитаемом виде на основе `sizeBytes`.
+
+Поле `mimeType` рекомендуется добавить в Go-структуру так:
+
+```go
+MimeType string `json:"mimeType"`
+```
+
+В нём указывается стандартный MIME-тип без дополнительных параметров:
+
+| Расширение | `mimeType` |
+| --- | --- |
+| `.jpg`, `.jpeg` | `image/jpeg` |
+| `.png` | `image/png` |
+| `.webp` | `image/webp` |
+| `.gif` | `image/gif` |
+| `.svg` | `image/svg+xml` |
+| `.pdf` | `application/pdf` |
+| `.txt` | `text/plain` |
+| `.json` | `application/json` |
+| `.zip` | `application/zip` |
+| `.mp4` | `video/mp4` |
+
+Значение можно получить через `mime.TypeByExtension`. Если система не знает
+расширение, MIME определяется по первым 512 байтам через
+`http.DetectContentType`:
+
+```go
+contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(filePath)))
+if contentType == "" {
+    header := make([]byte, 512)
+    readBytes, _ := file.Read(header)
+    contentType = http.DetectContentType(header[:readBytes])
+    _, _ = file.Seek(0, io.SeekStart)
 }
 ```
 
@@ -35,6 +78,44 @@
 быть доступен на том же домене, иначе браузер может проигнорировать этот
 атрибут.
 
+В обработчике скачивания MIME указывается именно в HTTP-заголовке ответа. Сам
+файл следует передавать через `http.ServeContent`, который поддерживает
+потоковую передачу, `HEAD` и диапазонные запросы:
+
+```go
+file, err := os.Open(filePath)
+if err != nil {
+    http.Error(w, "file not found", http.StatusNotFound)
+    return
+}
+defer file.Close()
+
+info, err := file.Stat()
+if err != nil {
+    http.Error(w, "cannot read file", http.StatusInternalServerError)
+    return
+}
+
+contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(filePath)))
+if contentType == "" {
+    header := make([]byte, 512)
+    readBytes, _ := file.Read(header)
+    contentType = http.DetectContentType(header[:readBytes])
+    _, _ = file.Seek(0, io.SeekStart)
+}
+
+w.Header().Set("Content-Type", contentType)
+w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{
+    "filename": downloadName,
+}))
+http.ServeContent(w, r, downloadName, info.ModTime(), file)
+```
+
+Для этого примера нужны пакеты `io`, `mime`, `net/http`, `os`, `path/filepath`
+и `strings`. В JSON поле `mimeType` помогает интерфейсу определить тип карточки,
+а заголовок `Content-Type` у `/download` сообщает браузеру, как обрабатывать
+содержимое самого файла. Это два отдельных места, и желательно заполнять оба.
+
 Метод должен передавать файл потоком, поддерживать `HEAD`, а также диапазонные
 запросы там, где это возможно. Сервер не должен загружать файл целиком в
 оперативную память.
@@ -49,9 +130,8 @@
 нормализовать полученный путь и проверить, что он остаётся внутри разрешённой
 корневой папки.
 
-MIME-тип определяется на бэкенде по содержимому файла или через безопасную
-таблицу расширений. Изображения распознаются по MIME-типу `image/*`. В качестве
-запасного варианта фронтенд распознаёт расширения AVIF, BMP, GIF, JPEG, PNG и
-WebP. Расширение для отображения извлекается фронтендом из поля `name`, поэтому
-отдельное поле расширения в API не требуется. Видео должны по-прежнему
+MIME-тип ответа `GET /api/files/:id/download` определяется на бэкенде по
+содержимому файла или через безопасную таблицу расширений. Во входных данных
+фронтенд распознаёт изображения по полю `extension`; для совместимости также
+поддерживается необязательное поле `mimeType`. Видео должны по-прежнему
 возвращаться как элементы с `type: "video"`.

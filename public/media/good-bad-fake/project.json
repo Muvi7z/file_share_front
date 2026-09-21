@@ -1,0 +1,37 @@
+{
+	"approved" : true,
+	"contentrating" : "Everyone",
+	"description" : "配音music：\n\n\n原画与作者信息：\n\n各位能看到的小伙伴们！我在创意工坊这片创意天地里默默耕耘，一心想为大家呈上更多独具匠心，一路全凭热爱 “死磕”，纯粹为爱发电。\n\n只可惜，疏于宣传其他平台视频号导致起步滞后，目前还在艰难 “攒粉” 阶段。我全网同名，不管是在 B 站，还是抖音，搜 【孟婆干杯】 就能找到我。\n\n在这儿诚心求大家给个关注，对我而言，您的这一关注，就是最大的支持，足以让我怀揣满满动力，持续输出更棒的动态壁纸！感恩有你们！",
+	"file" : "scene.json",
+	"general" : 
+	{
+		"properties" : 
+		{
+			"ahrefhttpsspacebilibilicom5890295imgsrchttpmqpiccnpscv51nx9qe3q1b2h4s9iuh31d4me2i6i7wliyspxowe0yewxwbdxnssynmokwujhk3sr3fbtuq9hef1h1g8io1yxvqighmxoodhzii8m0yduuvbqxz4caaefkwxxu2sfy15cnb5obbozaenbwqbjwudbyirfviewer_4a" : 
+			{
+				"index" : 0,
+				"order" : 100,
+				"text" : "<a href=\"https://space.bilibili.com/5890295\"><img src=\"http://m.qpic.cn/psc?/V51nx9QE3q1B2h4S9IUH31D4mE2i6I7W/LiySpxowE0yeWXwBdXN*SSYNmoKWUjhK3sr3fBtUq9HeF1H.1g8io1yxV*QIG*hmxo.odHzii8m0YduUvbQXZ4cAaEfKwXXU2sfy15cnB5o!/b&bo=ZAEnBWQBJwUDByI!&rf=viewer_4\"/></a>",
+				"type" : "textinput",
+				"value" : ""
+			},
+			"schemecolor" : 
+			{
+				"order" : 0,
+				"text" : "ui_browse_properties_scheme_color",
+				"type" : "color",
+				"value" : "0 0 0"
+			}
+		}
+	},
+	"preview" : "preview.gif",
+	"ratingsex" : "none",
+	"ratingviolence" : "none",
+	"tags" : [ "Abstract" ],
+	"title" : "4K Good Bad Fake 善与恶",
+	"type" : "scene",
+	"version" : 3,
+	"visibility" : "public",
+	"workshopid" : "2112387207",
+	"workshopurl" : "steam://url/CommunityFilePage/2112387207"
+}

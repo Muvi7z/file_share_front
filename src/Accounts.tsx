@@ -73,9 +73,8 @@ export function AccountCenter({ session, onLogin, onLogout, children }: {
         <button aria-current={tab === "requests" ? "page" : undefined} onClick={() => setTab("requests")}><Inbox size={18} />Заявки <b>{pending}</b></button>
         <button aria-current={tab === "users" ? "page" : undefined} onClick={() => setTab("users")}><Users size={18} />Пользователи</button>
         <button aria-current={tab === "library" ? "page" : undefined} onClick={() => setTab("library")}><Folder size={18} />Медиатека</button>
-        <button aria-current={tab === "profile" ? "page" : undefined} onClick={() => setTab("profile")}><Shield size={18} />Мой аккаунт</button>
       </nav></>}
-    {(!admin || tab === "profile") ? <PasswordForm /> : tab === "library" ? <div className="library-admin">{children}</div> : <>
+    {!admin ? <p>Ваш аккаунт находится в разделе «Настройки».</p> : tab === "library" ? <div className="library-admin">{children}</div> : <>
       <div className="account-toolbar"><input aria-label="Поиск пользователей" placeholder="Поиск по логину" value={query} onChange={e => setQuery(e.target.value)} />
         {tab === "users" && <select aria-label="Статус" value={status} onChange={e => setStatus(e.target.value)}><option value="all">Все статусы</option>{Object.entries(statusNames).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>}
         <button className="icon-button" title="Обновить" disabled={busy} onClick={() => void refresh()}><RefreshCw size={18} /></button></div>
@@ -89,7 +88,7 @@ export function AccountCenter({ session, onLogin, onLogout, children }: {
   </section>;
 }
 
-function AuthForm({ onLogin }: { onLogin: (value: AdminSession) => void }) {
+export function AuthForm({ onLogin }: { onLogin: (value: AdminSession) => void }) {
   const [register, setRegister] = useState(false);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -127,7 +126,7 @@ function AccountRow({ account, self, busy, onSave, onDelete, onRevoke }: {
       <button className="icon-button" title="Завершить сеансы" disabled={busy || self} onClick={onRevoke}><KeyRound size={18} /></button><button className="danger-button" title="Удалить аккаунт" disabled={busy || self} onClick={onDelete}><Trash2 size={18} /></button></div></article>;
 }
 
-function PasswordForm() {
+export function PasswordForm() {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [notice, setNotice] = useState("");
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); setError(""); setNotice("");

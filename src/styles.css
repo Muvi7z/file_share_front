@@ -534,6 +534,7 @@ h1 {
 .sort-options button span { flex: 1; }
 .sort-options button:hover { background: #f0f4f2; }
 .sort-options button.selected { background: #e5f1e9; color: #18442d; }
+.type-filter-menu .sort-options { left: 0; right: auto; }
 
 .page-admin .content {
   background-color: #101113;
@@ -728,6 +729,32 @@ h1 {
   height: 100%;
   object-fit: cover;
   transition: transform 180ms ease;
+}
+
+.file-type-preview {
+  display: grid;
+  max-width: 100%;
+  place-items: center;
+  gap: 7px;
+}
+
+.file-type-preview b {
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  padding: 3px 7px;
+  border: 1px solid #ccd7d2;
+  border-radius: 4px;
+  color: #42534d;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: .06em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-grid .file-type-preview svg {
+  width: 44px;
+  height: 44px;
 }
 
 .shared-file-open:hover .file-preview img {
@@ -1906,6 +1933,14 @@ dd {
     grid-template-columns: minmax(0, 1fr) 42px auto;
   }
 
+  .page-files .toolbar-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px auto;
+  }
+
+  .page-files .toolbar-controls .sort-menu summary {
+    width: 100%;
+  }
+
   .sort-field button {
     min-width: 0;
     padding: 0 8px;
@@ -2167,6 +2202,12 @@ dd {
 
   .folder-picker-row small {
     grid-column: 2 / 3;
+  }
+}
+
+@media (max-width: 420px) {
+  .page-files .toolbar-controls .sort-menu summary > span {
+    display: none;
   }
 }
 
@@ -2522,4 +2563,124 @@ dd {
   .file-grid .folder-card-refined .folder-copy { padding: 8px 24px 8px 9px; }
   .file-grid .folder-card-refined .folder-chevron { right: 6px; bottom: 20px; width: 14px; }
   .file-list .folder-card-refined .folder-open-button { padding: 8px 10px; gap: 10px; }
+}
+/* Theme selection is available in every section, including administration. */
+.theme-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid #ffffff24; border-radius: 10px; background: #ffffff08; }
+.theme-switch button { flex: 1; min-height: 36px; padding: 7px 10px; border-radius: 7px; background: transparent; color: #b6bfbb; font-size: 12px; }
+.theme-switch button[aria-pressed="true"] { background: #d6ff6f; color: #111; }
+.theme-glass .theme-switch button[aria-pressed="true"] { background: #ffffff28; color: #fff; }
+.theme-switch button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.theme-classic .collection-heading h2 { color: #17201f; }
+.theme-classic .collection-heading h2 span { color: #53635f; border-color: #dce4e1; }
+.theme-classic .collection-heading > span { color: #60706b; }
+.theme-classic .night-empty { color: #60706b; border-color: #ccd5d0; }
+.theme-classic .night-empty h2 { color: #17201f; }
+@media(max-width:860px) { .theme-switch { align-self: stretch; padding: 2px; } .theme-switch button { min-height: 30px; padding: 4px 10px; } }
+
+/* Unified appearance, wallpaper and account settings. */
+.settings-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, .56);
+  animation: settings-fade-in 160ms ease-out;
+}
+
+.settings-panel {
+  width: min(760px, 100%);
+  max-height: min(880px, calc(100dvh - 48px));
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 22px;
+  background: rgba(19, 20, 20, .96);
+  color: #f5f5f5;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, .62), inset 0 1px rgba(255, 255, 255, .1);
+  animation: settings-panel-in 220ms cubic-bezier(.2,.8,.2,1);
+}
+
+.settings-header,
+.settings-section-title,
+.settings-account-card { display: flex; align-items: center; }
+.settings-header { justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+.settings-header span { color: #929796; font-size: 10px; font-weight: 800; letter-spacing: 2px; }
+.settings-header h2 { margin-top: 4px; color: #fff; font-size: 27px; }
+.settings-close { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid #ffffff20; border-radius: 12px; background: #ffffff0c; color: #fff; }
+.settings-close:hover { background: #ffffff1b; }
+.settings-section { padding: 20px 0; border-top: 1px solid #ffffff14; }
+.settings-section-title { align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.settings-section-title > svg { margin-top: 2px; color: #d8dddc; }
+.settings-section-title h3 { margin: 0 0 3px; font-size: 15px; }
+.settings-section-title p { color: #919795; font-size: 12px; }
+
+.theme-choice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.theme-choice > button { display: grid; grid-template-columns: 58px minmax(0, 1fr) 20px; align-items: center; gap: 12px; min-height: 76px; padding: 10px; border: 1px solid #ffffff14; border-radius: 14px; background: #ffffff08; color: #fff; text-align: left; }
+.theme-choice > button:hover { border-color: #ffffff2d; background: #ffffff0f; }
+.theme-choice > button[aria-pressed="true"] { border-color: #ffffff60; background: #ffffff16; box-shadow: inset 0 1px #ffffff18; }
+.theme-choice > button > span:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
+.theme-choice small, .wallpaper-choice small, .settings-account-card small { color: #8d9391; font-size: 11px; }
+.theme-swatch { position: relative; display: grid; width: 58px; height: 52px; grid-template-columns: 17px 1fr; grid-template-rows: 13px 1fr; overflow: hidden; border: 1px solid #ffffff25; border-radius: 9px; }
+.theme-swatch i:first-child { grid-row: 1 / 3; background: #111716; }
+.theme-swatch i:nth-child(2) { background: #dce3e1; }
+.theme-swatch i:nth-child(3) { background: #f7f8f8; }
+.glass-swatch { background: radial-gradient(circle at 68% 28%, #b89b74, transparent 32%), #111; }
+.glass-swatch i:first-child { background: #050505a8; }
+.glass-swatch i:nth-child(2) { margin: 3px; border-radius: 3px; background: #ffffff35; backdrop-filter: blur(5px); }
+.glass-swatch i:nth-child(3) { margin: 3px; border-radius: 3px; background: #ffffff20; backdrop-filter: blur(5px); }
+
+.wallpaper-choice { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.wallpaper-choice > button { display: grid; gap: 7px; min-width: 0; padding: 7px 7px 11px; border: 1px solid #ffffff14; border-radius: 14px; background: #ffffff08; color: #fff; text-align: left; }
+.wallpaper-choice > button:hover { border-color: #ffffff35; background: #ffffff0f; }
+.wallpaper-choice > button.selected { border-color: #ffffff70; box-shadow: inset 0 0 0 1px #ffffff20; }
+.wallpaper-choice > button > strong, .wallpaper-choice > button > small { padding: 0 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wallpaper-preview { position: relative; display: block; height: 104px; overflow: hidden; border-radius: 9px; background: #080808; }
+.wallpaper-preview video { width: 100%; height: 100%; object-fit: cover; }
+.wallpaper-preview > span { position: absolute; right: 8px; bottom: 8px; display: grid; width: 25px; height: 25px; place-items: center; border-radius: 50%; background: #f4f4f4; color: #111; box-shadow: 0 4px 16px #0008; }
+.wallpaper-preview > span:empty { display: none; }
+.preview-dark { background: radial-gradient(circle at 70% 16%, #242424, #0b0b0b 52%, #050505); }
+
+.settings-account-card { gap: 12px; padding: 12px; border: 1px solid #ffffff14; border-radius: 14px; background: #ffffff08; }
+.settings-avatar { display: grid; flex: 0 0 auto; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: #eceeed; color: #151716; font-weight: 800; }
+.settings-account-card > span:nth-child(2) { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.settings-account-card > button { min-height: 38px; padding: 0 13px; border: 1px solid #ffffff20; border-radius: 10px; background: #ffffff10; color: #fff; }
+.settings-account-card > button:hover { background: #ffffff1d; }
+.settings-account-card > .settings-logout { width: 40px; padding: 0; }
+
+@keyframes settings-fade-in { from { opacity: 0; } }
+@keyframes settings-panel-in { from { opacity: 0; transform: translateY(12px) scale(.985); } }
+@media (max-width: 860px) { .main-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 620px) {
+  .settings-layer { align-items: end; padding: 0; }
+  .settings-panel { width: 100%; max-height: 92dvh; padding: 18px 14px 24px; border-radius: 22px 22px 0 0; }
+  .theme-choice { grid-template-columns: 1fr; }
+  .wallpaper-choice { grid-template-columns: repeat(3, minmax(118px, 1fr)); overflow-x: auto; padding-bottom: 4px; }
+  .settings-account-card { flex-wrap: wrap; }
+  .settings-account-card > button:not(.settings-logout) { order: 4; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .settings-layer, .settings-panel { animation: none; } }
+
+.settings-panel.settings-page {
+  width: min(1040px, 100%);
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  animation: none;
+}
+.page-settings .content { background: #141718; color-scheme: dark; }
+.settings-page .settings-header h1 { margin-top: 6px; font-size: 32px; color: #fff; }
+.settings-page .wallpaper-choice { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.settings-account-form { margin-top: 20px; }
+.settings-account-form .auth-center { margin: 0; max-width: 480px; }
+.settings-account-form .account-form { width: 100%; }
+@media (max-width: 860px) { .page-settings .folder-nav { display: none; } }
+@media (max-width: 620px) {
+  .settings-page .wallpaper-choice { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .theme-glass .settings-page > .settings-section { padding: 14px; }
 }

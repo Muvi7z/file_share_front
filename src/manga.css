@@ -1,0 +1,45 @@
+/* Ink, screentone and panel gutters. All styling stays inside the library. */
+:is(.page-files,.page-videos) .content {
+  background: #101010;
+  background-image: radial-gradient(#ffffff09 .7px, transparent .7px);
+  background-size: 5px 5px;
+}
+:is(.page-files,.page-videos) .topbar { padding-bottom: 18px; border-bottom: 3px solid #f0f0f0; }
+:is(.page-files,.page-videos) .topbar h1 { font-size: clamp(32px,4vw,54px); font-weight: 950; letter-spacing: -2px; transform: skew(-5deg); text-transform: uppercase; }
+:is(.page-files,.page-videos) .eyebrow { font-family: monospace; color: #bbb; letter-spacing: 3px; }
+:is(.page-files,.page-videos) .content :is(.search-box,.sort-menu summary,.sort-direction,.segmented,.icon-text,.file-crumbs,.compact-summary) { border-radius: 0; border: 1px solid #646464; background: #151515; box-shadow: none; }
+:is(.page-files,.page-videos) .search-box { border-left: 5px solid #eee; }
+:is(.page-files,.page-videos) .content :is(.file-grid,.video-grid) { gap: 22px; }
+:is(.page-files,.page-videos) .content :is(.folder-card,.video-item,.shared-file-card) { border: 2px solid #e8e8e8; border-radius: 0; background: #101010; box-shadow: 5px 5px 0 #000,6px 6px 0 #777; }
+:is(.page-files,.page-videos) .content :is(.folder-card,.video-item,.shared-file-card):hover { border-color: #fff; background: #191919; box-shadow: 5px 5px 0 #eee; }
+.page-files .file-grid .folder-card-refined .folder-icon {
+  min-height: 130px; background-color: #ededed; color: #111;
+  background-image: radial-gradient(#111 1px,transparent 1.2px); background-size: 6px 6px;
+  border-bottom: 3px solid #111;
+}
+.page-files .file-grid .folder-card-refined:nth-child(3n+2) .folder-icon { background-image: repeating-linear-gradient(135deg,#111 0 1px,transparent 1px 9px); }
+.page-files .file-grid .folder-card-refined:nth-child(3n) .folder-icon { background-color: #111; background-image: radial-gradient(#eee .8px,transparent 1px); background-size: 5px 5px; }
+.page-files .file-grid .folder-card-refined .folder-icon::before { content: ''; position: absolute; width: 100px; height: 76px; background: #fafafa; border: 3px solid #111; transform: rotate(-7deg) skew(-7deg); box-shadow: 5px 5px 0 #111; }
+.page-files .file-grid .folder-card-refined .folder-icon > svg { stroke: #111; fill: #111; width: 43px; height: 43px; filter: none; }
+.page-files .file-grid .folder-card-refined:nth-child(2n) .folder-icon::before { transform: rotate(6deg) skew(-7deg); }
+.page-files .file-grid .folder-card-refined .folder-copy { padding: 14px 32px 14px 14px; background: #111; border-top: 2px solid #eee; }
+.page-files .folder-card-refined .folder-copy strong { color: #fafafa; font-weight: 800; }
+.page-files .folder-card-refined .folder-copy .folder-card-meta > span { color: #bcbcbc; font-family: monospace; font-size: 11px; }
+.page-files .folder-chevron { color: #eee !important; }
+.page-files .compact-summary { border: 0 !important; border-bottom: 1px solid #777 !important; background: transparent !important; padding-left: 0; }
+.page-files .compact-summary span { border-radius: 0; background: #ececec; color: #111; font: 11px monospace; padding: 5px 9px; }
+.page-files .file-list .folder-card-refined .folder-icon { border-radius: 0; background: #eee; }
+.page-files .file-list .folder-card-refined .folder-icon svg { stroke: #111; fill: #111; }
+:is(.page-files,.page-videos) .video-info { border-top: 2px solid #eee; }
+:is(.page-files,.page-videos) .video-info h2 { font-weight: 800; color: #fff; }
+:is(.page-files,.page-videos) .play-badge { border-radius: 0; background: #fff; border: 2px solid #111; transform: skew(-8deg); box-shadow: 3px 3px 0 #111; }
+:is(.page-files,.page-videos) .duration { border-radius: 0; border: 1px solid #fff; background: #111; font-family: monospace; }
+.collection-heading h2 { font-weight: 900; text-transform: uppercase; letter-spacing: -.5px; }
+.collection-heading h2 span { border-radius: 0; background: #eee; color: #111; border: 0; transform: rotate(-4deg); }
+@media(max-width:560px) {
+  :is(.page-files,.page-videos) .content :is(.file-grid,.video-grid) { gap: 14px; }
+  :is(.page-files,.page-videos) .topbar h1 { font-size: 33px; }
+  .page-files .file-grid .folder-card-refined .folder-icon { min-height: 105px; }
+  .page-files .file-grid .folder-card-refined .folder-icon::before { width: 77px; height: 60px; }
+  .page-files .file-grid .folder-card-refined .folder-copy { padding: 10px 22px 10px 9px; }
+}

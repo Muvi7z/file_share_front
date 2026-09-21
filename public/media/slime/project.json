@@ -1,0 +1,386 @@
+{
+	"approved" : true,
+	"contentrating" : "Everyone",
+	"description" : "Interactive slime that will follow your curser.\n\nFive types of slime and pretty much everything is customizable.",
+	"file" : "scene.json",
+	"general" : 
+	{
+		"properties" : 
+		{
+			"MyWorkshoptitle" : 
+			{
+				"index" : 29,
+				"order" : 129,
+				"text" : "<a href='https://steamcommunity.com/sharedfiles/filedetails/?id=3050416917'>My Best Wallpapers</a>",
+				"type" : "text"
+			},
+			"TEXTtitle2" : 
+			{
+				"index" : 12,
+				"order" : 112,
+				"text" : "<s>",
+				"type" : "text"
+			},
+			"audiovisualizer" : 
+			{
+				"condition" : "misc.value == true",
+				"index" : 20,
+				"order" : 120,
+				"text" : "<i>Audio Visualizer</i>",
+				"type" : "bool",
+				"value" : false
+			},
+			"backgroundcolor" : 
+			{
+				"index" : 0,
+				"order" : 100,
+				"text" : "<b>Background Color</b>",
+				"type" : "color",
+				"value" : "0.8352941176470589 0.8352941176470589 0.8352941176470589"
+			},
+			"brightnes" : 
+			{
+				"condition" : "colorcycle.value == true",
+				"fraction" : true,
+				"index" : 10,
+				"max" : 1,
+				"min" : 0,
+				"order" : 110,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Brightness</i>",
+				"type" : "slider",
+				"value" : 1
+			},
+			"colorcycle" : 
+			{
+				"index" : 1,
+				"order" : 101,
+				"text" : "<b>Color Cycle</b>",
+				"type" : "bool",
+				"value" : true
+			},
+			"cyclespeed" : 
+			{
+				"condition" : "colorcycle.value == true",
+				"fraction" : true,
+				"index" : 2,
+				"max" : 2,
+				"min" : 0.01,
+				"order" : 102,
+				"precision" : 3,
+				"step" : 0.01,
+				"text" : "<i>Speed</i>",
+				"type" : "slider",
+				"value" : 0.3
+			},
+			"disableintrosound" : 
+			{
+				"condition" : "misc.value == true",
+				"index" : 22,
+				"order" : 122,
+				"text" : "<i>Disable Intro Sound</i>",
+				"type" : "bool",
+				"value" : false
+			},
+			"edges" : 
+			{
+				"index" : 13,
+				"options" : 
+				[
+					{
+						"label" : "Outline",
+						"value" : "0"
+					},
+					{
+						"label" : "Smooth",
+						"value" : "1"
+					},
+					{
+						"label" : "Mix",
+						"value" : "2"
+					}
+				],
+				"order" : 113,
+				"text" : "<b>Edges</b>",
+				"type" : "combo",
+				"value" : "0"
+			},
+			"edgesbrightnes" : 
+			{
+				"condition" : "colorcycle.value == true",
+				"fraction" : true,
+				"index" : 16,
+				"max" : 1,
+				"min" : 0,
+				"order" : 116,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Brightness</i>",
+				"type" : "slider",
+				"value" : 0
+			},
+			"edgescolor" : 
+			{
+				"condition" : "colorcycle.value == false",
+				"index" : 15,
+				"order" : 115,
+				"text" : "<i>Color</i>",
+				"type" : "color",
+				"value" : "0 0 0"
+			},
+			"edgessaturation" : 
+			{
+				"condition" : "colorcycle.value == true",
+				"fraction" : true,
+				"index" : 17,
+				"max" : 1,
+				"min" : 0,
+				"order" : 117,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Saturation</i>",
+				"type" : "slider",
+				"value" : 1
+			},
+			"filmgrain" : 
+			{
+				"condition" : "misc.value == true && postprocessing.value == true",
+				"index" : 25,
+				"order" : 125,
+				"text" : "<i>Film Grain</i>",
+				"type" : "bool",
+				"value" : true
+			},
+			"flubbersize" : 
+			{
+				"condition" : "gootype.value == 3",
+				"fraction" : true,
+				"index" : 8,
+				"max" : 2.5,
+				"min" : 1.2,
+				"order" : 108,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Size</i>",
+				"type" : "slider",
+				"value" : 1.5
+			},
+			"goocolor" : 
+			{
+				"condition" : "colorcycle.value == false",
+				"index" : 9,
+				"order" : 109,
+				"text" : "<i>Color</i>",
+				"type" : "color",
+				"value" : "0.6392156862745098 0.8588235294117647 0.19215686274509805"
+			},
+			"gooflocksize" : 
+			{
+				"condition" : "gootype.value == 2",
+				"fraction" : true,
+				"index" : 7,
+				"max" : 2,
+				"min" : 0.9,
+				"order" : 107,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Size</i>",
+				"type" : "slider",
+				"value" : 1.3
+			},
+			"goosize" : 
+			{
+				"condition" : "gootype.value == 1",
+				"fraction" : true,
+				"index" : 6,
+				"max" : 2.5,
+				"min" : 1,
+				"order" : 106,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Size</i>",
+				"type" : "slider",
+				"value" : 1.8
+			},
+			"gootype" : 
+			{
+				"index" : 4,
+				"options" : 
+				[
+					{
+						"label" : "Slime",
+						"value" : "0"
+					},
+					{
+						"label" : "Goo",
+						"value" : "1"
+					},
+					{
+						"label" : "Flock of Goo",
+						"value" : "2"
+					},
+					{
+						"label" : "Flubber",
+						"value" : "3"
+					},
+					{
+						"label" : "Automata",
+						"value" : "4"
+					}
+				],
+				"order" : 104,
+				"text" : "<b>Type</b>",
+				"type" : "combo",
+				"value" : "0"
+			},
+			"misc" : 
+			{
+				"index" : 19,
+				"order" : 119,
+				"text" : "<b>Miscellaneous</b>",
+				"type" : "bool",
+				"value" : false
+			},
+			"postprocessing" : 
+			{
+				"condition" : "misc.value == true",
+				"index" : 24,
+				"order" : 124,
+				"text" : "<b>Post Processing</b>",
+				"type" : "bool",
+				"value" : true
+			},
+			"saturation" : 
+			{
+				"condition" : "colorcycle.value == true",
+				"fraction" : true,
+				"index" : 11,
+				"max" : 1,
+				"min" : 0,
+				"order" : 111,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Saturation</i>",
+				"type" : "slider",
+				"value" : 0.3
+			},
+			"schemecolor" : 
+			{
+				"index" : 0,
+				"order" : 100,
+				"text" : "ui_browse_properties_scheme_color",
+				"type" : "color",
+				"value" : "0 0 0"
+			},
+			"size" : 
+			{
+				"condition" : "edges.value == 0 || edges.value == 2",
+				"fraction" : true,
+				"index" : 14,
+				"max" : 1,
+				"min" : 0,
+				"order" : 114,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Size</i>",
+				"type" : "slider",
+				"value" : 0.5
+			},
+			"slimelifetime" : 
+			{
+				"condition" : "gootype.value == 0 && misc.value == true",
+				"fraction" : true,
+				"index" : 21,
+				"max" : 3,
+				"min" : 0.8,
+				"order" : 121,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Slime Lifetime</i>",
+				"type" : "slider",
+				"value" : 1.5
+			},
+			"slimesize" : 
+			{
+				"condition" : "gootype.value == 0",
+				"fraction" : true,
+				"index" : 5,
+				"max" : 3,
+				"min" : 1.3,
+				"order" : 105,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Size</i>",
+				"type" : "slider",
+				"value" : 1.8
+			},
+			"strength" : 
+			{
+				"condition" : "misc.value == true && postprocessing.value == true && strongbloom.value == true",
+				"fraction" : true,
+				"index" : 27,
+				"max" : 1,
+				"min" : 0.1,
+				"order" : 127,
+				"precision" : 2,
+				"step" : 0.1,
+				"text" : "<i>Strength</i>",
+				"type" : "slider",
+				"value" : 0.5
+			},
+			"strongbloom" : 
+			{
+				"condition" : "misc.value == true && postprocessing.value == true",
+				"index" : 26,
+				"order" : 126,
+				"text" : "<i>Bloom</i>",
+				"type" : "bool",
+				"value" : false
+			},
+			"texttitle" : 
+			{
+				"condition" : "misc.value == true",
+				"index" : 18,
+				"order" : 118,
+				"text" : "<s>",
+				"type" : "text"
+			},
+			"texttitle3" : 
+			{
+				"condition" : "colorcycle.value == true",
+				"index" : 3,
+				"order" : 103,
+				"text" : "<s>",
+				"type" : "text"
+			},
+			"texttitle4" : 
+			{
+				"condition" : "misc.value == true",
+				"index" : 28,
+				"order" : 128,
+				"text" : "<s>",
+				"type" : "text"
+			},
+			"texttitle5" : 
+			{
+				"condition" : "misc.value == true && postprocessing.value == true",
+				"index" : 23,
+				"order" : 123,
+				"text" : "<s>",
+				"type" : "text"
+			}
+		},
+		"supportsaudioprocessing" : true
+	},
+	"preview" : "preview.gif",
+	"ratingsex" : "none",
+	"ratingviolence" : "none",
+	"tags" : [ "Abstract" ],
+	"title" : "Slime",
+	"type" : "scene",
+	"version" : 1,
+	"visibility" : "public",
+	"workshopid" : "3343588024",
+	"workshopurl" : "steam://url/CommunityFilePage/3343588024"
+}

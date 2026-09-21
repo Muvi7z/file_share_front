@@ -1,5 +1,5 @@
 export type ViewMode = "tiles" | "list";
-export type Page = "videos" | "files" | "player" | "admin";
+export type Page = "videos" | "files" | "player" | "admin" | "settings";
 
 export type VideoFile = {
   id: string;
@@ -38,10 +38,13 @@ export type SharedFile = {
   name: string;
   path: string;
   folderId: string;
+  folderName: string;
+  parentFolderId: string;
+  extension: string;
   size: string;
   sizeBytes: number;
   modifiedAt: string;
-  mimeType: string;
+  mimeType?: string;
 };
 
 export type FileBrowserEntry =

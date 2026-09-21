@@ -5,6 +5,7 @@
   FileBrowserEntry,
   Folder,
   ServerFolderBrowseResponse,
+  SharedFile,
   VideoFile
 } from "./types";
 
@@ -151,11 +152,64 @@ function normalizeFolder(folder: Folder & { videosCount?: number }): Folder {
   };
 }
 
+function normalizeFileExtension(extension: string | undefined, fileName: string): string {
+  const explicitExtension = extension?.trim().replace(/^\.+/, "");
+  if (explicitExtension) {
+    return explicitExtension.toLowerCase();
+  }
+
+  const match = fileName.match(/\.([^./\\]+)$/);
+  return match?.[1]?.toLowerCase() ?? "";
+}
+
+function inferMimeType(extension: string): string | undefined {
+  const mimeTypes: Record<string, string> = {
+    avif: "image/avif",
+    bmp: "image/bmp",
+    gif: "image/gif",
+    jpeg: "image/jpeg",
+    jpg: "image/jpeg",
+    png: "image/png",
+    svg: "image/svg+xml",
+    webp: "image/webp",
+    csv: "text/csv",
+    json: "application/json",
+    pdf: "application/pdf",
+    txt: "text/plain",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    zip: "application/zip"
+  };
+
+  return mimeTypes[extension];
+}
+
+function normalizeFile(file: SharedFile): SharedFile {
+  const extension = normalizeFileExtension(file.extension, file.name);
+
+  return {
+    ...file,
+    folderName: file.folderName ?? "",
+    parentFolderId: file.parentFolderId ?? "",
+    extension,
+    mimeType: file.mimeType || inferMimeType(extension)
+  };
+}
+
 function normalizeFileBrowserEntry(entry: FileBrowserEntry): FileBrowserEntry {
   if (entry.type === "folder") {
     return {
       ...entry,
       folder: normalizeFolder(entry.folder)
+    };
+  }
+
+  if (entry.type === "file") {
+    return {
+      ...entry,
+      file: normalizeFile(entry.file)
     };
   }
 
