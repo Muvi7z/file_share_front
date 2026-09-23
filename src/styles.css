@@ -491,6 +491,7 @@ h1 {
 .video-item,
 .folder-card,
 .shared-file-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid #dce4e1;
   border-radius: 8px;
@@ -695,6 +696,38 @@ h1 {
   color: #17201f;
   text-align: left;
   text-decoration: none;
+}
+
+.file-delete-button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 4;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(93, 39, 39, 0.2);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #a12f2f;
+  box-shadow: 0 5px 14px rgba(31, 20, 20, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.file-delete-button:hover:not(:disabled) {
+  border-color: #a83a3a;
+  background: #842f2f;
+  color: #ffffff;
+}
+
+.file-delete-button:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+
+.file-delete-error {
+  margin: 0;
 }
 
 .file-grid .shared-file-open {

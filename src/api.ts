@@ -22,6 +22,21 @@ export class ApiError extends Error {
 
 export type InactiveAccountStatus = Exclude<AccountStatus, "active">;
 
+export type CreateVideoReport = {
+  videoId: string;
+  title: string;
+  reason: string;
+  positionSecond: number;
+  comment: string;
+  status: "open";
+  createdAt: string;
+};
+
+export type VideoReport = CreateVideoReport & {
+  id: string;
+  status: string;
+};
+
 export function getInactiveAccountStatus(error: unknown): InactiveAccountStatus | null {
   if (!(error instanceof ApiError)) {
     return null;
@@ -60,6 +75,13 @@ export async function deleteMediaFile(fileId: string): Promise<void> {
 
 export async function deleteMediaVideo(videoId: string): Promise<void> {
   await request<void>(`/videos/${encodeURIComponent(videoId)}`, { method: "DELETE" });
+}
+
+export async function createVideoReport(report: CreateVideoReport): Promise<VideoReport> {
+  return request<VideoReport>("/videos/reports", {
+    method: "POST",
+    body: JSON.stringify(report)
+  });
 }
 
 type RequestOptions = RequestInit & {

@@ -131,6 +131,8 @@
 .theme-glass.page-files .file-meta b { background: #ffffff12; color: #fff; }
 .theme-glass.page-files .file-action-icon { background: #ffffff0c; color: #fff; }
 .theme-glass.page-files .shared-file-open:hover .file-action-icon { background: #ffffff25; color: #fff; }
+.theme-glass.page-files .file-delete-button { border-color: #ffffff2b; background: #151515a8; color: #ffb4b4; box-shadow: inset 0 1px #ffffff1c,0 8px 22px #0006; }
+.theme-glass.page-files .file-delete-button:hover:not(:disabled) { border-color: #ff9c9c88; background: #742f2fdd; color: #fff; }
 .theme-glass .topbar h1 { font-size: 32px; font-weight: 650; letter-spacing: -.8px; }
 .theme-glass.page-files .content .file-grid .folder-card-refined { border: 1px solid #ffffff10; background: #19191945; box-shadow: none; border-radius: 14px; backdrop-filter: blur(12px); }
 .theme-glass.page-files .content .file-grid .folder-card-refined:hover { background: #ffffff14; border-color: #ffffff30; }

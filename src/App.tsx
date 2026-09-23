@@ -967,9 +967,11 @@ function App() {
                 currentFolder={currentFolder}
                 viewMode={viewMode}
                 fileTypeFilter={fileTypeFilter}
+                canDeleteFiles={isAdminSession}
                 onOpenFolder={(folder) => setCurrentFolderId(folder.id)}
                 onOpenRoot={() => setCurrentFolderId(null)}
                 onOpenVideo={openPlayer}
+                onFileDeleted={handleFileDeleted}
               />
             ) : (
               <>
@@ -1090,23 +1092,46 @@ function FileBrowser({
   currentFolder,
   viewMode,
   fileTypeFilter,
+  canDeleteFiles,
   onOpenFolder,
   onOpenRoot,
-  onOpenVideo
+  onOpenVideo,
+  onFileDeleted
 }: {
   entries: FileBrowserEntry[];
   breadcrumbs: VaultFolder[];
   currentFolder: VaultFolder | null;
   viewMode: ViewMode;
   fileTypeFilter: FileTypeFilter;
+  canDeleteFiles: boolean;
   onOpenFolder: (folder: VaultFolder) => void;
   onOpenRoot: () => void;
   onOpenVideo: (video: VideoFile) => void;
+  onFileDeleted: (fileId: string) => void;
 }) {
   const [previewFile, setPreviewFile] = useState<SharedFile | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const folderCount = entries.filter((entry) => entry.type === "folder").length;
   const videoCount = entries.filter((entry) => entry.type === "video").length;
   const fileCount = entries.filter((entry) => entry.type === "file").length;
+
+  const removeFile = async (file: SharedFile) => {
+    const displayName = getFileDisplayName(file);
+    if (!window.confirm(`Удалить файл «${displayName}» из медиатеки? Файл на диске останется без изменений.`)) return;
+
+    setDeletingFileId(file.id);
+    setDeleteError("");
+    try {
+      await deleteMediaFile(file.id);
+      setPreviewFile((current) => current?.id === file.id ? null : current);
+      onFileDeleted(file.id);
+    } catch (nextError) {
+      setDeleteError(nextError instanceof Error ? nextError.message : "Не удалось удалить файл.");
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
 
   return (
     <>
@@ -1127,6 +1152,8 @@ function FileBrowser({
         <span>{fileCount} файлов</span>
       </section>
 
+      {deleteError && <p className="error file-delete-error" role="alert">{deleteError}</p>}
+
       {entries.length === 0 ? (
         <section className="empty-folder">
           <FolderOpen size={34} />
@@ -1141,7 +1168,13 @@ function FileBrowser({
             ) : entry.type === "video" ? (
               <VideoItem key={entry.video.id} video={entry.video} mode={viewMode} onPlay={() => onOpenVideo(entry.video)} />
             ) : (
-              <FileItem key={entry.file.id} file={entry.file} onPreview={() => setPreviewFile(entry.file)} />
+              <FileItem
+                key={entry.file.id}
+                file={entry.file}
+                onPreview={() => setPreviewFile(entry.file)}
+                onDelete={canDeleteFiles ? () => { void removeFile(entry.file); } : undefined}
+                isDeleting={deletingFileId === entry.file.id}
+              />
             )
           )}
         </section>
@@ -1207,7 +1240,12 @@ function getFileDisplaySize(file: Pick<SharedFile, "size" | "sizeBytes">) {
   return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: value >= 10 ? 1 : 2 }).format(value)} ${units[unitIndex]}`;
 }
 
-function FileItem({ file, onPreview }: { file: SharedFile; onPreview: () => void }) {
+function FileItem({ file, onPreview, onDelete, isDeleting = false }: {
+  file: SharedFile;
+  onPreview: () => void;
+  onDelete?: () => void;
+  isDeleting?: boolean;
+}) {
   const image = isImageFile(file);
   const extension = getFileExtension(file);
   const extensionLabel = extension === "ФАЙЛ" ? extension : `.${extension}`;
@@ -1241,6 +1279,16 @@ function FileItem({ file, onPreview }: { file: SharedFile; onPreview: () => void
 
   return (
     <article className="shared-file-card">
+      {onDelete && <button
+        type="button"
+        className="file-delete-button"
+        onClick={onDelete}
+        disabled={isDeleting}
+        title="Удалить из медиатеки"
+        aria-label={`Удалить файл ${displayName}`}
+      >
+        {isDeleting ? <RefreshCw className="spin" size={17} /> : <Trash2 size={17} />}
+      </button>}
       {image ? (
         <button className="shared-file-open" onClick={onPreview} aria-label={`Открыть изображение ${displayName}`}>
           {content}
@@ -1721,7 +1769,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
           <h1>{video.title}</h1>
           <span>{video.path}</span>
         </div>
-        <VideoProblemControl key={video.id} id={video.id} getTime={() => mediaRef.current?.currentTime ?? 0} />
+        <VideoProblemControl key={video.id} id={video.id} title={video.title} getTime={() => mediaRef.current?.currentTime ?? 0} />
       </header>
 
       <section className={`player-surface custom-player ${controlsVisible || playerSettings || !playing || waiting || error ? "controls-visible" : ""} ${forcedLandscape ? "forced-landscape" : ""} ${isAppFullscreen ? "app-fullscreen" : ""}`} ref={stageRef}
@@ -2243,7 +2291,7 @@ function AdminMediaManager({
 
   const removeFile = async (file: SharedFile) => {
     const displayName = getFileDisplayName(file);
-    if (!window.confirm(`Удалить файл «${displayName}» из медиатеки? Это действие нельзя отменить.`)) return;
+    if (!window.confirm(`Удалить файл «${displayName}» из медиатеки? Файл на диске останется без изменений.`)) return;
 
     setDeletingFileId(file.id);
     setError("");
