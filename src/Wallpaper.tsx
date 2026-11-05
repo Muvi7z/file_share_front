@@ -9,7 +9,7 @@ const wallpaperVideos: Record<Exclude<WallpaperVariant, "dark" | "good-bad" | "s
   water: "/media/black-water-illusion.mp4"
 };
 
-export function Wallpaper({ variant }: { variant: WallpaperVariant }) {
+export function Wallpaper({ variant, staticOnly = false }: { variant: WallpaperVariant; staticOnly?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = ref.current;
@@ -27,11 +27,13 @@ export function Wallpaper({ variant }: { variant: WallpaperVariant }) {
       motion.removeEventListener("change", sync);
       document.removeEventListener("visibilitychange", sync);
     };
-  }, [variant]);
+  }, [variant, staticOnly]);
   return <div className={`liquid-scene wallpaper-${variant}`} aria-hidden="true">
     {variant === "slime" && <SlimeWallpaper />}
-    {variant === "good-bad" && <SceneWallpaper key={variant} source="/media/good-bad-fake" />}
-    {variant !== "dark" && variant !== "good-bad" && variant !== "slime" && <video key={variant} ref={ref} className="water-wallpaper" src={wallpaperVideos[variant]} muted loop playsInline preload="auto" tabIndex={-1} />}
+    {variant === "good-bad" && (staticOnly ? <img className="water-wallpaper" src="/media/good-bad-fake/preview.gif" alt="" /> : <SceneWallpaper key={variant} source="/media/good-bad-fake" />)}
+    {variant !== "dark" && variant !== "good-bad" && variant !== "slime" && (staticOnly
+      ? <img className="water-wallpaper" src={wallpaperVideos[variant].replace(/\.mp4$/, ".jpg")} alt="" />
+      : <video key={variant} ref={ref} className="water-wallpaper" src={wallpaperVideos[variant]} muted loop playsInline preload="auto" tabIndex={-1} />)}
     <div className="water-shade" />
   </div>;
 }

@@ -1,0 +1,11 @@
+com.localvideovault.mobile.app-tv9-0 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\res\pngs\tv9\debug
+com.localvideovault.mobile.app-tv9-1 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\res\resValues\tv9\debug
+com.localvideovault.mobile.app-updated_navigation_xml-2 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\updated_navigation_xml\tv9Debug
+com.localvideovault.mobile.app-packageTv9DebugResources-3 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\incremental\tv9Debug\packageTv9DebugResources\merged.dir
+com.localvideovault.mobile.app-packageTv9DebugResources-4 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\incremental\tv9Debug\packageTv9DebugResources\stripped.dir
+com.localvideovault.mobile.app-tv9Debug-5 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\merged_res\tv9Debug\mergeTv9DebugResources
+com.localvideovault.mobile.app-debug-6 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\debug\res
+com.localvideovault.mobile.app-main-7 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\res
+com.localvideovault.mobile.app-tv9-8 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\tv9\res
+com.localvideovault.mobile.app-tv9Debug-9 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\tv9Debug\res
+gradleHome-0 C:\Users\Ochir\.gradle

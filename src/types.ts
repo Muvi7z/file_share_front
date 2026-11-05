@@ -16,7 +16,14 @@ export type VideoFile = {
   posterUrl: string;
   posterRevision?: number;
   streamUrl: string;
+  extension?: string;
   path: string;
+};
+
+export type VideoAudioTrack = {
+  id: string;
+  title: string;
+  language: string;
 };
 
 export type Folder = {

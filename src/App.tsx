@@ -1,6 +1,7 @@
 import { VideoProblemBadge, VideoProblemControl } from "./VideoProblem";
 import { ImageLightbox } from "./ImageLightbox";
 import { PlayerAmbient } from "./PlayerAmbient";
+import type { attachHls, PlaybackAudioTrack } from "./hlsPlayback";
 import { Wallpaper, type WallpaperVariant } from "./Wallpaper";
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AccountAuthStatus, AccountCenter, AuthForm, PasswordForm, isAdministrator } from "./Accounts";
@@ -58,8 +59,10 @@ import {
   getFolderEntries,
   getFileDownloadUrl,
   getFolders,
+  getHlsMasterUrl,
   getInactiveAccountStatus,
   getVideo,
+  getVideoAudioTracks,
   getVideoPosterUrl,
   getVideos,
   loginAdmin,
@@ -770,7 +773,7 @@ function App() {
 
   return (
     <div className={`app-shell page-${page} theme-${theme}`}>
-      {theme === "glass" && <Wallpaper variant={wallpaper} />}
+      {theme === "glass" && <Wallpaper variant={wallpaper} staticOnly={page === "player"} />}
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">
@@ -823,7 +826,7 @@ function App() {
 
       <main ref={contentRef} className={page === "player" ? "content player-page" : "content"}>
         {page === "player" && selectedVideo ? (
-          <PlayerPage video={selectedVideo} onBack={closePlayer} />
+          <PlayerPage key={selectedVideo.id} video={selectedVideo} onBack={closePlayer} />
         ) : page === "player" ? (
           <section className="empty-folder">
             <MonitorPlay size={34} />
@@ -1502,13 +1505,62 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
   const stageRef = useRef<HTMLElement>(null);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(true);
+  const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
+  const [playbackAttempt, setPlaybackAttempt] = useState(0);
+  const useHls = video.extension?.trim().replace(/^\./, "").toLowerCase() === "mkv";
+  const hlsRef = useRef<ReturnType<typeof attachHls> | null>(null);
+  const [audio, setAudio] = useState<{ tracks: PlaybackAudioTrack[]; selected: number }>({ tracks: [], selected: -1 });
+  const [audioLabels, setAudioLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (!media) return;
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    const useRanges = ("MediaSource" in window || "ManagedMediaSource" in window) && /\.mp4$/i.test(video.path || video.title)
+      && video.sizeBytes > 512 * 1024 * 1024;
+    if (useHls) {
+      const controller = new AbortController();
+      setAudio({ tracks: [], selected: -1 });
+      const onError = (message: string) => { setWaiting(false); setError(message); };
+      void getVideoAudioTracks(video.id, controller.signal).then(tracks => {
+        if (!cancelled) setAudioLabels(Object.fromEntries(tracks.map(track => [track.id, track.title?.trim() || track.language])));
+      }).catch(() => { /* Manifest labels remain available. */ });
+      void import("./hlsPlayback").then(({ attachHls }) => {
+        if (cancelled) return;
+        hlsRef.current = attachHls(media, getHlsMasterUrl(video.id), (tracks, selected) => {
+          if (!cancelled) setAudio({ tracks, selected });
+        }, message => { if (!cancelled) onError(message); });
+      }).catch(() => { if (!cancelled) onError("Не удалось загрузить HLS-плеер."); });
+      cleanup = () => {
+        controller.abort();
+        hlsRef.current?.destroy();
+        hlsRef.current = null;
+      };
+    } else if (useRanges) {
+      void import("./progressiveMp4").then(({ progressiveMp4 }) => {
+        if (cancelled) return;
+        cleanup = progressiveMp4(media, video.streamUrl, message => { setWaiting(false); setError(message); });
+      }).catch(() => { if (!cancelled) media.src = video.streamUrl; });
+    } else media.src = video.streamUrl;
+    return () => { cancelled = true; cleanup?.(); };
+  }, [video.id, video.streamUrl, video.path, video.title, video.sizeBytes, useHls, playbackAttempt]);
   const [speed, setSpeed] = useState(1);
   const [ambient, setAmbient] = useState(() => {
     try { return localStorage.getItem("vault-player-ambient") !== "off"; } catch { return true; }
   });
-  const [playerSettings, setPlayerSettings] = useState<"main" | "speed" | null>(null);
+  const [playerSettings, setPlayerSettings] = useState<"main" | "speed" | "audio" | null>(null);
+  const audioLabel = (track: PlaybackAudioTrack) => (track.id && audioLabels[track.id]) || track.label;
+  const selectedAudio = audio.tracks.find(track => track.index === audio.selected);
   const settingsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!waiting || error) {
+      setSlowLoading(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSlowLoading(true), 15000);
+    return () => window.clearTimeout(timer);
+  }, [waiting, error]);
   useEffect(() => {
     try { localStorage.setItem("vault-player-ambient", ambient ? "on" : "off"); } catch { /* Session preference remains usable. */ }
   }, [ambient]);
@@ -1708,12 +1760,21 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
   const togglePlayback = () => {
     const media = mediaRef.current;
     if (!media) return;
-    if (media.paused) void media.play().catch(() => {
+    if (media.paused) void media.play().catch((playError: unknown) => {
       setWaiting(false);
       setPlaying(false);
-      setError("");
+      if (playError instanceof DOMException && playError.name === "AbortError") return;
+      setError("Не удалось начать воспроизведение. Проверьте соединение и формат видео или попробуйте ещё раз.");
     });
     else media.pause();
+  };
+  const retryPlayback = () => {
+    const media = mediaRef.current;
+    if (!media) return;
+    setError("");
+    setSlowLoading(false);
+    setWaiting(true);
+    setPlaybackAttempt(attempt => attempt + 1);
   };
   function seek(seconds: number) {
     const media = mediaRef.current;
@@ -1800,7 +1861,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
           autoPlay
           playsInline
           preload="metadata"
-          poster={getVideoPosterUrl(video.id, video.posterRevision)} src={video.streamUrl}
+          poster={getVideoPosterUrl(video.id, video.posterRevision)}
             onPointerDown={(event) => {
               lastPointerWasTouch.current = event.pointerType === "touch";
               if (lastPointerWasTouch.current) touchStart.current = { x: event.clientX, y: event.clientY };
@@ -1824,8 +1885,12 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
             onPlay={() => { setPlaying(true); setError(""); revealControls(); }} onPause={() => setPlaying(false)}
             onWaiting={() => setWaiting(true)} onPlaying={() => setWaiting(false)}
             onCanPlay={() => setWaiting(false)} onEnded={() => setPlaying(false)}
-            onError={() => { setWaiting(false); setError("Не удалось открыть видео. Проверьте доступность файла и поддерживаемый формат."); }} />
-          {waiting && !error && <div className="player-loading" role="status"><RefreshCw className="spin" size={22} /><span>Загрузка видео</span></div>}
+            onError={event => {
+              setWaiting(false);
+              const code = event.currentTarget.error?.code;
+              setError(code === 2 ? "Ошибка сети при загрузке видео. Проверьте соединение и попробуйте ещё раз." : code === 3 ? "Браузер не смог декодировать видео. Возможно, файл повреждён или использует неподдерживаемый кодек." : "Не удалось открыть видео. Проверьте доступность файла и поддерживаемый формат.");
+            }} />
+          {waiting && !error && <div className="player-loading" role="status"><RefreshCw className="spin" size={22} /><span>{slowLoading ? "Загрузка занимает больше времени. Проверьте соединение или попробуйте снова." : "Загрузка видео"}</span></div>}
           {!waiting && !error && (controlsVisible || !playing) && (
             <button className="center-play" onClick={() => { togglePlayback(); revealControls(); }} aria-label={playing ? "Пауза" : "Воспроизвести"}>
               {playing ? <Pause size={34} fill="currentColor" /> : <Play size={38} fill="currentColor" />}
@@ -1866,6 +1931,17 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
                   <span>Фоновая подсветка</span><span className={ambient ? "player-switch enabled" : "player-switch"} aria-hidden="true" />
                 </button>
                 <button onClick={() => setPlayerSettings("speed")}><span>Скорость</span><span>{speed}×</span><ChevronRight size={16} /></button>
+                {useHls && audio.tracks.length > 0 && <button onClick={() => setPlayerSettings("audio")}>
+                  <span>Аудиодорожка</span>
+                  {selectedAudio && <span className="player-setting-value" title={audioLabel(selectedAudio)}>{audioLabel(selectedAudio)}</span>}
+                  <ChevronRight size={16} />
+                </button>}
+              </> : playerSettings === "audio" ? <>
+                <button onClick={() => setPlayerSettings("main")}><ArrowLeft size={16} /><span>Аудиодорожки</span></button>
+                {audio.tracks.map(track => <button key={track.index} aria-pressed={audio.selected === track.index}
+                  onClick={() => { hlsRef.current?.selectAudio(track.index); setPlayerSettings("main"); }}>
+                  <span>{audioLabel(track)}</span>{audio.selected === track.index && <Check size={16} />}
+                </button>)}
               </> : <>
                 <button onClick={() => setPlayerSettings("main")}><ArrowLeft size={16} /><span>Скорость воспроизведения</span></button>
                 {[0.5, 0.75, 1, 1.25, 1.5, 2].map(value => <button key={value} aria-pressed={speed === value} onClick={() => {
@@ -1879,7 +1955,10 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
           </button>
         </div>
         </div>
-        {error && <p className="player-message" role="alert">{error}</p>}
+        {(error || slowLoading) && <div className="player-message" role={error ? "alert" : "status"}>
+          {error && <span>{error}</span>}
+          <button type="button" onClick={retryPlayback}>Попробовать снова</button>
+        </div>}
       </section>
 
       <section className="player-details">

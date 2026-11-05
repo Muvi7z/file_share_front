@@ -6,6 +6,7 @@
   Folder,
   ServerFolderBrowseResponse,
   SharedFile,
+  VideoAudioTrack,
   VideoFile
 } from "./types";
 
@@ -59,6 +60,14 @@ export const authExpiredEvent = "local-video-vault-auth-expired";
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") || "/api";
 const apiFallbackBaseUrl = (import.meta.env.VITE_API_FALLBACK_BASE_URL as string | undefined)?.replace(/\/$/, "")
   || apiBaseUrl;
+
+export function getHlsMasterUrl(videoId: string) {
+  return `${apiBaseUrl}/videos/${encodeURIComponent(videoId)}/hls/master.m3u8`;
+}
+
+export function getVideoAudioTracks(videoId: string, signal: AbortSignal) {
+  return requestArray<VideoAudioTrack>(`/videos/${encodeURIComponent(videoId)}/audio`, { signal });
+}
 
 export function getFileDownloadUrl(fileId: string) {
   return `${apiBaseUrl}/files/${encodeURIComponent(fileId)}/download`;

@@ -1,0 +1,11 @@
+com.localvideovault.mobile.app-working-0 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\res\pngs\working\debug
+com.localvideovault.mobile.app-working-1 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\res\resValues\working\debug
+com.localvideovault.mobile.app-updated_navigation_xml-2 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\updated_navigation_xml\workingDebug
+com.localvideovault.mobile.app-packageWorkingDebugResources-3 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\incremental\workingDebug\packageWorkingDebugResources\merged.dir
+com.localvideovault.mobile.app-packageWorkingDebugResources-4 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\incremental\workingDebug\packageWorkingDebugResources\stripped.dir
+com.localvideovault.mobile.app-workingDebug-5 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\merged_res\workingDebug\mergeWorkingDebugResources
+com.localvideovault.mobile.app-debug-6 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\debug\res
+com.localvideovault.mobile.app-main-7 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\res
+com.localvideovault.mobile.app-working-8 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\working\res
+com.localvideovault.mobile.app-workingDebug-9 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\workingDebug\res
+gradleHome-0 C:\Users\Ochir\.gradle

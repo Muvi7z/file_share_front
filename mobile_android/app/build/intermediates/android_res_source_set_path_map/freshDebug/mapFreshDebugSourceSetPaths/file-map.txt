@@ -1,0 +1,11 @@
+com.localvideovault.mobile.app-fresh-0 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\res\pngs\fresh\debug
+com.localvideovault.mobile.app-fresh-1 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\res\resValues\fresh\debug
+com.localvideovault.mobile.app-updated_navigation_xml-2 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\generated\updated_navigation_xml\freshDebug
+com.localvideovault.mobile.app-packageFreshDebugResources-3 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\incremental\freshDebug\packageFreshDebugResources\merged.dir
+com.localvideovault.mobile.app-packageFreshDebugResources-4 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\incremental\freshDebug\packageFreshDebugResources\stripped.dir
+com.localvideovault.mobile.app-freshDebug-5 C:\Users\Ochir\Documents\file_share\mobile_android\app\build\intermediates\merged_res\freshDebug\mergeFreshDebugResources
+com.localvideovault.mobile.app-debug-6 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\debug\res
+com.localvideovault.mobile.app-fresh-7 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\fresh\res
+com.localvideovault.mobile.app-freshDebug-8 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\freshDebug\res
+com.localvideovault.mobile.app-main-9 C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\res
+gradleHome-0 C:\Users\Ochir\.gradle
