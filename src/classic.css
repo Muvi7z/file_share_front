@@ -1,0 +1,276 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--secondary);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--secondary);
+  --color-accent-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--foreground);
+  --color-destructive: #d96873;
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--primary);
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+:root {
+  --background: #101010;
+  --foreground: #e5e5e5;
+  --primary: #fca311;
+  --accent-border: #8c6427;
+  --accent-progress: #fca311;
+  --accent-icon: #fca311;
+  --primary-foreground: #101010;
+  --secondary: #262626;
+  --muted-foreground: #a8a8a8;
+  --popover: #202020;
+  --border: #3b3b3b;
+}
+
+html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { background: var(--background); color-scheme: dark; }
+.theme-classic { color-scheme: dark; color: var(--foreground); background: var(--background); grid-template-columns: 232px minmax(0, 1fr); font-family: "Segoe UI", system-ui, sans-serif; }
+.theme-classic *, .vault-menu * { letter-spacing: 0; }
+.theme-classic .sidebar { padding: 28px 16px 18px; gap: 26px; background: #171717; border-color: #303030; box-shadow: none; }
+.theme-classic .brand { gap: 12px; padding: 0 8px 9px; }
+.theme-classic .brand-mark { width: 38px; height: 38px; flex-shrink: 0; border: 1px solid var(--accent-icon); background: var(--accent-icon); border-radius: 8px; color: #242424; box-shadow: none; display: grid; }
+.theme-classic .brand strong { font-size: 18px; font-weight: 650; }
+.theme-classic .brand div > span { font-size: 11px; color: #8f949c; margin-top: 4px; }
+.theme-classic .main-nav { gap: 5px; }
+.theme-classic .main-nav button { justify-content: flex-start; height: 44px; border-radius: 6px; color: #a7abb2; font-size: 13px; font-weight: 500; padding: 0 12px; }
+.theme-classic .main-nav button:hover { background: #292929; color: #fafafa; }
+.theme-classic .main-nav .active { background: #29251e; color: #ffffff; }
+.theme-classic .main-nav .active svg { color: var(--accent-icon); }
+.theme-classic .main-nav .active:hover { background: #343434; color: #ffffff; }
+.nav-section-label { display: none; }
+.theme-classic .nav-section-label { display: block; font-size: 12px; color: #7e848d; padding: 0 12px; margin-bottom: -18px; }
+.theme-classic .folder-nav { border: 0; gap: 2px; overflow: auto; min-height: 0; align-content: start; padding: 0; }
+.theme-classic .folder-nav button { min-height: 38px; gap: 10px; padding: 8px 12px; border: 0; color: #a7abb2; border-radius: 6px; font-size: 12px; }
+.theme-classic .folder-nav button span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.theme-classic .folder-nav .active, .theme-classic .folder-nav button:hover { background: #292929; color: #eee; }
+.theme-classic .folder-nav b { font-size: 11px; font-weight: 500; color: #a7abb2; }
+.sidebar-account { display: none; }
+.auth-screen { min-height: 100dvh; height: 100dvh; overflow: auto; background: #101010; display: flex; flex-direction: column; }
+.auth-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 32px; border-bottom: 1px solid #282828; }
+.auth-brand { display: flex; align-items: center; gap: 12px; font-size: 18px; }
+.auth-brand > span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; background: #fca311; color: #101010; }
+.auth-header [data-slot="button"] { background: transparent; color: #b6b6b6; }
+.auth-main { flex: 1; display: grid; place-items: center; padding: 40px 20px; }
+.auth-window { width: 100%; max-width: 440px; padding: 32px; border: 1px solid #323232; border-radius: 8px; background: #191919; box-shadow: 0 16px 48px #0003; }
+.auth-emblem { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 24px; border-radius: 8px; color: #fca311; background: #30291e; }
+.auth-screen .auth-center > .eyebrow { display: none; }
+.auth-screen .auth-center h1 { margin: 0 0 24px; font-size: 26px; }
+.auth-screen .account-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: #111; border: 1px solid #303030; padding: 4px; border-radius: 6px; margin-bottom: 24px; }
+.auth-screen .account-tabs button { min-width: 0; min-height: 40px; border: 0; background: transparent; color: #a6a6a6; }
+.auth-screen .account-tabs button[aria-current="page"] { background: #303030; color: #fff; }
+.auth-screen .account-form { width: 100%; padding: 0; gap: 20px; }
+.auth-screen .account-form input { height: 46px; background: #111; border-color: #414141; }
+.auth-screen .account-form .primary-button { height: 46px; margin-top: 4px; }
+@media (max-width: 560px) {
+  .auth-header { padding: 16px; gap: 8px; }
+  .auth-brand { font-size: 15px; gap: 8px; }
+  .auth-header [data-slot="button"] { padding: 8px; font-size: 12px; }
+  .auth-main { padding: 24px 16px; }
+  .auth-window { padding: 24px; }
+}
+.theme-classic .sidebar-account { display: flex; margin-top: auto; height: auto; min-height: 56px; padding: 12px 8px; justify-content: flex-start; gap: 12px; border-top: 1px solid #303234; border-radius: 0; color: #b6bcc3; background: transparent; }
+.sidebar-account > span { display: grid; gap: 4px; text-align: left; flex: 1; min-width: 0; }
+.sidebar-account strong { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-account small { font-size: 11px; color: #858b93; }
+.theme-classic .content { background: #101010; color: var(--foreground); padding: 32px 36px; gap: 24px; scrollbar-color: #424548 #101010; }
+.theme-classic .browse-page { gap: 24px; }
+.theme-classic .topbar { min-height: 64px; padding: 0 0 22px; border-bottom: 1px solid #303030; }
+.theme-classic h1 { font-size: 28px; line-height: 1.25; font-weight: 650; color: #ffffff; }
+.theme-classic .eyebrow { color: #9298a1; font-size: 12px; margin: 0 0 8px; text-transform: none; }
+.theme-classic :is(h2,h3,strong) { color: #e5e5e5; }
+.theme-classic .toolbar { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; }
+.theme-classic .search-box { flex: 1 1 260px; max-width: 600px; min-height: 40px; background: #1c1c1c; border: 1px solid #3b3b3b; border-radius: 6px; box-shadow: none; color: #949aa3; }
+.theme-classic .search-box input { width: 100%; border: 0; background: transparent; box-shadow: none; color: #eee; padding: 8px 0; height: 38px; }
+.theme-classic .search-box:focus-within { outline: 2px solid #fca311; outline-offset: 2px; }
+.theme-classic .search-box input:focus-visible { outline: none; box-shadow: none; }
+.theme-classic .toolbar-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.theme-classic [data-slot="button"] { border-radius: 6px; }
+.theme-classic .toolbar-controls [data-slot="button"] { background: #1c1c1c; border: 1px solid #3b3b3b; height: 38px; color: #d4d8dc; box-shadow: none; }
+.theme-classic [data-slot="tabs-list"] { background: #191919; padding: 3px; border: 1px solid #3b3b3b; height: 38px; border-radius: 6px; }
+.theme-classic [data-slot="tabs-trigger"] { background: transparent; color: #a5adb6; width: 36px; height: 30px; padding: 5px; border: 0; border-radius: 4px; }
+.theme-classic [data-slot="tabs-trigger"][data-state="active"] { background: #fca311; color: #101010; box-shadow: none; }
+.vault-menu { min-width: 190px; padding: 5px; background: #202020; color: #e9ebee; border: 1px solid #3b3b3b; border-radius: 8px; box-shadow: 0 12px 40px #0008; z-index: 200; }
+.vault-menu [role="menuitemradio"] { display: flex; align-items: center; gap: 9px; min-height: 38px; border-radius: 4px; font-size: 13px; }
+.vault-menu [data-highlighted] { background: #242424; outline: none; }
+.theme-classic .collection-heading { padding: 0; }
+.theme-classic .collection-heading h2 { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: #e5e7eb; }
+.theme-classic .collection-heading h2 span { margin: 0; padding: 2px 8px; font-size: 11px; background: #303030; border: 0; color: #fca311; border-radius: 4px; }
+.theme-classic .collection-heading > span { font-size: 12px; color: #858d97; }
+.theme-classic .video-grid { grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 22px; }
+.theme-classic :is(.video-item,.folder-card,.shared-file-card) { background: #1c1c1c; border: 1px solid #303030; border-radius: 8px; box-shadow: none; overflow: hidden; transition: border-color .15s, background .15s; }
+.theme-classic :is(.video-item,.folder-card,.shared-file-card):hover { border-color: var(--accent-border); background: #242424; }
+.theme-classic .poster-button { background: #25282b; border-radius: 0; aspect-ratio: 16/9; overflow: hidden; }
+.theme-classic .poster-thumbnail { width: 100%; height: 100%; object-fit: cover; }
+.theme-classic :is(.poster-placeholder,.poster-skeleton) { background: #23262a; color: #6e7781; }
+.theme-classic .play-badge { background: #ffd08a; color: #242424; width: 34px; height: 34px; border-radius: 50%; box-shadow: none; }
+.theme-classic .duration { background: #111b; color: #fafafa; padding: 3px 6px; border-radius: 4px; font-size: 11px; }
+.theme-classic .video-grid .video-info { padding: 14px 16px; gap: 10px; background: transparent; }
+.theme-classic .video-info h2 { color: #e4e7eb; font-size: 14px; line-height: 1.5; font-weight: 550; }
+.theme-classic .video-info p { color: #8f98a3; font-size: 12px; }
+.theme-classic .video-info dl { border-top: 1px solid #2b2f33; padding-top: 10px; }
+.theme-classic .video-info :is(dt,dd) { color: #929ca7; font-size: 11px; font-weight: 400; }
+.theme-classic .video-list { gap: 8px; }
+.theme-classic .video-list .video-item { grid-template-columns: 180px minmax(0,1fr); align-items: center; }
+.theme-classic .video-list .video-info { background: transparent; padding: 14px 20px; }
+.theme-classic .file-grid { gap: 16px; }
+.theme-classic :is(.folder-open-button,.shared-file-open) { color: #e6e9ed; background: transparent; }
+.theme-classic .folder-card-refined .folder-copy strong { color: #e6e9ed; }
+.theme-classic .folder-card-refined .folder-icon { background: #2d2921; color: #fca311; box-shadow: none; border-radius: 8px; }
+.theme-classic .folder-card-refined .folder-icon > svg { color: #fca311; stroke: currentColor; filter: none; }
+.theme-classic :is(.folder-card-meta,.folder-chevron,.file-meta,.file-copy > span) { color: #929ba6; }
+.theme-classic .folder-card-meta > span { background: transparent; color: #929ba6; }
+.theme-classic :is(.file-preview,.file-type-preview) { background: #22272b; color: #9eaab7; }
+.theme-classic :is(.file-crumbs,.breadcrumbs,.compact-summary) { background: transparent; border-color: #303437; color: #9ca5af; border-radius: 0; }
+.theme-classic :is(.file-crumbs,.breadcrumbs) button { color: #dce2e7; background: transparent; }
+.theme-classic .compact-summary span { background: #24282c; color: #a9b3bd; border-radius: 4px; }
+.theme-classic.app-shell .content :is(.empty-folder,.night-empty) { background: transparent; border: 1px dashed #3b4045; border-radius: 8px; box-shadow: none; padding: 64px 24px; color: #9aa4ae; }
+.theme-classic.app-shell .content :is(.empty-folder,.night-empty) > svg { background: #262c30; color: #98a6b2; box-shadow: none; border: 0; border-radius: 8px; }
+.theme-classic.app-shell .content :is(.empty-folder,.night-empty) h2 { font-size: 20px; color: #e0e5ea; }
+.theme-classic.app-shell .content :is(.empty-folder,.night-empty) p { color: #9aa4ae; }
+.theme-classic :is(.icon-text,.icon-button,.ghost-button,.sort-direction,.credential-fill-button,.back-to-top) { background: #25292c; border: 1px solid #3a3f44; color: #d0d8df; border-radius: 6px; box-shadow: none; }
+.theme-classic :is(.primary-button,.account-center .primary-button) { background: #fca311; color: #242424; border: 1px solid #fca311; border-radius: 6px; font-weight: 600; min-height: 40px; }
+.theme-classic :is(.primary-button,.account-center .primary-button):hover:not(:disabled) { background: #ffd08a; border-color: #ffd08a; }
+.theme-classic .settings-section-title > svg { color: var(--accent-icon); }
+.theme-classic .danger-button { background: #302025; border: 1px solid #d96873; color: #ffd08a; border-radius: 6px; }
+.theme-classic button:disabled { opacity: .45; cursor: not-allowed; }
+.theme-classic :is(button,a,summary,input,select,textarea):focus-visible { outline: 2px solid #fca311; outline-offset: 3px; }
+.theme-classic :is(input:not([type="range"]):not([type="checkbox"]),select,textarea) { color: #e5e9ee; background-color: #1c1c1c; border-color: #41474e; border-radius: 6px; }
+.theme-classic input::placeholder { color: #89929c; }
+.theme-classic :is(.error,.app-error) { background: #291b1b; border: 1px solid #75403d; color: #edb5af; border-radius: 6px; line-height: 1.5; }
+.theme-classic .account-notice { background: #202b25; color: #a6c6af; }
+.theme-classic :is(.account-tabs,.account-stats,.account-list,.account-row) { border-color: #303030; }
+.theme-classic .account-tabs button { color: #a7b0ba; }
+.theme-classic .account-tabs button[aria-current="page"] { color: #ffffff; border-color: #fca311; }
+.theme-classic .account-stats strong { color: #e4e8ec; }
+.theme-classic .account-avatar { background: #292929; color: #fca311; }
+.theme-classic .account-row input { background: transparent; }
+.theme-classic .account-toolbar { padding: 8px 0; }
+.theme-classic .account-toolbar > input { min-width: 0; }
+.theme-classic .settings-panel.settings-page { background: transparent; padding: 0; max-width: 960px; color: #e5e9ed; border: 0; box-shadow: none; }
+.theme-classic .settings-header { border-bottom: 1px solid #303030; padding-bottom: 24px; margin-bottom: 8px; }
+.theme-classic .settings-page > .settings-section { background: transparent; border: 0; border-bottom: 1px solid #303030; border-radius: 0; padding: 28px 0; margin: 0; }
+.theme-classic .settings-section-title { margin-bottom: 20px; color: #a8b1bb; }
+.theme-classic .settings-section-title h3 { font-size: 16px; color: #e2e6eb; }
+.theme-classic .settings-section-title p { color: #929da7; font-size: 13px; }
+.theme-classic :is(.theme-choice,.wallpaper-choice) button { background: #1c1c1c; color: #e1e6ec; border: 1px solid #394047; border-radius: 8px; box-shadow: none; }
+.theme-classic .theme-choice button[aria-pressed="true"], .theme-classic .wallpaper-choice button.selected { background: #29251e; border-color: #fca311; color: #fca311; }
+.theme-classic .theme-choice small { color: #9ca7b2; }
+.theme-classic .classic-swatch { background: #111416; border: 1px solid #434a51; }
+.theme-classic .classic-swatch i { background: #343d43; }
+.theme-classic .settings-account-card { background: #222222; border-color: #394047; border-radius: 8px; }
+.theme-classic .settings-account-card span, .theme-classic .settings-account-card small { color: #9ca7b2; }
+.theme-classic .settings-avatar { background: #292929; color: #fca311; }
+.theme-classic :is(.admin-page-card,.folder-table,.poster-manager,.server-folder-picker,.folder-picker,.modal,.dialog) { background: #1c1c1c; border-color: #343a40; color: #dfe5eb; border-radius: 8px; box-shadow: none; }
+.theme-classic :is(.folder-row,.poster-video-row) { background: transparent; color: #dfe5eb; border-color: #343a40; }
+.theme-classic :is(.admin-form label,.add-folder label,.folder-row span,.poster-video-row span,.poster-manager-header span) { color: #a0acb7; }
+.theme-classic .status.enabled { background: #202b25; color: #a6c6af; }
+.theme-classic .status { background: #303438; color: #b3bdc7; }
+.theme-classic .player-topbar { padding-bottom: 18px; border-bottom: 1px solid #303030; }
+.theme-classic .player-topbar h1 { font-size: 21px; }
+.theme-classic .player-surface { border: 1px solid #343a40; border-radius: 8px; background: #080909; box-shadow: none; }
+.theme-classic .player-back-button { background: #242b30; color: #e5edf3; border-radius: 6px; }
+.theme-classic .player-timeline { accent-color: var(--accent-progress); }
+.theme-classic .player-speed-options { background: #1b2024; color: #e5edf3; border: 1px solid #3b454d; border-radius: 8px; }
+.theme-classic .video-problem-form { background: #1b2024; border-color: #3b454d; border-radius: 8px; }
+@media (max-width: 1100px) {
+  .theme-classic { grid-template-columns: 208px minmax(0,1fr); }
+  .theme-classic .content { padding: 26px 24px; }
+  .theme-classic .video-grid { grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap: 16px; }
+}
+@media (max-width: 860px) {
+  .theme-classic { display: flex; flex-direction: column; }
+  .theme-classic .sidebar { position: relative; flex: 0 0 auto; width: 100%; height: auto; padding: 12px 16px 8px; gap: 12px; border-right: 0; border-bottom: 1px solid #303030; }
+  .theme-classic .brand { display: flex; padding: 0; }
+  .theme-classic .brand-mark { width: 32px; height: 32px; }
+  .theme-classic .brand div > span { display: none; }
+  .theme-classic .main-nav { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; }
+  .theme-classic .main-nav button { min-width: 0; justify-content: center; gap: 6px; padding: 8px 4px; font-size: 12px; }
+  .theme-classic :is(.nav-section-label,.folder-nav,.sidebar-account) { display: none; }
+  .theme-classic .content { height: auto; flex: 1; min-height: 0; padding: 24px 18px; }
+  .theme-classic .topbar { min-height: 56px; }
+  .theme-classic .toolbar-controls { width: 100%; justify-content: flex-end; }
+  .theme-classic .search-box { max-width: none; flex-basis: 100%; }
+  .theme-classic .account-row { overflow-wrap: anywhere; }
+}
+@media (max-width: 560px) {
+  .theme-classic .sidebar { padding: 10px 10px 6px; }
+  .theme-classic .main-nav button { flex-direction: column; height: 52px; font-size: 10px; gap: 4px; }
+  .theme-classic .content { padding: 20px 14px max(24px,env(safe-area-inset-bottom)); }
+  .theme-classic h1 { font-size: 24px; }
+  .theme-classic .video-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .theme-classic .video-grid .video-info { padding: 10px; }
+  .theme-classic .video-info h2 { font-size: 12px; }
+  .theme-classic .video-info dl { display: flex; flex-wrap: wrap; gap: 6px; }
+  .theme-classic .video-list .video-item { grid-template-columns: 112px minmax(0,1fr); }
+  .theme-classic .video-list .video-info { padding: 10px; }
+  .theme-classic .toolbar-controls { gap: 6px; justify-content: flex-start; }
+  .theme-classic .toolbar-controls [data-slot="button"] { padding-left: 10px; padding-right: 10px; font-size: 12px; }
+  .theme-classic .collection-heading > span { display: none; }
+  .theme-classic .theme-choice { grid-template-columns: minmax(0,1fr); }
+  .theme-classic .player-topbar h1 { font-size: 16px; overflow-wrap: anywhere; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-classic *, .theme-classic *::after { transition: none !important; scroll-behavior: auto !important; }
+}
+
+.theme-classic .management-page { width: 100%; min-width: 0; }
+.vault-confirm { position: fixed; top: 50%; left: 50%; translate: none; transform: translate(-50%,-50%); z-index: 100; width: min(440px,calc(100vw - 32px)); padding: 24px; background: #1c1c1c; color: #eee; border: 1px solid #414141; border-radius: 8px; box-shadow: 0 24px 80px #0008; }
+.vault-confirm [data-slot="alert-dialog-title"] { font-size: 20px; color: #eee; }
+.vault-confirm [data-slot="alert-dialog-description"] { margin: 12px 0 24px; font-size: 14px; line-height: 1.6; color: #b4b4b4; overflow-wrap: anywhere; }
+.vault-confirm [data-slot="alert-dialog-footer"] { display: flex; justify-content: flex-end; gap: 8px; }
+.vault-confirm button { padding: 10px 16px; border-radius: 6px; background: #303030; color: #eee; }
+.vault-confirm [data-slot="alert-dialog-action"] { background: #fca311; color: #101010; }
+.theme-classic .management-page svg { width: 18px; height: 18px; flex-shrink: 0; stroke-width: 1.75; }
+.theme-classic .account-stats { border: 0; gap: 32px; padding: 24px 0; color: #aaa; }
+.theme-classic .account-stats strong { font-size: 22px; color: #eee; }
+.theme-classic .management-page .account-toolbar { gap: 10px; }
+.theme-classic .management-page [data-slot="native-select"] { appearance: none; padding-right: 36px; min-height: 40px; width: 100%; }
+.theme-classic .management-page [data-slot="native-select-wrapper"] { position: relative; min-width: 150px; max-width: 100%; }
+.theme-classic .management-page [data-slot="native-select-wrapper"] > svg { position: absolute; right: 12px; top: 12px; pointer-events: none; color: #aaa; }
+.theme-classic .management-page :is(.icon-button,.danger-button) { width: 38px; height: 38px; min-height: 38px; padding: 9px; flex-shrink: 0; }
+.theme-classic .management-page .icon-button { background: #252525; border: 1px solid #3b3b3b; color: #ddd; }
+.theme-classic .management-page .icon-button:hover { background: #343434; color: #fca311; }
+.theme-classic .management-page .account-row { grid-template-columns: 40px minmax(120px,1fr) 112px 150px auto; gap: 12px; }
+.theme-classic .management-page .account-status { width: fit-content; border: 1px solid #414141; padding: 4px 8px; border-radius: 4px; font-weight: 500; }
+.theme-classic .management-page .account-status.pending { color: #f5c674; background: #30291c; }
+.theme-classic .management-page .account-status.active { color: #a6c6af; background: #202b25; }
+.theme-classic .management-page .account-status.blocked, .theme-classic .management-page .account-status.rejected { color: #edb5af; background: #291b1b; }
+.theme-classic .management-page .account-empty { padding: 64px 24px; border: 1px dashed #383838; border-radius: 8px; }
+.theme-classic .management-page [data-slot="switch"] { display: inline-flex; align-items: center; width: 36px; height: 22px; padding: 2px; border: 0; border-radius: 20px; background: #484848; }
+.theme-classic .management-page [data-slot="switch"][data-state="checked"] { background: #fca311; }
+.theme-classic .management-page [data-slot="switch-thumb"] { width: 18px; height: 18px; border-radius: 50%; background: #fff; transform: translateX(0); }
+.theme-classic .management-page [data-slot="switch-thumb"][data-state="checked"] { transform: translateX(14px); background: #171717; }
+.theme-classic .management-page [data-slot="checkbox"] { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid #aaa; border-radius: 4px; background: #171717; }
+.theme-classic .management-page [data-slot="checkbox"][data-state="checked"] { background: #fca311; border-color: #fca311; color: #101010; }
+.theme-classic .management-page .admin-media-select { padding: 4px; }
+.theme-classic .folder-picker-row { display: flex; width: 100%; height: auto; white-space: normal; text-align: left; background: transparent; color: #ddd; justify-content: flex-start; }
+.theme-classic .folder-picker-row small { color: #aaa; overflow-wrap: anywhere; }
+@media (max-width: 1100px) {
+  .theme-classic .management-page .account-row { grid-template-columns: 40px minmax(100px,1fr) 112px; }
+  .theme-classic .management-page .account-row > [data-slot="native-select-wrapper"] { grid-column: 2; }
+  .theme-classic .management-page .account-actions { grid-column: 2 / -1; }
+}
+@media (max-width: 560px) {
+  .theme-classic .account-stats { gap: 14px; font-size: 12px; }
+  .theme-classic .account-stats strong { font-size: 18px; }
+  .theme-classic .library-admin .add-folder { flex-direction: column; align-items: stretch; }
+  .theme-classic .management-page .account-row { grid-template-columns: minmax(0,1fr) auto; }
+  .theme-classic .management-page .account-avatar { display: none; }
+  .theme-classic .management-page .account-identity { grid-column: 1; grid-row: 1; }
+  .theme-classic .management-page .account-status { grid-column: 2; grid-row: 1; }
+  .theme-classic .management-page .account-row > [data-slot="native-select-wrapper"] { grid-column: 1 / -1; }
+  .theme-classic .management-page .account-actions { grid-column: 1 / -1; }
+}

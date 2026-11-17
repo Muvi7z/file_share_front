@@ -1,5 +1,5 @@
 export type ViewMode = "tiles" | "list";
-export type Page = "videos" | "files" | "player" | "admin" | "settings";
+export type Page = "videos" | "files" | "player" | "admin" | "settings" | "login";
 
 export type VideoFile = {
   id: string;

@@ -1,9 +1,21 @@
 import { VideoProblemBadge, VideoProblemControl } from "./VideoProblem";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { useConfirmation } from "./Confirmation";
+import { Dialog as DialogPrimitive } from "radix-ui";
+import { Checkbox } from "./components/ui/checkbox";
+import { Switch } from "./components/ui/switch";
+import { NativeSelect, NativeSelectOption } from "./components/ui/native-select";
+import { Badge } from "./components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "./components/ui/dropdown-menu";
 import { ImageLightbox } from "./ImageLightbox";
 import { PlayerAmbient } from "./PlayerAmbient";
+import { PlayerPlaylist } from "./PlayerPlaylist";
+import { createHoldToSpeed } from "./lib/hold-to-speed";
 import type { attachHls, PlaybackAudioTrack } from "./hlsPlayback";
 import { Wallpaper, type WallpaperVariant } from "./Wallpaper";
-import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject, type ReactNode, type CSSProperties } from "react";
 import { AccountAuthStatus, AccountCenter, AuthForm, PasswordForm, isAdministrator } from "./Accounts";
 import {
   ArrowDown,
@@ -37,6 +49,8 @@ import {
   MonitorPlay,
   Pencil,
   Play,
+  SkipBack,
+  SkipForward,
   RefreshCw,
   Save,
   Search,
@@ -322,7 +336,7 @@ function readRouteState(): RouteState {
     : "videos";
 
   return {
-    page: page === "files" || page === "player" || page === "admin" || page === "settings" ? page : "videos",
+    page: page === "files" || page === "player" || page === "admin" || page === "settings" || page === "login" ? page : "videos",
     currentFolderId: params.get("folder"),
     selectedFolder: params.get("selected") || "all",
     query: params.get("q") || "",
@@ -361,8 +375,8 @@ function App() {
     };
   }, [page]);
   const [theme, setTheme] = useState<"classic" | "glass">(() => {
-    try { return localStorage.getItem("vault-theme") === "classic" ? "classic" : "glass"; }
-    catch { return "glass"; }
+    try { return localStorage.getItem("vault-theme") === "glass" ? "glass" : "classic"; }
+    catch { return "classic"; }
   });
   useEffect(() => {
     try { localStorage.setItem("vault-theme", theme); } catch { /* Keep the selection for this session. */ }
@@ -407,6 +421,7 @@ function App() {
     };
   }, []);
   const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
+  const [playerQueue, setPlayerQueue] = useState<VideoFile[]>([]);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(initialRouteState.videoId);
   const [loadError, setLoadError] = useState("");
   const [session, setSession] = useState<AdminSession | null>(() => {
@@ -681,7 +696,7 @@ function App() {
   }, [filteredVideos.length, page, visibleFileEntries.length]);
 
   const openPage = (nextPage: Page) => {
-    setPage(nextPage);
+    setPage(nextPage === "admin" && !session ? "login" : nextPage);
     setSelectedVideo(null);
     if (nextPage !== "player") {
       setActiveVideoId(null);
@@ -690,8 +705,14 @@ function App() {
   };
 
   const openPlayer = (video: VideoFile) => {
-    playerReturnPageRef.current = page === "player" ? "files" : page;
-    returnScrollTopRef.current = getCurrentScrollTop();
+    if (page !== "player") {
+      playerReturnPageRef.current = page;
+      returnScrollTopRef.current = getCurrentScrollTop();
+      const queue = page === "files"
+        ? visibleFileEntries.flatMap(entry => entry.type === "video" ? [entry.video] : [])
+        : filteredVideos;
+      setPlayerQueue(queue.some(item => item.id === video.id) ? queue : [video, ...queue]);
+    }
     setSelectedVideo(video);
     setActiveVideoId(video.id);
     setPage("player");
@@ -716,6 +737,7 @@ function App() {
   const handleLogin = (nextSession: AdminSession) => {
     localStorage.setItem(sessionStorageKey, JSON.stringify(nextSession));
     setSession(nextSession);
+    openPage("settings");
   };
 
   const handleLogout = () => {
@@ -770,39 +792,58 @@ function App() {
   const browsePage = page === "player" ? playerReturnPageRef.current : page;
   const pageTitle = browsePage === "files" ? "Все файлы" : "Видеотека";
   const pageEyebrow = browsePage === "files" ? "Проводник" : "VIDEO VAULT / AFTER DARK";
+  const playerPlaylist = useMemo(() => {
+    const queue = playerQueue.length ? playerQueue : filteredVideos;
+    const catalog = new Map(videos.map(item => [item.id, item]));
+    const items = queue.map(item => catalog.get(item.id) ?? item);
+    return selectedVideo && !items.some(item => item.id === selectedVideo.id) ? [selectedVideo, ...items] : items;
+  }, [playerQueue, filteredVideos, videos, selectedVideo]);
+
+  if (page === "login" || (page === "admin" && !session)) {
+    return <div className="theme-classic dark auth-screen">
+      <header className="auth-header">
+        <div className="auth-brand"><span><MonitorPlay size={24} /></span><strong>Video Vault</strong></div>
+        <Button variant="ghost" onClick={() => openPage("videos")}><ArrowLeft size={16} />В медиатеку</Button>
+      </header>
+      <main className="auth-main">
+        <div className="auth-window"><div className="auth-emblem"><Lock size={22} /></div><AuthForm onLogin={handleLogin} /></div>
+      </main>
+    </div>;
+  }
 
   return (
-    <div className={`app-shell page-${page} theme-${theme}`}>
+    <div className={`app-shell page-${page} theme-${theme} ${theme === "classic" ? "dark" : ""}`}>
       {theme === "glass" && <Wallpaper variant={wallpaper} staticOnly={page === "player"} />}
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">
-            <span className="brand-play-triangle" />
+            <MonitorPlay size={23} aria-hidden="true" />
           </span>
           <div>
             <strong>Video Vault</strong>
-            <span>LAN media browser</span>
+            <span>Личная медиатека</span>
           </div>
         </div>
 
         <nav className="main-nav" aria-label="Основные разделы">
-          <button className={page === "videos" ? "active" : ""} onClick={() => openPage("videos")}>
+          <Button variant="ghost" aria-current={page === "videos" ? "page" : undefined} className={page === "videos" ? "active" : ""} onClick={() => openPage("videos")}>
             <Grid2X2 size={18} />
             <span>Видео</span>
-          </button>
-          <button className={page === "files" ? "active" : ""} onClick={() => openPage("files")}>
+          </Button>
+          <Button variant="ghost" aria-current={page === "files" ? "page" : undefined} className={page === "files" ? "active" : ""} onClick={() => openPage("files")}>
             <FolderOpen size={18} />
             <span>Все файлы</span>
-          </button>
-          <button className={page === "admin" ? "active" : ""} onClick={() => openPage("admin")}>
+          </Button>
+          <Button variant="ghost" aria-current={page === "admin" ? "page" : undefined} className={page === "admin" ? "active" : ""} onClick={() => openPage("admin")}>
             <Settings size={18} />
-            <span>Админка</span>
-          </button>
-          <button className={page === "settings" ? "settings-entry active" : "settings-entry"} onClick={() => openPage("settings")}>
+            <span>Управление</span>
+          </Button>
+          <Button variant="ghost" aria-current={page === "settings" ? "page" : undefined} className={page === "settings" ? "settings-entry active" : "settings-entry"} onClick={() => openPage("settings")}>
             <SlidersHorizontal size={18} />
             <span>Настройки</span>
-          </button>
+          </Button>
         </nav>
+        <div className="nav-section-label">Коллекции</div>
         <nav className="folder-nav" aria-label="Папки">
           <button className={selectedFolder === "all" ? "active" : ""} onClick={openAllVideos}>
             <span>Все видео</span>
@@ -822,11 +863,16 @@ function App() {
             </button>
           ))}
         </nav>
+        <Button variant="ghost" className="sidebar-account" onClick={() => openPage(session ? "settings" : "login")}>
+          <UserRound size={19} />
+          <span><strong>{session?.login || "Гостевой просмотр"}</strong><small>{session ? "Настройки аккаунта" : "Войти в аккаунт"}</small></span>
+          <ChevronRight size={16} />
+        </Button>
       </aside>
 
       <main ref={contentRef} className={page === "player" ? "content player-page" : "content"}>
         {page === "player" && selectedVideo ? (
-          <PlayerPage key={selectedVideo.id} video={selectedVideo} onBack={closePlayer} />
+          <PlayerPage key={selectedVideo.id} video={selectedVideo} playlist={playerPlaylist} onSelectVideo={openPlayer} onBack={closePlayer} />
         ) : page === "player" ? (
           <section className="empty-folder">
             <MonitorPlay size={34} />
@@ -834,7 +880,7 @@ function App() {
             <p>Восстанавливаем открытый плеер после обновления страницы.</p>
           </section>
         ) : null}
-        {page === "settings" ? (<SettingsPanel theme={theme} wallpaper={wallpaper} session={session} onThemeChange={setTheme} onWallpaperChange={setWallpaper} onLogin={handleLogin} onLogout={handleLogout} />) : page === "admin" ? (
+        {page === "settings" ? (<SettingsPanel theme={theme} wallpaper={wallpaper} session={session} onThemeChange={setTheme} onWallpaperChange={setWallpaper} onOpenLogin={() => openPage("login")} onLogout={handleLogout} />) : page === "admin" ? (
           <AccountCenter session={session} onLogin={handleLogin} onLogout={handleLogout}><AdminPage
             folders={rootFolders}
             allFolders={folders}
@@ -854,10 +900,10 @@ function App() {
           <div className="browse-page" hidden={page === "player"}>
             <header className="topbar">
               <div>
-                <p className="eyebrow">{pageEyebrow}</p>
+                <p className="eyebrow">{theme === "classic" ? "Медиатека / " + (browsePage === "files" ? "Файлы" : "Видео") : pageEyebrow}</p>
                 <h1>{pageTitle}</h1>
               </div>
-              <button className="icon-text" onClick={() => openPage("settings")}>
+              <button className="icon-text" onClick={() => openPage(session ? "settings" : "login")}>
                 <Shield size={18} />
                 <span>{session ? session.login : "Войти"}</span>
               </button>
@@ -867,15 +913,38 @@ function App() {
             <section className="toolbar" aria-label="Фильтры">
               <label className="search-box">
                 <Search size={18} />
-                <input
+                <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   aria-label="Поиск в библиотеке"
-                  placeholder={browsePage === "files" ? "Поиск по папкам, видео и файлам" : "Найти что-нибудь на вечер…"}
+                  placeholder={browsePage === "files" ? "Поиск по папкам, видео и файлам" : "Поиск по названию видео"}
                 />
               </label>
 
               <div className="toolbar-controls">
+                {theme === "classic" ? <>
+                  {browsePage === "files" && <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="outline"><FileTypeIcon type={fileTypeFilter} /><span>{fileTypeLabels[fileTypeFilter]}</span><ChevronDown size={14} /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="vault-menu dark">
+                      <DropdownMenuRadioGroup value={fileTypeFilter} onValueChange={(value) => setFileTypeFilter(value as FileTypeFilter)}>
+                        {(["videos", "files", "images", "all"] as FileTypeFilter[]).map(type => <DropdownMenuRadioItem key={type} value={type}><FileTypeIcon type={type} />{fileTypeLabels[type]}</DropdownMenuRadioItem>)}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="outline" aria-label="Сортировка"><ArrowDownAZ size={16} /><span>{sortField === "name" ? "По имени" : "По дате"}</span><ChevronDown size={14} /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="vault-menu dark">
+                      <DropdownMenuRadioGroup value={sortField} onValueChange={(value) => { setSortField(value as SortField); setSortDirection(value === "name" ? "asc" : "desc"); }}>
+                        <DropdownMenuRadioItem value="name">По имени</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="date">По дате</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button variant="outline" size="icon" onClick={() => setSortDirection(current => current === "asc" ? "desc" : "asc")} title={sortDirection === "asc" ? "По возрастанию" : "По убыванию"} aria-label={sortDirection === "asc" ? "По возрастанию" : "По убыванию"}>{sortDirection === "asc" ? <ArrowUp size={17} /> : <ArrowDown size={17} />}</Button>
+                  <Tabs value={viewMode} onValueChange={value => setViewMode(value as ViewMode)}>
+                    <TabsList aria-label="Вид списка"><TabsTrigger value="tiles" aria-label="Плитка" title="Плитка"><Grid2X2 size={17} /></TabsTrigger><TabsTrigger value="list" aria-label="Список" title="Список"><List size={17} /></TabsTrigger></TabsList>
+                  </Tabs>
+                </> : <>
                 {browsePage === "files" && (
                   <details className="sort-menu type-filter-menu">
                     <summary aria-label={`Тип содержимого: ${fileTypeLabels[fileTypeFilter]}`}>
@@ -960,6 +1029,7 @@ function App() {
                     <List size={18} />
                   </button>
                 </div>
+                </>}
               </div>
             </section>
 
@@ -979,11 +1049,11 @@ function App() {
             ) : (
               <>
                 <div className="collection-heading">
-                  <h2>{query ? "Результаты поиска" : selectedFolder === "all" ? "Вся коллекция" : folders.find((folder) => folder.id === selectedFolder)?.name ?? "Коллекция"} <span>{filteredVideos.length}</span></h2>
-                  <span><span className="collection-dot" /> В локальной сети</span>
+                  <h2>{query ? "Результаты поиска" : selectedFolder === "all" ? "Вся коллекция" : folders.find((folder) => folder.id === selectedFolder)?.name ?? "Коллекция"} <Badge variant="secondary">{filteredVideos.length}</Badge></h2>
+                  <span>Локальная библиотека</span>
                 </div>
                 {filteredVideos.length === 0 && (
-                  <div className="night-empty"><Search size={28} /><h2>{query ? "Ничего не нашлось" : "Здесь пока тихо"}</h2><p>{query ? "Попробуйте другое название или выберите другую папку." : "Добавленные видео появятся в этой коллекции."}</p></div>
+                  <div className="night-empty"><Search size={28} /><h2>{loadError ? "Библиотека недоступна" : query ? "Ничего не нашлось" : "В коллекции пока нет видео"}</h2><p>{loadError ? "Не удалось получить данные с сервера. Проверьте соединение и обновите страницу." : query ? "Попробуйте другое название или выберите другую папку." : "Добавленные видео появятся в этой коллекции."}</p></div>
                 )}
 
                 <section className={viewMode === "tiles" ? "video-grid" : "video-list"} aria-label="Видео">
@@ -1014,13 +1084,13 @@ const wallpaperChoices: Array<{ id: WallpaperVariant; title: string; description
   { id: "water", title: "Black Water", description: "Предыдущая водная иллюзия", video: "/media/black-water-illusion.mp4#t=0.5" }
 ];
 
-function SettingsPanel({ theme, wallpaper, session, onThemeChange, onWallpaperChange, onLogin, onLogout }: {
+function SettingsPanel({ theme, wallpaper, session, onThemeChange, onWallpaperChange, onOpenLogin, onLogout }: {
   theme: "classic" | "glass";
   wallpaper: WallpaperVariant;
   session: AdminSession | null;
   onThemeChange: (theme: "classic" | "glass") => void;
   onWallpaperChange: (wallpaper: WallpaperVariant) => void;
-  onLogin: (session: AdminSession) => void;
+  onOpenLogin: () => void;
   onLogout: () => void;
 }) {
   return <section className="settings-panel settings-page" aria-labelledby="settings-title">
@@ -1033,7 +1103,7 @@ function SettingsPanel({ theme, wallpaper, session, onThemeChange, onWallpaperCh
         <div className="theme-choice" role="group" aria-label="Тема оформления">
           <button aria-pressed={theme === "classic"} onClick={() => onThemeChange("classic")}>
             <span className="theme-swatch classic-swatch"><i /><i /><i /></span>
-            <span><strong>Классическая</strong><small>Светлая рабочая область</small></span>
+            <span><strong>Классическая</strong><small>Тёмная рабочая область</small></span>
             {theme === "classic" && <Check size={18} />}
           </button>
           <button aria-pressed={theme === "glass"} onClick={() => onThemeChange("glass")}>
@@ -1072,7 +1142,7 @@ function SettingsPanel({ theme, wallpaper, session, onThemeChange, onWallpaperCh
           <span><strong>{session?.login ?? "Гость"}</strong><small>{session ? (session.role === "admin" ? "Администратор" : "Пользователь") : "Аккаунт не подключён"}</small></span>
           {session && <button className="settings-logout" onClick={onLogout} aria-label="Выйти из аккаунта"><LogOut size={18} /></button>}
         </div>
-        <div className="account-center settings-account-form">{session ? <PasswordForm /> : <AuthForm onLogin={onLogin} />}</div>
+        {session ? <div className="account-center settings-account-form"><PasswordForm /></div> : <Button className="primary-button" onClick={onOpenLogin}>Войти в аккаунт</Button>}
       </div>
     </section>;
 }
@@ -1499,10 +1569,66 @@ function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; 
   );
 }
 
-function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void }) {
+function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
+  video: VideoFile;
+  playlist: VideoFile[];
+  onSelectVideo: (video: VideoFile) => void;
+  onBack: () => void;
+}) {
   const duration = formatDuration(video.duration);
   const mediaRef = useRef<HTMLVideoElement>(null);
   const stageRef = useRef<HTMLElement>(null);
+  const [videoAspect, setVideoAspect] = useState(16 / 9);
+  const [holdingSpeed, setHoldingSpeed] = useState(false);
+  const holdRef = useRef<ReturnType<typeof createHoldToSpeed> | null>(null);
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (!media) return;
+    const hold = createHoldToSpeed(media, setHoldingSpeed);
+    holdRef.current = hold;
+    const stop = () => hold.stop();
+    const visibility = () => { if (document.hidden) stop(); };
+    window.addEventListener("pointerup", stop, true);
+    window.addEventListener("pointercancel", stop, true);
+    window.addEventListener("blur", stop);
+    document.addEventListener("visibilitychange", visibility);
+    media.addEventListener("pause", stop);
+    media.addEventListener("ended", stop);
+    return () => {
+      stop();
+      holdRef.current = null;
+      window.removeEventListener("pointerup", stop, true);
+      window.removeEventListener("pointercancel", stop, true);
+      window.removeEventListener("blur", stop);
+      document.removeEventListener("visibilitychange", visibility);
+      media.removeEventListener("pause", stop);
+      media.removeEventListener("ended", stop);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const media = mediaRef.current;
+    const stage = stageRef.current;
+    const layout = stage?.closest<HTMLElement>(".watch-layout");
+    if (!media || !stage || !layout) return;
+    const updateAspect = () => {
+      if (media.videoWidth && media.videoHeight) setVideoAspect(media.videoWidth / media.videoHeight);
+    };
+    const measure = () => {
+      if (stage.matches(":fullscreen") || stage.classList.contains("app-fullscreen")) return;
+      layout.style.setProperty("--watch-player-height", `${stage.getBoundingClientRect().height}px`);
+    };
+    updateAspect();
+    measure();
+    media.addEventListener("loadedmetadata", updateAspect);
+    media.addEventListener("resize", updateAspect);
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("loadedmetadata", updateAspect);
+      media.removeEventListener("resize", updateAspect);
+    };
+  }, []);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(true);
   const [waitingForAudio, setWaitingForAudio] = useState(false);
@@ -1569,6 +1695,15 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
     try { return localStorage.getItem("vault-player-ambient") !== "off"; } catch { return true; }
   });
   const [playerSettings, setPlayerSettings] = useState<"main" | "speed" | "audio" | null>(null);
+  const [autoplayNext, setAutoplayNext] = useState(() => {
+    try { return localStorage.getItem("vault-player-autoplay") !== "off"; } catch { return true; }
+  });
+  const currentIndex = Math.max(0, playlist.findIndex(item => item.id === video.id));
+  const previousVideo = playlist[currentIndex - 1];
+  const nextVideo = playlist[currentIndex + 1];
+  useEffect(() => {
+    try { localStorage.setItem("vault-player-autoplay", autoplayNext ? "on" : "off"); } catch { /* Keep the current session preference. */ }
+  }, [autoplayNext]);
   const audioLabel = (track: PlaybackAudioTrack) => (track.id && audioLabels[track.id]) || track.label;
   const selectedAudio = audio.tracks.find(track => track.index === audio.selected);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -1674,7 +1809,9 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
       play: () => { void mediaRef.current?.play(); },
       pause: () => mediaRef.current?.pause(),
       seekbackward: (details) => seek(-(details.seekOffset ?? 5)),
-      seekforward: (details) => seek(details.seekOffset ?? 5)
+      seekforward: (details) => seek(details.seekOffset ?? 5),
+      previoustrack: previousVideo ? () => onSelectVideo(previousVideo) : undefined,
+      nexttrack: nextVideo ? () => onSelectVideo(nextVideo) : undefined
     };
     for (const [action, handler] of Object.entries(handlers)) {
       try {
@@ -1686,7 +1823,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
 
     return () => {
       navigator.mediaSession.metadata = null;
-      for (const action of ["play", "pause", "seekbackward", "seekforward"] as MediaSessionAction[]) {
+      for (const action of ["play", "pause", "seekbackward", "seekforward", "previoustrack", "nexttrack"] as MediaSessionAction[]) {
         try {
           navigator.mediaSession.setActionHandler(action, null);
         } catch {
@@ -1694,7 +1831,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
         }
       }
     };
-  }, [video]);
+  }, [video, previousVideo, nextVideo, onSelectVideo]);
   const clock = (seconds: number) => {
     const value = Math.floor(Number.isFinite(seconds) ? seconds : 0);
     return `${value >= 3600 ? `${Math.floor(value / 3600)}:` : ""}${String(Math.floor(value / 60) % 60).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
@@ -1840,19 +1977,21 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
   return (
     <>
       <header className="player-topbar">
-        <button className="player-back-button" onClick={onBack} type="button" aria-label="Вернуться назад">
+        <Button variant="outline" className="player-back-button" onClick={onBack} type="button" aria-label="Вернуться назад">
           <ArrowLeft size={18} />
           <span>Назад</span>
-        </button>
+        </Button>
         <div>
-          <p className="eyebrow">Плеер</p>
+          <p className="eyebrow">Медиатека / Плеер</p>
           <h1>{video.title}</h1>
-          <span>{video.path}</span>
+          <span title={video.path}>{video.folderName || video.path}</span>
         </div>
         <VideoProblemControl key={video.id} id={video.id} title={video.title} getTime={() => mediaRef.current?.currentTime ?? 0} />
       </header>
 
+      <div className="watch-layout"><div className="watch-main">
       <section className={`player-surface custom-player ${controlsVisible || playerSettings || !playing || isBuffering || error ? "controls-visible" : ""} ${forcedLandscape ? "forced-landscape" : ""} ${isAppFullscreen ? "app-fullscreen" : ""}`} ref={stageRef}
+        style={{ "--video-aspect": videoAspect, "--video-width-limit": `calc(min(70dvh, 760px) * ${videoAspect})` } as CSSProperties}
         tabIndex={0} aria-label="Видеоплеер" onPointerMove={revealControls} onFocus={revealControls}
         onKeyDown={(event) => {
           if (event.key === "Escape" && playerSettings) {
@@ -1874,8 +2013,23 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
           if (event.key === "m" && mediaRef.current) mediaRef.current.muted = !mediaRef.current.muted;
           revealControls();
         }}>
-        {ambient && <PlayerAmbient mediaRef={mediaRef} source={video.streamUrl} />}
-        <div className="video-stage">
+        {ambient && !isNativeFullscreen && !isAppFullscreen && <PlayerAmbient mediaRef={mediaRef} source={video.streamUrl} />}
+        <div className="video-stage"
+          onPointerDownCapture={event => {
+            if (event.button !== 0 || event.pointerType === "touch") return;
+            if ((event.target as HTMLElement).closest("button:not(.center-play)")) return;
+            const target = (event.target as Element).closest("video,.center-play");
+            if (!mediaRef.current?.paused && target) {
+              try { target.setPointerCapture(event.pointerId); } catch { /* Synthetic pointers have no active capture. */ }
+            }
+            holdRef.current?.start();
+          }}
+          onLostPointerCapture={() => holdRef.current?.stop()}
+          onClickCapture={event => {
+            if (!holdRef.current?.consumeClick()) return;
+            event.preventDefault();
+            event.stopPropagation();
+          }}>
           <video ref={mediaRef}
           autoPlay
           playsInline
@@ -1903,7 +2057,10 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
             onVolumeChange={event => { setVolume(event.currentTarget.volume); setMuted(event.currentTarget.muted); }}
             onPlay={() => { setPlaying(true); setError(""); revealControls(); }} onPause={() => setPlaying(false)}
             onWaiting={() => setWaiting(true)} onPlaying={() => setWaiting(false)}
-            onCanPlay={() => setWaiting(false)} onEnded={() => setPlaying(false)}
+            onCanPlay={() => setWaiting(false)} onEnded={() => {
+              setPlaying(false);
+              if (autoplayNext && nextVideo) onSelectVideo(nextVideo);
+            }}
             onError={event => {
               setWaitingForAudio(false);
               setWaiting(false);
@@ -1926,6 +2083,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
               <span>{tapFeedback === "left" ? "−5" : "+5"}</span>
             </div>
           )}
+          {holdingSpeed && <div className="player-speed-hold" role="status"><SkipForward size={16} fill="currentColor" /><span>2x</span></div>}
           <button
             className="orientation-toggle"
             onClick={(event) => { event.stopPropagation(); void changeOrientation(); }}
@@ -1937,19 +2095,21 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
         </div>
         <div className="player-overlay">
         <input className="player-timeline" type="range" min={0} max={length || 1} step={0.1} value={Math.min(position, length)} disabled={!length} aria-label="Позиция воспроизведения" aria-valuetext={`${clock(position)} из ${clock(length)}`}
-          style={{ background: `linear-gradient(to right, #d6ff6f ${length ? position / length * 100 : 0}%, #ffffff70 ${length ? position / length * 100 : 0}%, #ffffff70 ${length ? buffered / length * 100 : 0}%, #ffffff30 ${length ? buffered / length * 100 : 0}%)` }}
+          style={{ background: `linear-gradient(to right, var(--player-accent, #fca311) ${length ? position / length * 100 : 0}%, #ffffff70 ${length ? position / length * 100 : 0}%, #ffffff70 ${length ? buffered / length * 100 : 0}%, #ffffff30 ${length ? buffered / length * 100 : 0}%)` }}
           onChange={event => { const value = Number(event.target.value); if (mediaRef.current) mediaRef.current.currentTime = value; setPosition(value); revealControls(); }} />
         <div className="playback-tools">
+          <button className="queue-previous" disabled={!previousVideo} onClick={() => previousVideo && onSelectVideo(previousVideo)} title="Предыдущее видео" aria-label="Предыдущее видео"><SkipBack size={20} /></button>
           <button className="seek-control" onClick={() => seek(-10)} title="Назад на 10 секунд" aria-label="Назад на 10 секунд"><RotateCcw size={20} /><small>10</small></button>
           <button className="playback-primary" onClick={togglePlayback} title={playing ? "Пауза" : "Воспроизвести"} aria-label={playing ? "Пауза" : "Воспроизвести"}>{playing ? <Pause size={22} /> : <Play size={22} />}</button>
           <button className="seek-control" onClick={() => seek(10)} title="Вперёд на 10 секунд" aria-label="Вперёд на 10 секунд"><RotateCw size={20} /><small>10</small></button>
+          <button className="queue-next" disabled={!nextVideo} onClick={() => nextVideo && onSelectVideo(nextVideo)} title="Следующее видео" aria-label="Следующее видео"><SkipForward size={20} /></button>
           <button className="player-mute-button" onClick={() => { if (mediaRef.current) mediaRef.current.muted = !muted; }} title={muted ? "Включить звук" : "Выключить звук"} aria-label={muted ? "Включить звук" : "Выключить звук"}>{muted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
           <input className="player-volume" type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume} aria-label="Громкость" onChange={event => { if (mediaRef.current) { mediaRef.current.volume = Number(event.target.value); mediaRef.current.muted = false; } }} />
           <span className="player-clock">{clock(position)} / {clock(length)}</span>
           <div className="player-settings" ref={settingsRef}>
-            <button className="player-settings-trigger" aria-label="Настройки плеера" aria-expanded={playerSettings !== null}
+            <button type="button" className="player-settings-trigger" title="Настройки" aria-label="Настройки плеера" aria-expanded={playerSettings !== null}
               onClick={() => setPlayerSettings(playerSettings ? null : "main")}><Settings size={20} /></button>
-            {playerSettings && <div className="player-settings-panel" aria-label="Настройки плеера">
+            {playerSettings && <div className="player-settings-panel" role="group" aria-label="Настройки плеера">
               {playerSettings === "main" ? <>
                 <button role="switch" aria-checked={ambient} onClick={() => setAmbient(value => !value)}>
                   <span>Фоновая подсветка</span><span className={ambient ? "player-switch enabled" : "player-switch"} aria-hidden="true" />
@@ -2003,6 +2163,10 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
           <span>{video.folderName}</span>
         </div>
       </section>
+      </div>
+      <PlayerPlaylist playlist={playlist} currentIndex={currentIndex} autoplay={autoplayNext} onAutoplayChange={setAutoplayNext}
+        onSelect={onSelectVideo} renderPoster={item => <><PosterImage video={item} /><span>{formatDuration(item.duration)}</span></>} />
+      </div>
     </>
   );
 }
@@ -2037,6 +2201,7 @@ function AdminPage({
   onFileDeleted: (fileId: string) => void;
 }) {
   const [login, setLogin] = useState("admin");
+  const confirmAction = useConfirmation();
   const [password, setPassword] = useState("");
   const [accountStatus, setAccountStatus] = useState<InactiveAccountStatus | null>(null);
   const [path, setPath] = useState("D:\\Video");
@@ -2087,7 +2252,7 @@ function AdminPage({
   };
 
   const deleteItem = async (folder: VaultFolder) => {
-    const shouldDelete = window.confirm(`Удалить путь "${folder.path}" из просмотра? Файлы на диске не удалятся.`);
+    const shouldDelete = await confirmAction(`Удалить путь "${folder.path}" из просмотра? Файлы на диске не удалятся.`);
     if (!shouldDelete) {
       return;
     }
@@ -2183,7 +2348,7 @@ function AdminPage({
   };
 
   const deleteVideoItem = async (video: VideoFile) => {
-    const shouldDelete = window.confirm(`Удалить видео «${video.title}» из медиатеки?`);
+    const shouldDelete = await confirmAction(`Удалить видео «${video.title}» из медиатеки?`);
     if (!shouldDelete) return false;
 
     setDeletingVideoId(video.id);
@@ -2208,10 +2373,10 @@ function AdminPage({
           <h1>Админка</h1>
         </div>
         {session && (
-          <button className="ghost-button" onClick={onLogout}>
+          <Button className="ghost-button" onClick={onLogout}>
             <LogOut size={18} />
             <span>Выйти</span>
-          </button>
+          </Button>
         )}
       </header>
 
@@ -2219,11 +2384,11 @@ function AdminPage({
         <form className="admin-form admin-page-card" onSubmit={submitLogin}>
           <label>
             Логин
-            <input value={login} onChange={(event) => { setLogin(event.target.value); setAccountStatus(null); }} autoComplete="username" />
+            <Input value={login} onChange={(event) => { setLogin(event.target.value); setAccountStatus(null); }} autoComplete="username" />
           </label>
           <label>
             Пароль
-            <input
+            <Input
               value={password}
               onChange={(event) => { setPassword(event.target.value); setAccountStatus(null); }}
               type="password"
@@ -2232,27 +2397,27 @@ function AdminPage({
           </label>
           {error && <p className="error">{error}</p>}
           {accountStatus && <AccountAuthStatus status={accountStatus} />}
-          <button className="primary-button" disabled={isBusy}>
+          <Button className="primary-button" disabled={isBusy}>
             <Lock size={18} />
             <span>Войти</span>
-          </button>
+          </Button>
         </form>
       ) : (
         <section className="admin-page-grid">
           <form className="add-folder admin-page-card" onSubmit={submitFolder}>
             <label>
-              Путь к папке
-              <input value={path} onChange={(event) => setPath(event.target.value)} placeholder="D:\\Video" />
+              Подключённые папки
+              <Input aria-label="Путь к папке на сервере" value={path} onChange={(event) => setPath(event.target.value)} placeholder="D:\\Video" disabled={isBusy} />
             </label>
             <div className="path-actions">
-              <button type="button" className="ghost-button" onClick={() => setPickerOpen(true)} disabled={isBusy}>
+              <Button type="button" className="ghost-button" onClick={() => setPickerOpen(true)} disabled={isBusy}>
                 <FolderOpen size={18} />
                 <span>Выбрать</span>
-              </button>
-              <button className="primary-button" disabled={isBusy || !path.trim()}>
+              </Button>
+              <Button className="primary-button" disabled={isBusy || !path.trim()}>
                 <FolderPlus size={18} />
                 <span>Добавить</span>
-              </button>
+              </Button>
             </div>
           </form>
 
@@ -2269,12 +2434,13 @@ function AdminPage({
 
           {error && <p className="error">{error}</p>}
 
-          <div className="folder-table admin-page-card">
+          <div className="folder-table admin-page-card" aria-label="Подключённые папки">
+            {!folders.length && <p className="library-empty-inline">Пока нет подключённых папок.</p>}
             {folders.map((folder) => (
               <AdminFolderRow
                 key={folder.id}
                 folder={folder}
-                isBusy={isBusy}
+                isBusy={isBusy || updatingFolderId !== null || rescanningFolderId !== null}
                 isRescanning={rescanningFolderId === folder.id}
                 isUpdating={updatingFolderId === folder.id}
                 isEditing={editingFolderId === folder.id}
@@ -2331,6 +2497,7 @@ function AdminMediaManager({
   onVideoDeleted: (videoId: string) => void;
   onFileDeleted: (fileId: string) => void;
 }) {
+  const confirmAction = useConfirmation();
   const sortedFolders = useMemo(
     () => [...folders].sort((left, right) => left.path.localeCompare(right.path, "ru", { numeric: true })),
     [folders]
@@ -2460,7 +2627,7 @@ function AdminMediaManager({
   };
   const removeSelected = async () => {
     if (busy || !selectedEntries.length) return;
-    if (!window.confirm(`Удалить выбранные объекты из медиатеки (${selectedEntries.length})?`)) return;
+    if (!await confirmAction(`Удалить выбранные объекты из медиатеки (${selectedEntries.length})?`)) return;
     setDeletingSelection(true);
     setError("");
     const failures: string[] = [];
@@ -2488,7 +2655,7 @@ function AdminMediaManager({
 
   const removeFile = async (file: SharedFile) => {
     const displayName = getFileDisplayName(file);
-    if (!window.confirm(`Удалить файл «${displayName}» из медиатеки? Файл на диске останется без изменений.`)) return;
+    if (!await confirmAction(`Удалить файл «${displayName}» из медиатеки? Файл на диске останется без изменений.`)) return;
 
     setDeletingFileId(file.id);
     setError("");
@@ -2513,110 +2680,48 @@ function AdminMediaManager({
       <header className="poster-manager-header">
         <div>
           <h2>Файлы и видео</h2>
-          <span>{mediaEntries.length} объектов</span>
+          <span>Всего: {mediaEntries.length}</span>
         </div>
       </header>
 
-      <nav className="admin-folder-strip" aria-label="Корневая папка медиатеки">
-        <button type="button" className={!root ? "selected" : ""} aria-pressed={!root}
-          disabled={busy} onClick={() => selectRoot("")}>
+      <Tabs value={root?.id ?? "all-videos"} onValueChange={value => selectRoot(value === "all-videos" ? "" : value)} className="library-folder-tabs">
+        <TabsList variant="line" aria-label="Корневая папка медиатеки">
+        <TabsTrigger value="all-videos" disabled={busy}>
           <FileVideo size={16} /><span>Все видео</span>
-        </button>
+        </TabsTrigger>
         {selectableFolders.map((folder) => (
-          <button
-            type="button"
+          <TabsTrigger
+            value={folder.id}
             key={folder.id}
-            className={root?.id === folder.id ? "selected" : ""}
-            aria-pressed={root?.id === folder.id}
             disabled={busy}
-            onClick={() => selectRoot(folder.id)}
             title={folder.path || folder.name}
           >
             <Folder size={16} />
             <span>{folder.name}</span>
-            <b>{folder.filesCount}</b>
-          </button>
+            <Badge variant="secondary">{folder.filesCount}</Badge>
+          </TabsTrigger>
         ))}
-      </nav>
+        </TabsList>
+      </Tabs>
 
       {root && subfolders.length > 0 && (
-        <details className="sort-menu admin-sort-menu admin-folder-menu">
-          <summary aria-label={`Вложенная папка: ${subfolderLabel}`} title={subfolderLabel}>
-            <FolderOpen size={18} />
-            <span>{subfolderLabel}</span>
-            <ChevronDown size={16} />
-          </summary>
-          <div className="sort-options">
-            {[null, ...subfolders].map((folder) => {
-              const id = folder?.id ?? "";
-              const selected = id === (activeSubfolder?.id ?? "");
-              return (
-                <button
-                  type="button"
-                  key={id}
-                  className={selected ? "selected" : ""}
-                  aria-pressed={selected}
-                  disabled={busy}
-                  onClick={(event) => {
-                    selectSubfolder(id);
-                    const menu = event.currentTarget.closest("details");
-                    if (menu) {
-                      menu.open = false;
-                      menu.querySelector("summary")?.focus();
-                    }
-                  }}
-                >
-                  <Folder size={16} />
-                  <span>{folder ? getSubfolderLabel(folder) : "Весь корень"}</span>
-                  {selected && <Check size={16} />}
-                </button>
-              );
-            })}
-          </div>
-        </details>
+        <NativeSelect aria-label={`Вложенная папка: ${subfolderLabel}`} value={activeSubfolder?.id ?? ""} disabled={busy} onChange={event => selectSubfolder(event.target.value)}>
+          <NativeSelectOption value="">Весь корень</NativeSelectOption>
+          {subfolders.map(folder => <NativeSelectOption key={folder.id} value={folder.id}>{getSubfolderLabel(folder)}</NativeSelectOption>)}
+        </NativeSelect>
       )}
 
       <div className="admin-file-controls">
         <label className="admin-video-search">
           <Search size={18} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти файл или видео" />
+          <Input aria-label="Поиск файлов в медиатеке" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти файл или видео" />
         </label>
-        <details className="sort-menu admin-sort-menu">
-          <summary>
-            {sortField === "name" ? <ArrowDownAZ size={18} /> : <CalendarDays size={18} />}
-            <span>{sortField === "name" ? "По имени" : "По дате"}</span>
-            <ChevronDown size={16} />
-          </summary>
-          <div className="sort-options">
-            <button
-              type="button"
-              className={sortField === "name" ? "selected" : ""}
-              onClick={(event) => {
-                setSortField("name");
-                setSortDirection("asc");
-                event.currentTarget.closest("details")?.removeAttribute("open");
-              }}
-            >
-              <ArrowDownAZ size={18} />
-              <span>Имя</span>
-              {sortField === "name" && <Check size={16} />}
-            </button>
-            <button
-              type="button"
-              className={sortField === "date" ? "selected" : ""}
-              onClick={(event) => {
-                setSortField("date");
-                setSortDirection("desc");
-                event.currentTarget.closest("details")?.removeAttribute("open");
-              }}
-            >
-              <CalendarDays size={18} />
-              <span>Дата</span>
-              {sortField === "date" && <Check size={16} />}
-            </button>
-          </div>
-        </details>
-        <button
+        <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" aria-label="Сортировка медиатеки"><ArrowDownAZ size={18} />{sortField === "name" ? "По имени" : "По дате"}<ChevronDown size={16} /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent className="vault-menu dark" align="end"><DropdownMenuRadioGroup value={sortField} onValueChange={value => { setSortField(value as SortField); setSortDirection(value === "name" ? "asc" : "desc"); }}>
+            <DropdownMenuRadioItem value="name">По имени</DropdownMenuRadioItem><DropdownMenuRadioItem value="date">По дате</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup></DropdownMenuContent>
+        </DropdownMenu>
+        <Button
           className="sort-direction admin-sort-direction"
           type="button"
           onClick={() => setSortDirection((current) => current === "asc" ? "desc" : "asc")}
@@ -2624,29 +2729,29 @@ function AdminMediaManager({
           aria-label={sortDirection === "asc" ? "По возрастанию" : "По убыванию"}
         >
           {sortDirection === "asc" ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
-        </button>
-        {folderId && <button className="icon-button" type="button" onClick={() => void loadMedia()} disabled={busy} title="Обновить медиатеку">
+        </Button>
+        {folderId && <Button className="icon-button" type="button" onClick={() => void loadMedia()} disabled={busy} title="Обновить медиатеку">
           <RefreshCw className={loading ? "spin" : undefined} size={18} />
-        </button>}
+        </Button>}
       </div>
 
       <div className="admin-media-selection">
         <span aria-live="polite">Выбрано: {selectedEntries.length}</span>
-        <button className="ghost-button" type="button" disabled={busy || !mediaEntries.length}
+        <Button variant="outline" className="ghost-button" type="button" disabled={busy || !mediaEntries.length}
           onClick={() => setSelectedKeys(current => new Set([...current, ...mediaEntries.map(adminMediaKey)]))}>
           Выделить результаты
-        </button>
-        <button className="ghost-button" type="button" disabled={busy || !selectedEntries.length}
-          onClick={() => setSelectedKeys(new Set())}>Снять выделение</button>
-        <button className="ghost-button admin-media-remove" type="button" disabled={busy || !selectedEntries.length}
+        </Button>
+        <Button variant="ghost" className="ghost-button" type="button" disabled={busy || !selectedEntries.length}
+          onClick={() => setSelectedKeys(new Set())}>Снять выделение</Button>
+        <Button variant="outline" className="ghost-button admin-media-remove" type="button" disabled={busy || !selectedEntries.length}
           onClick={() => void removeSelected()}>
           <Trash2 size={16} />{deletingSelection ? "Удаление…" : "Удалить выбранные"}
-        </button>
+        </Button>
       </div>
 
       {error && <p className="error" role="alert">{error}</p>}
-      {!loading && mediaEntries.length === 0 ? (
-        <p className="poster-list-empty">Файлы и видео не найдены.</p>
+      {loading ? <p className="library-loading" role="status"><RefreshCw className="spin" size={18} />Загрузка медиатеки…</p> : mediaEntries.length === 0 ? (
+        <div className="library-empty" role="status"><FileVideo size={28} /><h3>{error ? "Не удалось загрузить файлы" : query.trim() ? "Ничего не найдено" : "В этой папке нет файлов"}</h3><p>{error ? "Попробуйте обновить медиатеку." : query.trim() ? "Измените поисковый запрос или выберите другую папку." : "Добавленные файлы появятся после сканирования."}</p></div>
       ) : (
         <VirtualAdminMediaGrid
           entries={mediaEntries}
@@ -2706,16 +2811,16 @@ function VirtualAdminMediaGrid({
     const scroller = scrollContainerRef.current;
     if (!grid || !scroller) return;
 
-    const mobileLayout = window.matchMedia("(max-width: 860px)").matches;
+    const usesContainerScroll = /auto|scroll/.test(getComputedStyle(scroller).overflowY);
     const gridRect = grid.getBoundingClientRect();
     const scrollerRect = scroller.getBoundingClientRect();
     const next = {
       width: grid.clientWidth,
-      scrollTop: mobileLayout ? window.scrollY : scroller.scrollTop,
-      viewportHeight: mobileLayout ? window.innerHeight : scroller.clientHeight,
-      gridTop: mobileLayout
-        ? gridRect.top + window.scrollY
-        : gridRect.top - scrollerRect.top + scroller.scrollTop
+      scrollTop: usesContainerScroll ? scroller.scrollTop : window.scrollY,
+      viewportHeight: usesContainerScroll ? scroller.clientHeight : window.innerHeight,
+      gridTop: usesContainerScroll
+        ? gridRect.top - scrollerRect.top + scroller.scrollTop
+        : gridRect.top + window.scrollY
     };
 
     setMetrics((current) =>
@@ -2743,6 +2848,7 @@ function VirtualAdminMediaGrid({
     const resizeObserver = new ResizeObserver(scheduleMeasure);
     resizeObserver.observe(grid);
     resizeObserver.observe(scroller);
+    if (grid.parentElement) resizeObserver.observe(grid.parentElement);
     scroller.addEventListener("scroll", scheduleMeasure, { passive: true });
     window.addEventListener("scroll", scheduleMeasure, { passive: true });
     window.addEventListener("resize", scheduleMeasure);
@@ -2765,11 +2871,11 @@ function VirtualAdminMediaGrid({
   const minimumColumnWidth = compact ? 240 : 260;
   const columns = Math.max(1, Math.floor((metrics.width + gap) / (minimumColumnWidth + gap)));
   const columnWidth = columns > 0 ? (metrics.width - gap * (columns - 1)) / columns : metrics.width;
-  const cardHeight = columnWidth * 9 / 16 + 78;
+  const cardHeight = columnWidth * 9 / 16 + 132;
   const rowHeight = cardHeight + gap;
   const rowCount = Math.ceil(entries.length / columns);
   const localScrollTop = Math.max(0, metrics.scrollTop - metrics.gridTop);
-  const firstRow = Math.max(0, Math.floor(localScrollTop / rowHeight) - 2);
+  const firstRow = Math.max(0, Math.min(rowCount - 1, Math.floor(localScrollTop / rowHeight) - 2));
   const lastRow = Math.min(rowCount, Math.ceil((localScrollTop + metrics.viewportHeight) / rowHeight) + 3);
   const firstIndex = firstRow * columns;
   const lastIndex = Math.min(entries.length, lastRow * columns);
@@ -2784,21 +2890,32 @@ function VirtualAdminMediaGrid({
         const key = adminMediaKey(entry);
         const selected = selectedKeys.has(key);
         const title = entry.type === "video" ? entry.video.title : getFileDisplayName(entry.file);
+        const subtitle = entry.type === "video" ? entry.video.folderName : [getFileExtension(entry.file), getFileDisplaySize(entry.file)].filter(Boolean).join(" · ");
+        const details = <div className="poster-video-copy">
+          <label className="media-card-selection" title={`Выделить ${title}`}>
+            <Checkbox className="admin-media-select" aria-label={`Выделить ${title}`} checked={selected}
+              disabled={disabled} onCheckedChange={() => onToggleSelection(key)} />
+          </label>
+          <div className="media-card-details"><strong title={title}>{title}</strong><span title={entry.type === "video" ? entry.video.path : entry.file.path}>{subtitle}</span></div>
+        </div>;
 
         return (
           <div
             className={selected ? "admin-media-virtual-cell selected" : "admin-media-virtual-cell"}
             key={key}
+            data-disabled={disabled || undefined}
+            onClick={event => {
+              if (disabled || event.defaultPrevented || !(event.target instanceof Element)) return;
+              if (event.target.closest("button, a, input, label, [role='button'], [role='checkbox']")) return;
+              if (window.getSelection()?.isCollapsed === false) return;
+              onToggleSelection(key);
+            }}
             style={{
               width: columnWidth,
               height: cardHeight,
               transform: `translate3d(${column * (columnWidth + gap)}px, ${row * rowHeight}px, 0)`
             }}
           >
-            <label className="admin-media-select" title={`Выделить ${title}`}>
-              <input type="checkbox" aria-label={`Выделить ${title}`} checked={selected}
-                disabled={disabled} onChange={() => onToggleSelection(key)} />
-            </label>
             {entry.type === "video" ? (
               <AdminPosterRow
                 video={entry.video}
@@ -2807,6 +2924,7 @@ function VirtualAdminMediaGrid({
                 disabled={disabled}
                 onChange={(file) => onVideoChange(entry.video, file)}
                 onDelete={() => onVideoDelete(entry.video)}
+                details={details}
               />
             ) : (
               <AdminFileTile
@@ -2814,6 +2932,7 @@ function VirtualAdminMediaGrid({
                 isDeleting={deletingFileId === entry.file.id}
                 disabled={disabled}
                 onDelete={() => onFileDelete(entry.file)}
+                details={details}
               />
             )}
           </div>
@@ -2827,12 +2946,14 @@ function AdminFileTile({
   file,
   isDeleting,
   disabled,
-  onDelete
+  onDelete,
+  details
 }: {
   file: SharedFile;
   isDeleting: boolean;
   disabled: boolean;
   onDelete: () => void;
+  details: ReactNode;
 }) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const image = isImageFile(file) && !previewFailed;
@@ -2844,16 +2965,6 @@ function AdminFileTile({
 
   return (
     <article className="poster-video-card admin-media-file-card">
-      <button
-        type="button"
-        className="poster-delete-button"
-        onClick={onDelete}
-        disabled={disabled}
-        title="Удалить файл"
-        aria-label={`Удалить файл ${displayName}`}
-      >
-        {isDeleting ? <RefreshCw className="spin" size={17} /> : <Trash2 size={17} />}
-      </button>
       <div className={image ? "admin-media-file-preview image" : "admin-media-file-preview"}>
         {image ? (
           <img
@@ -2869,9 +2980,12 @@ function AdminFileTile({
           </span>
         )}
       </div>
-      <div className="poster-video-copy admin-media-file-copy">
-        <strong title={displayName}>{displayName}</strong>
-        <span title={file.path}>{[extensionLabel, getFileDisplaySize(file)].filter(Boolean).join(" · ")}</span>
+      {details}
+      <div className="media-card-actions">
+        <Button variant="outline" asChild className="media-card-main-action"><a href={getFileDownloadUrl(file.id)} download aria-label={`Скачать ${displayName}`}><Download size={16} />Скачать файл</a></Button>
+        <Button type="button" variant="ghost" size="icon" className="media-card-delete" onClick={onDelete} disabled={disabled} title="Удалить файл" aria-label={`Удалить файл ${displayName}`}>
+          {isDeleting ? <RefreshCw className="spin" size={16} /> : <Trash2 size={16} />}
+        </Button>
       </div>
     </article>
   );
@@ -2883,7 +2997,8 @@ function AdminPosterRow({
   isDeleting,
   disabled,
   onChange,
-  onDelete
+  onDelete,
+  details
 }: {
   video: VideoFile;
   isUpdating: boolean;
@@ -2891,42 +3006,31 @@ function AdminPosterRow({
   disabled: boolean;
   onChange: (file: File) => void;
   onDelete: () => void;
+  details: ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <article className="poster-video-card">
-      <button
-        type="button"
-        className="poster-delete-button"
-        onClick={onDelete}
-        disabled={disabled}
-        title="Удалить видео"
-        aria-label={`Удалить видео ${video.title}`}
-      >
-        {isDeleting ? <RefreshCw className="spin" size={17} /> : <Trash2 size={17} />}
-      </button>
-      <button
-        type="button"
-        className="poster-preview-button"
-        onClick={() => inputRef.current?.click()}
-        disabled={disabled}
-        title={isUpdating ? "Загрузка постера" : "Сменить постер"}
-        aria-label={isUpdating ? `Загрузка постера ${video.title}` : `Сменить постер ${video.title}`}
-      >
+      <div className="poster-preview-button">
         <PosterImage video={video} />
-        <span className="poster-edit-action">
-          {isUpdating ? <RefreshCw className="spin" size={18} /> : <ImagePlus size={18} />}
-        </span>
-      </button>
-      <div className="poster-video-copy">
-        <strong>{video.title}</strong>
-        <span title={video.path}>{video.folderName}</span>
       </div>
-      <input
+      {details}
+      <div className="media-card-actions">
+        <Button type="button" variant="outline" className="media-card-main-action" onClick={() => inputRef.current?.click()} disabled={disabled} aria-label={isUpdating ? `Загрузка постера ${video.title}` : `Сменить постер ${video.title}`}>
+          {isUpdating ? <RefreshCw className="spin" size={16} /> : <ImagePlus size={16} />}{isUpdating ? "Загрузка…" : "Сменить постер"}
+        </Button>
+        <Button type="button" variant="ghost" size="icon" className="media-card-delete" onClick={onDelete} disabled={disabled} title="Удалить видео" aria-label={`Удалить видео ${video.title}`}>
+          {isDeleting ? <RefreshCw className="spin" size={16} /> : <Trash2 size={16} />}
+        </Button>
+      </div>
+      <Input
         ref={inputRef}
-        className="visually-hidden"
+        className="admin-poster-input"
+        hidden
+        tabIndex={-1}
         type="file"
+        disabled={disabled}
         accept="image/jpeg,image/png,image/webp"
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -2973,7 +3077,8 @@ function AdminFolderRow({
     <div className="folder-row">
       <div className="folder-name-cell">
         {isEditing ? (
-          <input
+          <Input
+            aria-label={`Название папки ${folder.name}`}
             value={editingName}
             onChange={(event) => onEditingNameChange(event.target.value)}
             onKeyDown={(event) => {
@@ -2995,17 +3100,17 @@ function AdminFolderRow({
       <div className="folder-edit-actions">
         {isEditing ? (
           <>
-            <button className="icon-button" onClick={onSaveEdit} disabled={isUpdating} title="Сохранить">
+            <Button className="icon-button" onClick={onSaveEdit} disabled={isUpdating} title="Сохранить">
               <Save size={18} />
-            </button>
-            <button className="icon-button" onClick={onCancelEdit} disabled={isUpdating} title="Отменить">
+            </Button>
+            <Button className="icon-button" onClick={onCancelEdit} disabled={isUpdating} title="Отменить">
               <X size={18} />
-            </button>
+            </Button>
           </>
         ) : (
-          <button className="icon-button" onClick={onStartEdit} disabled={isBusy || isUpdating} title="Редактировать">
+          <Button className="icon-button" onClick={onStartEdit} disabled={isBusy || isUpdating} title="Редактировать">
             <Pencil size={18} />
-          </button>
+          </Button>
         )}
       </div>
 
@@ -3013,15 +3118,13 @@ function AdminFolderRow({
         <span>{folder.filesCount} файлов</span>
         <span>{folder.lastScanAt}</span>
       </div>
-      <button className="icon-button" onClick={onRescan} disabled={isBusy || isRescanning} title="Пересканировать">
-        <RefreshCw size={18} />
-      </button>
-      <button className={folder.enabled ? "status enabled" : "status"} onClick={onToggleEnabled} disabled={isBusy || isUpdating}>
-        {folder.enabled ? "ON" : "OFF"}
-      </button>
-      <button className="danger-button" onClick={onDelete} disabled={isBusy || isUpdating} title="Удалить путь">
+      <Button className="icon-button" onClick={onRescan} disabled={isBusy || isRescanning} title="Пересканировать">
+        <RefreshCw className={isRescanning ? "spin" : undefined} size={18} />
+      </Button>
+      <Switch aria-label={`Доступ к папке ${folder.name}`} checked={folder.enabled} onCheckedChange={onToggleEnabled} disabled={isBusy || isUpdating} />
+      <Button className="danger-button" onClick={onDelete} disabled={isBusy || isUpdating} title="Удалить путь">
         <Trash2 size={18} />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -3072,27 +3175,28 @@ function FolderPicker({
   const selectedPath = browseState?.path || currentPath;
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <section className="folder-picker" role="dialog" aria-modal="true" aria-label="Выбор папки">
+    <DialogPrimitive.Root open onOpenChange={open => { if (!open) onClose(); }}><DialogPrimitive.Portal>
+    <DialogPrimitive.Overlay className="modal-backdrop theme-classic library-folder-overlay">
+      <DialogPrimitive.Content className="folder-picker" onPointerDownOutside={event => event.preventDefault()}>
         <header className="modal-header">
           <div>
-            <h2>Выбор папки</h2>
-            <span>{selectedPath || "Компьютер"}</span>
+            <DialogPrimitive.Title asChild><h2>Выбор папки</h2></DialogPrimitive.Title>
+            <DialogPrimitive.Description asChild><span>{selectedPath || "Компьютер"}</span></DialogPrimitive.Description>
           </div>
-          <button className="icon-button" onClick={onClose} title="Закрыть">
+          <Button className="icon-button" onClick={onClose} title="Закрыть">
             <X size={18} />
-          </button>
+          </Button>
         </header>
 
         <div className="folder-picker-toolbar">
-          <button className="ghost-button" onClick={() => setCurrentPath(browseState?.parent || "")} disabled={!selectedPath}>
-            <ChevronRight className="rotate-180" size={18} />
+          <Button className="ghost-button" onClick={() => setCurrentPath(browseState?.parent || "")} disabled={!selectedPath}>
+            <ArrowUp size={18} />
             <span>Выше</span>
-          </button>
-          <button className="primary-button" onClick={() => onSelect(selectedPath)} disabled={!selectedPath}>
+          </Button>
+          <Button className="primary-button" onClick={() => onSelect(selectedPath)} disabled={!selectedPath}>
             <FolderPlus size={18} />
             <span>Выбрать</span>
-          </button>
+          </Button>
         </div>
 
         {error && <p className="error">{error}</p>}
@@ -3108,8 +3212,8 @@ function FolderPicker({
             ))
           )}
         </div>
-      </section>
-    </div>
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Overlay></DialogPrimitive.Portal></DialogPrimitive.Root>
   );
 }
 
@@ -3117,12 +3221,12 @@ function FolderPickerRow({ entry, onOpen }: { entry: ServerFolderEntry; onOpen: 
   const Icon = entry.isRoot ? HardDrive : Folder;
 
   return (
-    <button className="folder-picker-row" onClick={onOpen}>
+    <Button className="folder-picker-row" onClick={onOpen}>
       <Icon size={20} />
       <span>{entry.name}</span>
       <small>{entry.path}</small>
       <ChevronRight size={18} />
-    </button>
+    </Button>
   );
 }
 

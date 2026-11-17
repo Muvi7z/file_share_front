@@ -2,6 +2,12 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { Ban, Check, CircleX, Clock3, X, Users, Inbox, Folder, LogOut, RefreshCw, Trash2, Save, Shield, KeyRound } from "lucide-react";
 import { changePassword, deleteAccount, getAccounts, getInactiveAccountStatus, loginAdmin, registerUser, revokeSessions, updateAccount, type InactiveAccountStatus } from "./api";
 import type { Account, AdminSession } from "./types";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { NativeSelect, NativeSelectOption } from "./components/ui/native-select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
+import { Badge } from "./components/ui/badge";
+import { useConfirmation } from "./Confirmation";
 
 export const isAdministrator = (session: AdminSession | null) => session?.role === "admin";
 const statusNames = { pending: "Ожидает", active: "Активен", blocked: "Заблокирован", rejected: "Отклонён" };
@@ -38,6 +44,7 @@ export function AccountCenter({ session, onLogin, onLogout, children }: {
   session: AdminSession | null; onLogin: (value: AdminSession) => void; onLogout: () => void; children: ReactNode;
 }) {
   const [tab, setTab] = useState("requests");
+  const confirmAction = useConfirmation();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -65,26 +72,28 @@ export function AccountCenter({ session, onLogin, onLogout, children }: {
   const pending = accounts.filter(a => a.status === "pending").length;
   const filtered = accounts.filter(a => (tab !== "requests" || a.status === "pending") &&
     (tab === "requests" || status === "all" || a.status === status) && a.login.toLowerCase().includes(query.toLowerCase()));
-  return <section className="account-center">
+  return <section className="account-center management-page">
     <header className="topbar"><div><p className="eyebrow">VIDEO VAULT / {session.login}</p><h1>{admin ? "Управление" : "Мой аккаунт"}</h1></div>
-      <button className="ghost-button" onClick={onLogout}><LogOut size={18} />Выйти</button></header>
-    {admin && <><div className="account-stats"><span><strong>{accounts.length}</strong> аккаунтов</span><span><strong>{pending}</strong> заявок</span><span><strong>{accounts.filter(a => a.status === "active").length}</strong> активных</span></div>
-      <nav className="account-tabs" aria-label="Разделы управления">
-        <button aria-current={tab === "requests" ? "page" : undefined} onClick={() => setTab("requests")}><Inbox size={18} />Заявки <b>{pending}</b></button>
-        <button aria-current={tab === "users" ? "page" : undefined} onClick={() => setTab("users")}><Users size={18} />Пользователи</button>
-        <button aria-current={tab === "library" ? "page" : undefined} onClick={() => setTab("library")}><Folder size={18} />Медиатека</button>
-      </nav></>}
-    {!admin ? <p>Ваш аккаунт находится в разделе «Настройки».</p> : tab === "library" ? <div className="library-admin">{children}</div> : <>
-      <div className="account-toolbar"><input aria-label="Поиск пользователей" placeholder="Поиск по логину" value={query} onChange={e => setQuery(e.target.value)} />
-        {tab === "users" && <select aria-label="Статус" value={status} onChange={e => setStatus(e.target.value)}><option value="all">Все статусы</option>{Object.entries(statusNames).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>}
-        <button className="icon-button" title="Обновить" disabled={busy} onClick={() => void refresh()}><RefreshCw size={18} /></button></div>
+      <Button className="ghost-button" onClick={onLogout}><LogOut size={18} />Выйти</Button></header>
+    {admin && <div className="account-stats"><span><strong>{accounts.length}</strong> аккаунтов</span><span><strong>{pending}</strong> заявок</span><span><strong>{accounts.filter(a => a.status === "active").length}</strong> активных</span></div>}
+    <Tabs value={tab} onValueChange={setTab} className="management-workspace">
+      {admin && <TabsList variant="line" className="management-tab-list" aria-label="Разделы управления">
+        <TabsTrigger value="requests"><Inbox size={18} />Заявки <Badge variant="secondary">{pending}</Badge></TabsTrigger>
+        <TabsTrigger value="users"><Users size={18} />Пользователи</TabsTrigger>
+        <TabsTrigger value="library"><Folder size={18} />Медиатека</TabsTrigger>
+      </TabsList>}
+    {!admin ? <p>Ваш аккаунт находится в разделе «Настройки».</p> : <TabsContent value={tab} className="management-tab-content">{tab === "library" ? <div className="library-admin">{children}</div> : <>
+      <div className="account-toolbar"><Input aria-label="Поиск пользователей" placeholder="Поиск по логину" value={query} onChange={e => setQuery(e.target.value)} />
+        {tab === "users" && <NativeSelect aria-label="Статус" value={status} onChange={e => setStatus(e.target.value)}><NativeSelectOption value="all">Все статусы</NativeSelectOption>{Object.entries(statusNames).map(([key, label]) => <NativeSelectOption key={key} value={key}>{label}</NativeSelectOption>)}</NativeSelect>}
+        <Button className="icon-button" title="Обновить" disabled={busy} onClick={() => void refresh()}><RefreshCw size={18} /></Button></div>
       {error && <p className="error" role="alert">{error}</p>}{notice && <p className="account-notice" role="status">{notice}</p>}
       {loading ? <p role="status">Загрузка пользователей…</p> : filtered.length === 0 ? <p className="account-empty">{error ? "Список недоступен" : tab === "requests" ? "Нет новых заявок" : "Пользователи не найдены"}</p> :
         <div className="account-list">{filtered.map(account => <AccountRow key={`${account.id}-${account.login}-${account.role}-${account.status}`} account={account} self={account.id === session.userId || account.login === session.login} busy={busy}
           onSave={patch => void act(() => updateAccount(account.id, patch), "Изменения сохранены")}
-          onDelete={() => { if (window.confirm(`Удалить аккаунт ${account.login}? Это действие нельзя отменить.`)) void act(() => deleteAccount(account.id), "Аккаунт удалён"); }}
-          onRevoke={() => { if (window.confirm(`Завершить все сеансы ${account.login}?`)) void act(() => revokeSessions(account.id), "Сеансы завершены"); }} />)}</div>}
-    </>}
+          onDelete={async () => { if (await confirmAction(`Удалить аккаунт ${account.login}? Это действие нельзя отменить.`)) void act(() => deleteAccount(account.id), "Аккаунт удалён"); }}
+          onRevoke={async () => { if (await confirmAction(`Завершить все сеансы ${account.login}?`)) void act(() => revokeSessions(account.id), "Сеансы завершены"); }} />)}</div>}
+    </>}</TabsContent>}
+    </Tabs>
   </section>;
 }
 
@@ -104,26 +113,26 @@ export function AuthForm({ onLogin }: { onLogin: (value: AdminSession) => void }
     } catch (err) { const nextStatus = getInactiveAccountStatus(err); if (nextStatus) setAccountStatus(nextStatus); else setError(message(err)); } finally { setBusy(false); }
   }
   return <section className="account-center auth-center"><p className="eyebrow">VIDEO VAULT</p><h1>{register ? "Создать аккаунт" : "Вход в аккаунт"}</h1>
-    <div className="account-tabs"><button disabled={busy} aria-current={!register ? "page" : undefined} onClick={() => { setRegister(false); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Вход</button><button disabled={busy} aria-current={register ? "page" : undefined} onClick={() => { setRegister(true); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Регистрация</button></div>
-    <form className="account-form" onSubmit={submit}><label>Логин<input name="login" required autoComplete="username" maxLength={64} value={login} onChange={event => { setLogin(event.target.value); setAccountStatus(null); }} /></label>
-      <label>Пароль<input name="password" type="password" required autoComplete={register ? "new-password" : "current-password"} value={password} onChange={event => { setPassword(event.target.value); setAccountStatus(null); }} /></label>
-      {register && <label>Повторите пароль<input name="confirm" type="password" required autoComplete="new-password" value={confirm} onChange={event => setConfirm(event.target.value)} /></label>}
+    <div className="account-tabs"><Button disabled={busy} aria-current={!register ? "page" : undefined} onClick={() => { setRegister(false); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Вход</Button><Button disabled={busy} aria-current={register ? "page" : undefined} onClick={() => { setRegister(true); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Регистрация</Button></div>
+    <form className="account-form" onSubmit={submit}><label>Логин<Input name="login" required autoComplete="username" maxLength={64} value={login} onChange={event => { setLogin(event.target.value); setAccountStatus(null); }} /></label>
+      <label>Пароль<Input name="password" type="password" required autoComplete={register ? "new-password" : "current-password"} value={password} onChange={event => { setPassword(event.target.value); setAccountStatus(null); }} /></label>
+      {register && <label>Повторите пароль<Input name="confirm" type="password" required autoComplete="new-password" value={confirm} onChange={event => setConfirm(event.target.value)} /></label>}
       {error && <p className="error" role="alert">{error}</p>}{notice && <p className="account-notice" role="status">{notice}</p>}{accountStatus && <AccountAuthStatus status={accountStatus} />}
-      {!register && <button type="button" className="credential-fill-button" disabled={busy} onClick={() => { setLogin("admin"); setPassword("admin"); setError(""); setAccountStatus(null); }}><KeyRound size={18} /><span>Заполнить admin / admin</span></button>}
-      <button className="primary-button" disabled={busy}>{busy ? "Отправка…" : register ? "Отправить заявку" : "Войти"}</button></form></section>;
+      <Button className="primary-button" disabled={busy}>{busy ? "Отправка…" : register ? "Отправить заявку" : "Войти"}</Button></form></section>;
 }
 
 function AccountRow({ account, self, busy, onSave, onDelete, onRevoke }: {
   account: Account; self: boolean; busy: boolean; onSave: (patch: Partial<Account>) => void; onDelete: () => void; onRevoke: () => void;
 }) {
   const [login, setLogin] = useState(account.login);
+  const confirmAction = useConfirmation();
   return <article className="account-row"><div className="account-avatar">{account.login.slice(0, 2).toUpperCase()}</div>
-    <div className="account-identity"><input aria-label={`Логин ${account.login}`} value={login} onChange={e => setLogin(e.target.value)} disabled={busy || self} /><small>{new Date(account.createdAt).toLocaleDateString("ru-RU")}{self ? " · Вы" : ""}</small></div>
-    <span className={`account-status ${account.status}`}>{statusNames[account.status]}</span>
-    <select aria-label={`Роль ${account.login}`} value={account.role} disabled={busy || self || account.status !== "active"} onChange={e => { const role = e.target.value as Account["role"]; if (window.confirm(`Изменить роль ${account.login} на ${role === "admin" ? "администратора" : "пользователя"}?`)) onSave({ role }); }}><option value="user">Пользователь</option><option value="admin">Администратор</option></select>
-    <div className="account-actions"><button className="icon-button" title="Сохранить логин" disabled={busy || !login.trim() || login === account.login} onClick={() => onSave({ login: login.trim() })}><Save size={18} /></button>
-      {account.status === "pending" ? <><button className="icon-button" title="Одобрить заявку" disabled={busy} onClick={() => onSave({ status: "active" })}><Check size={18} /></button><button className="icon-button" title="Отклонить заявку" disabled={busy} onClick={() => onSave({ status: "rejected" })}><X size={18} /></button></> : <button className="icon-button" disabled={busy || self} title={account.status === "active" ? "Заблокировать" : "Активировать"} onClick={() => onSave({ status: account.status === "active" ? "blocked" : "active" })}>{account.status === "active" ? <Shield size={18} /> : <Check size={18} />}</button>}
-      <button className="icon-button" title="Завершить сеансы" disabled={busy || self} onClick={onRevoke}><KeyRound size={18} /></button><button className="danger-button" title="Удалить аккаунт" disabled={busy || self} onClick={onDelete}><Trash2 size={18} /></button></div></article>;
+    <div className="account-identity"><Input aria-label={`Логин ${account.login}`} value={login} onChange={e => setLogin(e.target.value)} disabled={busy || self} /><small>{new Date(account.createdAt).toLocaleDateString("ru-RU")}{self ? " · Вы" : ""}</small></div>
+    <Badge variant="outline" className={`account-status ${account.status}`}>{statusNames[account.status]}</Badge>
+    <NativeSelect aria-label={`Роль ${account.login}`} value={account.role} disabled={busy || self || account.status !== "active"} onChange={async e => { const role = e.target.value as Account["role"]; if (await confirmAction(`Изменить роль ${account.login} на ${role === "admin" ? "администратора" : "пользователя"}?`)) onSave({ role }); }}><NativeSelectOption value="user">Пользователь</NativeSelectOption><NativeSelectOption value="admin">Администратор</NativeSelectOption></NativeSelect>
+    <div className="account-actions"><Button className="icon-button" title="Сохранить логин" disabled={busy || !login.trim() || login === account.login} onClick={() => onSave({ login: login.trim() })}><Save size={18} /></Button>
+      {account.status === "pending" ? <><Button className="icon-button" title="Одобрить заявку" disabled={busy} onClick={() => onSave({ status: "active" })}><Check size={18} /></Button><Button className="icon-button" title="Отклонить заявку" disabled={busy} onClick={() => onSave({ status: "rejected" })}><X size={18} /></Button></> : <Button className="icon-button" disabled={busy || self} title={account.status === "active" ? "Заблокировать" : "Активировать"} onClick={() => onSave({ status: account.status === "active" ? "blocked" : "active" })}>{account.status === "active" ? <Shield size={18} /> : <Check size={18} />}</Button>}
+      <Button className="icon-button" title="Завершить сеансы" disabled={busy || self} onClick={onRevoke}><KeyRound size={18} /></Button><Button className="danger-button" title="Удалить аккаунт" disabled={busy || self} onClick={onDelete}><Trash2 size={18} /></Button></div></article>;
 }
 
 export function PasswordForm() {
@@ -133,5 +142,5 @@ export function PasswordForm() {
     if (data.get("password") !== data.get("confirm")) { setError("Пароли не совпадают"); return; }
     setBusy(true); try { await changePassword(String(data.get("current")), String(data.get("password"))); form.reset(); setNotice("Пароль изменён"); } catch (err) { setError(message(err)); } finally { setBusy(false); }
   }
-  return <form className="account-form" onSubmit={submit}><h2>Смена пароля</h2><label>Текущий пароль<input name="current" type="password" required autoComplete="current-password" /></label><label>Новый пароль<input name="password" type="password" required autoComplete="new-password" /></label><label>Повторите пароль<input name="confirm" type="password" required autoComplete="new-password" /></label>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status" className="account-notice">{notice}</p>}<button className="primary-button" disabled={busy}>Сохранить пароль</button></form>;
+  return <form className="account-form" onSubmit={submit}><h2>Смена пароля</h2><label>Текущий пароль<Input name="current" type="password" required autoComplete="current-password" /></label><label>Новый пароль<Input name="password" type="password" required autoComplete="new-password" /></label><label>Повторите пароль<Input name="confirm" type="password" required autoComplete="new-password" /></label>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status" className="account-notice">{notice}</p>}<Button className="primary-button" disabled={busy}>Сохранить пароль</Button></form>;
 }
