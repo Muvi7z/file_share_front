@@ -1,6 +1,7 @@
 package com.localvideovault.mobile.data;
 
 import android.content.Context;
+import android.content.ContentResolver;
 import android.net.Uri;
 
 import com.localvideovault.mobile.R;
@@ -9,13 +10,16 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okio.BufferedSink;
 
 public class ApiClient {
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
@@ -64,10 +68,45 @@ public class ApiClient {
     }
 
     public JSONObject postJson(String path, JSONObject payload) throws Exception {
+        return sendJson("POST", path, payload);
+    }
+
+    public JSONObject sendJson(String method, String path, JSONObject payload) throws Exception {
         Request request = withAuth(new Request.Builder().url(apiUrl(path)))
-            .post(RequestBody.create(payload.toString(), JSON))
+            .method(method, RequestBody.create(payload.toString(), JSON))
             .build();
         return new JSONObject(execute(request));
+    }
+
+    public void get(String path) throws IOException {
+        execute(request(path));
+    }
+
+    public void uploadPoster(String path, ContentResolver resolver, Uri image) throws IOException {
+        String mime = resolver.getType(image);
+        MediaType type = mime == null ? null : MediaType.parse(mime);
+        String extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mime);
+        RequestBody imageBody = new RequestBody() {
+            @Override public MediaType contentType() { return type; }
+
+            @Override public void writeTo(BufferedSink sink) throws IOException {
+                try (InputStream input = resolver.openInputStream(image)) {
+                    if (input == null) throw new IOException("Не удалось открыть изображение.");
+                    byte[] buffer = new byte[16 * 1024];
+                    int read;
+                    long size = 0;
+                    while ((read = input.read(buffer)) != -1) {
+                        size += read;
+                        if (size > 60L * 1024 * 1024) throw new IOException("Постер больше 60 МБ.");
+                        sink.write(buffer, 0, read);
+                    }
+                }
+            }
+        };
+        RequestBody body = new MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("poster", "poster." + (extension == null ? "img" : extension), imageBody)
+            .build();
+        execute(request(path).newBuilder().put(body).build());
     }
 
     public void delete(String path) throws IOException {
@@ -144,7 +183,7 @@ public class ApiClient {
         try (Response response = client.newCall(request).execute()) {
             String body = response.body() == null ? "" : response.body().string();
             if (!response.isSuccessful()) {
-                throw new ApiResponseException(errorMessage(body, response.code()));
+                throw new ApiResponseException(response.code(), errorMessage(body, response.code()));
             }
             return body.isEmpty() ? "{}" : body;
         }
@@ -217,9 +256,12 @@ public class ApiClient {
         return "API error " + code;
     }
 
-    private static final class ApiResponseException extends IOException {
-        ApiResponseException(String message) {
+    public static final class ApiResponseException extends IOException {
+        public final int status;
+
+        ApiResponseException(int status, String message) {
             super(message);
+            this.status = status;
         }
     }
 }

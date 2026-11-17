@@ -2,6 +2,7 @@ package com.localvideovault.mobile;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
@@ -19,11 +20,14 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.text.InputType;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.LruCache;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
@@ -32,10 +36,12 @@ import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
@@ -43,12 +49,15 @@ import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.hls.HlsMediaSource;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.ui.DefaultTimeBar;
 import androidx.media3.ui.PlayerView;
 
 import com.localvideovault.mobile.data.ApiClient;
 import com.localvideovault.mobile.data.VaultRepository;
+import com.localvideovault.mobile.data.VaultHlsPlaylistParser;
 import com.localvideovault.mobile.model.FileEntry;
 import com.localvideovault.mobile.model.SharedFolder;
 import com.localvideovault.mobile.model.VideoFile;
@@ -57,10 +66,13 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.Collator;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Date;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -106,9 +118,15 @@ public class MainActivity extends Activity {
     private String currentDirectoryId = null;
     private String query = "";
     private String sortField = "name";
+    private int fileTypeFilter = 0;
+    private static final String[] FILE_TYPES = {"Видео", "Файлы", "Изображения", "Все типы"};
     private boolean sortAscending = true;
     private final Collator nameCollator = Collator.getInstance(new Locale("ru"));
     private boolean isAdmin = false;
+    private String accountLogin = "";
+    private String loginReturnPage = "videos";
+    private boolean glassTheme = true;
+    private boolean wallpaperEnabled = true;
     private boolean isLoading = false;
     private boolean isEntriesLoading = false;
     private boolean hasLoadedEntries = false;
@@ -163,9 +181,17 @@ public class MainActivity extends Activity {
         apiClient = new ApiClient(this);
         sortField = getPreferences(MODE_PRIVATE).getString("sortField", "name");
         sortAscending = getPreferences(MODE_PRIVATE).getBoolean("sortAscending", true);
+        glassTheme = getPreferences(MODE_PRIVATE).getBoolean("glassTheme", true);
+        wallpaperEnabled = getPreferences(MODE_PRIVATE).getBoolean("wallpaperEnabled", true);
         nameCollator.setStrength(Collator.PRIMARY);
         enterTvFullscreen();
         refreshData();
+    }
+
+    @Override
+    protected void onStop() {
+        if (player != null) player.pause();
+        super.onStop();
     }
 
     @Override
@@ -188,7 +214,12 @@ public class MainActivity extends Activity {
             render();
             return;
         }
-        if ("admin".equals(page)) {
+        if ("login".equals(page)) {
+            page = loginReturnPage;
+            render();
+            return;
+        }
+        if ("admin".equals(page) || "settings".equals(page) || "account".equals(page)) {
             page = "videos";
             render();
             return;
@@ -313,13 +344,13 @@ public class MainActivity extends Activity {
                     invalidateDirectoryEntries();
                     isLoading = false;
                     loadError = "";
-                    render();
+                    if (!"player".equals(page)) render();
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> {
                     isLoading = false;
                     loadError = error.getMessage() == null ? "Не удалось загрузить данные с API." : error.getMessage();
-                    render();
+                    if (!"player".equals(page)) render();
                 });
             }
         }).start();
@@ -368,7 +399,7 @@ public class MainActivity extends Activity {
             streamUrl = "/videos/" + Uri.encode(id) + "/stream";
         }
         String posterUrl = item.optString("posterUrl", "");
-        if (posterUrl.isEmpty() && !id.isEmpty()) {
+        if ((posterUrl.isEmpty() || posterUrl.contains("\\") || posterUrl.matches("^[A-Za-z]:.*")) && !id.isEmpty()) {
             posterUrl = "/videos/" + Uri.encode(id) + "/poster";
         }
 
@@ -387,7 +418,8 @@ public class MainActivity extends Activity {
             item.optString("resolution", ""),
             apiClient.absoluteUrl(posterUrl),
             apiClient.absoluteUrl(streamUrl),
-            item.optString("path", "")
+            item.optString("path", ""),
+            item.optString("extension", "")
         );
     }
 
@@ -402,6 +434,10 @@ public class MainActivity extends Activity {
             } else if ("video".equals(type)) {
                 JSONObject video = item.optJSONObject("video");
                 result.add(FileEntry.video(parseVideo(video == null ? item : video)));
+            } else if ("file".equals(type)) {
+                JSONObject file = item.optJSONObject("file");
+                FileEntry entry = FileEntry.file(file == null ? item : file);
+                if (!entry.fileId.isEmpty()) result.add(entry);
             }
         }
         return result;
@@ -421,7 +457,7 @@ public class MainActivity extends Activity {
     }
 
     private void ensureDirectoryEntriesLoaded() {
-        if (!"files".equals(page) || isEntriesLoading) {
+        if (!"files".equals(page) || isEntriesLoading || !entriesError.isEmpty()) {
             return;
         }
         if (hasLoadedEntries && sameDirectory(loadedEntriesDirectoryId, currentDirectoryId)) {
@@ -441,20 +477,31 @@ public class MainActivity extends Activity {
                 String path = requestedFolderId == null
                     ? "/folders/root/entries"
                     : "/folders/" + Uri.encode(requestedFolderId) + "/entries";
-                JSONArray payload = apiClient.getArray(path);
-                List<FileEntry> nextEntries = parseFileEntries(payload);
+                List<FileEntry> nextEntries;
+                try {
+                    nextEntries = parseFileEntries(apiClient.getArray(path));
+                } catch (ApiClient.ApiResponseException error) {
+                    if (requestedFolderId != null || (error.status != 401 && error.status != 403)) throw error;
+                    // Guests can browse the roots exposed by the public folders endpoint.
+                    List<FileEntry> roots = new ArrayList<>();
+                    for (SharedFolder folder : parseFolders(apiClient.getArray("/folders"))) {
+                        if (folder.isRoot && folder.enabled) roots.add(FileEntry.folder(folder));
+                    }
+                    nextEntries = roots;
+                }
+                List<FileEntry> loaded = nextEntries;
                 runOnUiThread(() -> {
                     if (requestVersion != entriesRequestVersion || !sameDirectory(requestedFolderId, currentDirectoryId)) {
                         return;
                     }
                     currentEntries.clear();
-                    currentEntries.addAll(nextEntries);
-                    repository.mergeFileEntries(nextEntries);
+                    currentEntries.addAll(loaded);
+                    repository.mergeFileEntries(loaded);
                     loadedEntriesDirectoryId = requestedFolderId;
                     hasLoadedEntries = true;
                     isEntriesLoading = false;
                     entriesError = "";
-                    render();
+                    if ("files".equals(page)) render();
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> {
@@ -464,7 +511,7 @@ public class MainActivity extends Activity {
                     currentEntries.clear();
                     isEntriesLoading = false;
                     entriesError = error.getMessage() == null ? "Не удалось загрузить папку." : error.getMessage();
-                    render();
+                    if ("files".equals(page)) render();
                 });
             }
         }).start();
@@ -514,6 +561,9 @@ public class MainActivity extends Activity {
     }
 
     private void render() {
+        if ("settings".equals(page) && !isAdmin) page = "videos";
+        if ("admin".equals(page) && !isAdmin) page = accountLogin.isEmpty() ? "login" : "account";
+        if ("account".equals(page) && accountLogin.isEmpty()) page = "login";
         releasePlayer();
         pendingTvFocus = null;
         pendingTvFallbackFocus = null;
@@ -537,13 +587,13 @@ public class MainActivity extends Activity {
         tvNavRail = null;
         tvNavExpanded = false;
         scrollingGlassPanel = null;
-        if (isTvLandscape()) {
+        if (isTvLandscape() || (glassTheme && wallpaperEnabled)) {
             FrameLayout tvStage = new FrameLayout(this);
             tvStage.setBackgroundColor(BG);
             tvStage.setClipChildren(false);
             tvStage.setClipToPadding(false);
             setContentView(tvStage);
-            renderAmbientBackground(tvStage);
+            if (glassTheme && wallpaperEnabled) renderAmbientBackground(tvStage);
 
             root = new LinearLayout(this);
             root.setOrientation(LinearLayout.VERTICAL);
@@ -551,9 +601,9 @@ public class MainActivity extends Activity {
             root.setClipChildren(false);
             root.setClipToPadding(false);
             FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(-1, -1);
-            contentParams.leftMargin = dp(TV_NAV_COLLAPSED_WIDTH_DP);
+            contentParams.leftMargin = isTvLandscape() ? dp(TV_NAV_COLLAPSED_WIDTH_DP) : 0;
             tvStage.addView(root, contentParams);
-            renderTvNavigation(tvStage);
+            if (isTvLandscape()) renderTvNavigation(tvStage);
         } else {
             root = new LinearLayout(this);
             root.setOrientation(LinearLayout.VERTICAL);
@@ -579,7 +629,7 @@ public class MainActivity extends Activity {
         int sidePadding = isTvLandscape() ? dp(28) : (isTvLayout() ? dp(36) : dp(12));
         int bottomPadding = isTvLandscape() ? dp(28) : dp(isTvLayout() ? 104 : 88);
         content.setPadding(sidePadding, 0, sidePadding, bottomPadding);
-        mainScrollView.setOnScrollChangeListener((view, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+        mainScrollView.getViewTreeObserver().addOnScrollChangedListener(() -> {
             if (scrollingGlassPanel != null) {
                 scrollingGlassPanel.invalidate();
             }
@@ -590,6 +640,12 @@ public class MainActivity extends Activity {
 
         if ("admin".equals(page)) {
             renderAdminPage();
+        } else if ("settings".equals(page)) {
+            renderSettingsPage();
+        } else if ("login".equals(page)) {
+            renderLoginPage();
+        } else if ("account".equals(page)) {
+            renderAccountPage();
         } else {
             renderSearchAndMode();
             if (isLoading) {
@@ -691,7 +747,7 @@ public class MainActivity extends Activity {
 
         LinearLayout videosButton = navRailButton("Видео", "videos", R.drawable.ic_video_tv);
         LinearLayout filesButton = navRailButton("Файлы", "files", R.drawable.ic_folder_tv);
-        LinearLayout adminButton = navRailButton("Админ", "admin", R.drawable.ic_admin_tv);
+        LinearLayout adminButton = navRailButton(accountNavLabel(), accountNavPage(), R.drawable.ic_admin_tv);
 
         videosButton.setNextFocusUpId(adminButton.getId());
         videosButton.setNextFocusDownId(filesButton.getId());
@@ -707,6 +763,15 @@ public class MainActivity extends Activity {
         View spacer = new View(this);
         rail.addView(spacer, new LinearLayout.LayoutParams(1, 0, 1));
         rail.addView(adminButton);
+        if (isAdmin) {
+            LinearLayout settingsButton = navRailButton("Настройки", "settings", R.drawable.ic_admin_tv);
+            videosButton.setNextFocusUpId(settingsButton.getId());
+            adminButton.setNextFocusDownId(settingsButton.getId());
+            settingsButton.setNextFocusUpId(adminButton.getId());
+            settingsButton.setNextFocusDownId(videosButton.getId());
+            addSpace(rail, 8);
+            rail.addView(settingsButton);
+        }
 
         FrameLayout.LayoutParams railParams = new FrameLayout.LayoutParams(dp(TV_NAV_COLLAPSED_WIDTH_DP), -1, Gravity.LEFT);
         railParams.setMargins(dp(10), dp(10), 0, dp(10));
@@ -754,11 +819,7 @@ public class MainActivity extends Activity {
                 }, 70L);
             }
         });
-        button.setOnClickListener(v -> {
-            page = targetPage;
-            selectedVideo = null;
-            render();
-        });
+        button.setOnClickListener(v -> openNavigationPage(targetPage));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(54));
         params.setMargins(0, 0, 0, dp(8));
         button.setLayoutParams(params);
@@ -876,6 +937,9 @@ public class MainActivity extends Activity {
     }
 
     private String pageTitle() {
+        if ("login".equals(page)) return "Вход";
+        if ("account".equals(page)) return "Мой аккаунт";
+        if ("settings".equals(page)) return "Настройки";
         if ("files".equals(page)) {
             return "Все файлы";
         }
@@ -903,7 +967,7 @@ public class MainActivity extends Activity {
         EditText input = new EditText(this);
         input.setSingleLine(true);
         input.setText(query);
-        input.setHint("files".equals(page) ? "Поиск папок и видео" : "Поиск видео");
+        input.setHint("files".equals(page) ? "Поиск папок и файлов" : "Поиск видео");
         input.setTextSize(isTvLandscape() ? 14 : (isTvLayout() ? 18 : 15));
         input.setTextColor(DARK);
         input.setHintTextColor(Color.rgb(94, 104, 99));
@@ -947,6 +1011,17 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams sortParams = new LinearLayout.LayoutParams(-1, dp(isTvLayout() ? 50 : 42));
             sortParams.setMargins(0, dp(8), 0, 0);
             controlsGlassPanel.addView(sort, sortParams);
+        }
+        if ("files".equals(page)) {
+            TextView filter = actionButton("Тип: " + FILE_TYPES[fileTypeFilter], CARD, TEXT);
+            filter.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Тип содержимого")
+                .setSingleChoiceItems(FILE_TYPES, fileTypeFilter, (dialog, index) -> {
+                    fileTypeFilter = index;
+                    dialog.dismiss();
+                    render();
+                }).setNegativeButton("Отмена", null).show());
+            controlsGlassPanel.addView(filter, new LinearLayout.LayoutParams(-1, dp(40)));
         }
         content.addView(withBottomMargin(controlsGlassPanel, isTvLandscape() ? 14 : 10));
     }
@@ -1100,7 +1175,7 @@ public class MainActivity extends Activity {
             renderEntryGrid(entries, listPanel);
         } else {
             for (FileEntry entry : entries) {
-                View card = entry.type == FileEntry.Type.FOLDER ? folderCard(entry.folder, false) : videoCard(entry.video, false);
+                View card = entryCard(entry, false);
                 rememberTvFocus(card);
                 listPanel.addView(card);
             }
@@ -1109,10 +1184,6 @@ public class MainActivity extends Activity {
 
     private List<FileEntry> filterEntries(List<FileEntry> entries, String searchQuery) {
         String normalized = searchQuery == null ? "" : searchQuery.trim().toLowerCase();
-        if (normalized.isEmpty()) {
-            return new ArrayList<>(entries);
-        }
-
         List<FileEntry> result = new ArrayList<>();
         for (FileEntry entry : entries) {
             if (entry.type == FileEntry.Type.FOLDER && entry.folder != null) {
@@ -1120,12 +1191,16 @@ public class MainActivity extends Activity {
                 if (haystack.contains(normalized)) {
                     result.add(entry);
                 }
-            } else if (entry.video != null) {
+            } else if (entry.video != null && (fileTypeFilter == 0 || fileTypeFilter == 3)) {
                 String haystack = (entry.video.title + " " + entry.video.folderName + " " + entry.video.codec + " "
                     + entry.video.resolution + " " + entry.video.path).toLowerCase();
                 if (haystack.contains(normalized)) {
                     result.add(entry);
                 }
+            } else if (entry.type == FileEntry.Type.FILE
+                && (fileTypeFilter == 3 || (fileTypeFilter == 2 && entry.image) || (fileTypeFilter == 1 && !entry.image))
+                && entry.fileName.toLowerCase(Locale.ROOT).contains(normalized)) {
+                result.add(entry);
             }
         }
         return result;
@@ -1177,13 +1252,13 @@ public class MainActivity extends Activity {
     private String entryName(FileEntry entry) {
         return entry.type == FileEntry.Type.FOLDER && entry.folder != null
             ? entry.folder.name
-            : (entry.video == null ? "" : entry.video.title);
+            : (entry.video == null ? entry.fileName : entry.video.title);
     }
 
     private String entryDate(FileEntry entry) {
         return entry.type == FileEntry.Type.FOLDER && entry.folder != null
             ? entry.folder.lastScanAt
-            : (entry.video == null ? "" : entry.video.modifiedAt);
+            : (entry.video == null ? entry.modifiedAt : entry.video.modifiedAt);
     }
 
     private String safeText(String value) {
@@ -1279,7 +1354,7 @@ public class MainActivity extends Activity {
                 parent.addView(withBottomMargin(row, isTvLandscape() ? 6 : (isTvLayout() ? 8 : 4)));
             }
             FileEntry entry = entries.get(i);
-            View card = entry.type == FileEntry.Type.FOLDER ? folderCard(entry.folder, true) : videoCard(entry.video, true);
+            View card = entryCard(entry, true);
             rememberTvFocus(card);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -2, 1);
             params.setMargins(column == 0 ? 0 : dp(8), 0, column == columns - 1 ? 0 : dp(8), 0);
@@ -1288,12 +1363,134 @@ public class MainActivity extends Activity {
         fillGridTail(row, entries.size(), columns);
     }
 
+    private View entryCard(FileEntry entry, boolean compact) {
+        switch (entry.type) {
+            case FOLDER: return folderCard(entry.folder, compact);
+            case VIDEO: return videoCard(entry.video, compact);
+            default:
+                LinearLayout fileCard = card();
+                TextView name = text(entry.fileName, 15, TEXT, true);
+                name.setMaxLines(2);
+                name.setEllipsize(TextUtils.TruncateAt.END);
+                fileCard.addView(name);
+                fileCard.addView(text(entry.extension.toUpperCase(Locale.ROOT) + " · " + formatBytes(entry.sizeBytes), 12, MUTED, false));
+                applyFocus(fileCard, CARD, SURFACE_SELECTED);
+                fileCard.setOnClickListener(v -> {
+                    if (entry.image) showImage(entry);
+                    else confirmDownload(entry);
+                });
+                fileCard.setOnLongClickListener(v -> { confirmDownload(entry); return true; });
+                if (isAdmin) {
+                    fileCard.setOnLongClickListener(v -> {
+                        new AlertDialog.Builder(this).setTitle(entry.fileName)
+                            .setItems(new String[]{"Скачать", "Удалить файл"}, (d, choice) -> {
+                                if (choice == 0) confirmDownload(entry);
+                                else confirmMediaDelete(entry.fileName, "/files/" + Uri.encode(entry.fileId));
+                            }).show();
+                        return true;
+                    });
+                }
+                return withBottomMargin(fileCard, 8);
+        }
+    }
+
+    private Request downloadRequest(FileEntry entry) {
+        return apiClient.request("/files/" + Uri.encode(entry.fileId) + "/download");
+    }
+
+    private void confirmDownload(FileEntry entry) {
+        new AlertDialog.Builder(this).setTitle("Скачать файл?")
+            .setMessage(entry.fileName)
+            .setNegativeButton("Отмена", null)
+            .setPositiveButton("Скачать", (dialog, which) -> downloadFile(entry)).show();
+    }
+
+    private void downloadFile(FileEntry entry) {
+        try {
+            Request source = downloadRequest(entry);
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(source.url().toString()));
+            String name = entry.fileName.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
+            if (name.trim().isEmpty() || ".".equals(name) || "..".equals(name)) name = "download";
+            request.setTitle(name);
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            if (android.os.Build.VERSION.SDK_INT >= 29 && getApplicationInfo().targetSdkVersion >= 29) {
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+            } else {
+                request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, name);
+            }
+            String auth = source.header("Authorization");
+            if (auth != null) request.addRequestHeader("Authorization", auth);
+            ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(request);
+            android.widget.Toast.makeText(this, "Скачивание началось", android.widget.Toast.LENGTH_SHORT).show();
+        } catch (Exception error) {
+            toastDialog("Ошибка скачивания", safeText(error.getMessage()));
+        }
+    }
+
+    private void showImage(FileEntry entry) {
+        ImageView image = new ImageView(this);
+        image.setAdjustViewBounds(true);
+        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        image.setMinimumHeight(dp(180));
+        ScaleGestureDetector zoom = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            @Override public boolean onScale(ScaleGestureDetector detector) {
+                float scale = Math.max(1f, Math.min(4f, image.getScaleX() * detector.getScaleFactor()));
+                image.setScaleX(scale);
+                image.setScaleY(scale);
+                return true;
+            }
+        });
+        image.setOnTouchListener((v, event) -> zoom.onTouchEvent(event));
+        TextView status = text("Загрузка…", 14, TEXT, false);
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.addView(image, new LinearLayout.LayoutParams(-1, dp(300)));
+        body.addView(status);
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(entry.fileName).setView(body)
+            .setNegativeButton("Закрыть", null)
+            .setPositiveButton("Скачать", (d, which) -> downloadFile(entry)).show();
+        okhttp3.Call call = apiClient.client().newCall(downloadRequest(entry));
+        dialog.setOnDismissListener(d -> call.cancel());
+        posterExecutor.execute(() -> {
+            Bitmap preview = null;
+            try (Response response = call.execute()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = entry.sizeBytes > 4 * 1024 * 1024 ? 4 : 2;
+                    preview = BitmapFactory.decodeStream(response.body().byteStream(), null, options);
+                }
+            } catch (Exception ignored) {
+                // The dialog still offers a download.
+            }
+            Bitmap result = preview;
+            runOnUiThread(() -> {
+                if (!dialog.isShowing()) return;
+                if (result != null) {
+                    image.setImageBitmap(result);
+                    status.setVisibility(View.GONE);
+                } else {
+                    status.setText("Не удалось открыть изображение");
+                }
+            });
+        });
+    }
+
     private View videoCard(VideoFile video, boolean compact) {
         LinearLayout card = mediaCard();
         card.setTag("video:" + video.id);
         card.setContentDescription("Открыть видео: " + video.title
             + (video.duration == null || video.duration.isEmpty() ? "" : ", " + video.duration));
         card.setOnClickListener(v -> openPlayer(video));
+        if (isAdmin) {
+            card.setOnLongClickListener(v -> {
+                new AlertDialog.Builder(this).setTitle(video.title)
+                    .setItems(new String[]{"Заменить постер", "Удалить видео"}, (dialog, choice) -> {
+                        if (choice == 0) pickPoster(video);
+                        else confirmMediaDelete(video.title, "/videos/" + Uri.encode(video.id));
+                    }).show();
+                return true;
+            });
+        }
 
         FrameLayout poster = compact ? new SixteenNineFrameLayout(this) : new FrameLayout(this);
         poster.setBackground(makeRoundDrawable(Color.rgb(22, 28, 34), 0, 8));
@@ -1363,6 +1560,53 @@ public class MainActivity extends Activity {
                 // Keep the neutral poster placeholder when an image cannot be loaded.
             }
         });
+    }
+
+    private void confirmMediaDelete(String name, String route) {
+        new AlertDialog.Builder(this).setTitle("Удалить файл с сервера?")
+            .setMessage(name).setNegativeButton("Отмена", null)
+            .setPositiveButton("Удалить", (dialog, button) -> new Thread(() -> {
+                try {
+                    apiClient.delete(route);
+                    runOnUiThread(this::refreshData);
+                } catch (Exception error) {
+                    runOnUiThread(() -> toastDialog("Ошибка удаления", safeText(error.getMessage())));
+                }
+            }).start()).show();
+    }
+
+    private static final int PICK_POSTER = 42;
+    private VideoFile posterTarget;
+
+    private void pickPoster(VideoFile video) {
+        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT)
+            .setType("image/*").addCategory(android.content.Intent.CATEGORY_OPENABLE);
+        try {
+            posterTarget = video;
+            startActivityForResult(intent, PICK_POSTER);
+        } catch (android.content.ActivityNotFoundException error) {
+            posterTarget = null;
+            toastDialog("Постер", "На устройстве нет приложения для выбора изображений.");
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != PICK_POSTER) return;
+        VideoFile video = posterTarget;
+        posterTarget = null;
+        if (video == null || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        Uri image = data.getData();
+        new Thread(() -> {
+            try {
+                apiClient.uploadPoster("/videos/" + Uri.encode(video.id) + "/poster", getContentResolver(), image);
+                posterCache.remove(video.posterUrl);
+                runOnUiThread(this::refreshData);
+            } catch (Exception error) {
+                runOnUiThread(() -> toastDialog("Ошибка замены постера", safeText(error.getMessage())));
+            }
+        }).start();
     }
 
     private Bitmap decodePoster(byte[] bytes) {
@@ -1564,11 +1808,6 @@ public class MainActivity extends Activity {
     }
 
     private void renderAdminPage() {
-        if (!isAdmin) {
-            renderLoginPage();
-            return;
-        }
-
         LinearLayout form = card();
         form.setPadding(dp(isTvLandscape() ? 12 : 14), dp(isTvLandscape() ? 12 : 14), dp(isTvLandscape() ? 12 : 14), dp(isTvLandscape() ? 12 : 14));
         EditText path = input("Путь к папке", "D:\\Video");
@@ -1587,8 +1826,7 @@ public class MainActivity extends Activity {
 
         TextView logout = actionButton("Выйти", CARD, TEXT);
         logout.setOnClickListener(v -> {
-            isAdmin = false;
-            render();
+            logout();
         });
         content.addView(withBottomMargin(logout, 12));
     }
@@ -1596,8 +1834,9 @@ public class MainActivity extends Activity {
     private void renderLoginPage() {
         LinearLayout form = card();
         form.setPadding(dp(isTvLandscape() ? 12 : 14), dp(isTvLandscape() ? 12 : 14), dp(isTvLandscape() ? 12 : 14), dp(isTvLandscape() ? 12 : 14));
-        EditText login = input("Логин", "admin");
+        EditText login = input("Логин", "");
         EditText password = input("Пароль", "");
+        password.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         form.addView(login, new LinearLayout.LayoutParams(-1, dp(44)));
         addSpace(form, 10);
         form.addView(password, new LinearLayout.LayoutParams(-1, dp(44)));
@@ -1607,7 +1846,70 @@ public class MainActivity extends Activity {
             loginWithApi(login.getText().toString(), password.getText().toString());
         });
         form.addView(submit, new LinearLayout.LayoutParams(-1, dp(44)));
+        TextView register = actionButton("Создать аккаунт", CARD, TEXT);
+        register.setOnClickListener(v -> registerWithApi(login.getText().toString(), password.getText().toString()));
+        form.addView(register, new LinearLayout.LayoutParams(-1, dp(42)));
         content.addView(form);
+    }
+
+    private void renderSettingsPage() {
+        LinearLayout preferences = card();
+        TextView theme = actionButton(glassTheme ? "Тема · Стекло" : "Тема · Классическая", CARD, TEXT);
+        theme.setOnClickListener(v -> {
+            glassTheme = !glassTheme;
+            getPreferences(MODE_PRIVATE).edit().putBoolean("glassTheme", glassTheme).apply();
+            render();
+        });
+        preferences.addView(theme, new LinearLayout.LayoutParams(-1, dp(44)));
+        if (glassTheme) {
+            TextView wallpaper = actionButton(wallpaperEnabled ? "Фон · Обои" : "Фон · Тёмный", CARD, TEXT);
+            wallpaper.setOnClickListener(v -> {
+                wallpaperEnabled = !wallpaperEnabled;
+                getPreferences(MODE_PRIVATE).edit().putBoolean("wallpaperEnabled", wallpaperEnabled).apply();
+                render();
+            });
+            preferences.addView(wallpaper, new LinearLayout.LayoutParams(-1, dp(44)));
+        }
+        content.addView(preferences);
+        renderAccountPage();
+    }
+
+    private void renderAccountPage() {
+        LinearLayout account = card();
+        account.addView(text(accountLogin, 17, TEXT, true));
+        TextView logout = actionButton("Выйти", CARD, TEXT);
+        logout.setOnClickListener(v -> logout());
+        account.addView(logout, new LinearLayout.LayoutParams(-1, dp(44)));
+        content.addView(account);
+    }
+
+    private void logout() {
+        page = "videos";
+        accountLogin = "";
+        isAdmin = false;
+        apiClient.setAuthToken("");
+        repository.replaceData(Collections.emptyList(), Collections.emptyList());
+        refreshData();
+    }
+
+    private void registerWithApi(String login, String password) {
+        if (isLoading) return;
+        isLoading = true;
+        new Thread(() -> {
+            try {
+                JSONObject payload = new JSONObject().put("login", login.trim()).put("password", password);
+                apiClient.postJson("/auth/register", payload);
+                runOnUiThread(() -> {
+                    isLoading = false;
+                    toastDialog("Регистрация", "Заявка отправлена администратору.");
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    isLoading = false;
+                    toastDialog("Ошибка регистрации", safeText(error.getMessage()));
+                });
+            }
+        }).start();
     }
 
     private View adminFolderCard(SharedFolder folder) {
@@ -1625,7 +1927,48 @@ public class MainActivity extends Activity {
         delete.setOnClickListener(v -> confirmDelete(folder));
         row.addView(delete, new LinearLayout.LayoutParams(0, dp(isTvLandscape() ? 42 : 40), 1));
         card.addView(row);
+        TextView manage = actionButton("Настроить папку", CARD, TEXT);
+        manage.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle(folder.name)
+            .setItems(new String[]{"Переименовать", folder.enabled ? "Скрыть папку" : "Показать папку", "Пересканировать"},
+                (dialog, choice) -> {
+                    if (choice == 0) {
+                        EditText name = input("Название папки", folder.name);
+                        new AlertDialog.Builder(this).setTitle("Название папки").setView(name)
+                            .setNegativeButton("Отмена", null)
+                            .setPositiveButton("Сохранить", (edit, button) ->
+                                updateFolder(folder, name.getText().toString().trim(), false))
+                            .show();
+                    } else {
+                        updateFolder(folder, null, choice == 2);
+                    }
+                }).show());
+        card.addView(manage, new LinearLayout.LayoutParams(-1, dp(42)));
         return withBottomMargin(card, 10);
+    }
+
+    private void updateFolder(SharedFolder folder, String name, boolean rescan) {
+        if (name != null && name.isEmpty()) {
+            toastDialog("Название папки", "Введите название.");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                String route = "/folders/" + Uri.encode(folder.id);
+                if (rescan) apiClient.get(route + "/rescan");
+                else {
+                    JSONObject patch = new JSONObject();
+                    if (name == null) patch.put("enabled", !folder.enabled);
+                    else patch.put("name", name);
+                    apiClient.sendJson("PATCH", route, patch);
+                }
+                runOnUiThread(() -> {
+                    refreshData();
+                    if (rescan) android.widget.Toast.makeText(this, "Сканирование запущено", android.widget.Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> toastDialog("Ошибка папки", safeText(error.getMessage())));
+            }
+        }).start();
     }
 
     private void confirmDelete(SharedFolder folder) {
@@ -1640,6 +1983,7 @@ public class MainActivity extends Activity {
     }
 
     private void loginWithApi(String login, String password) {
+        if (isLoading) return;
         isLoading = true;
         loadError = "";
         render();
@@ -1649,9 +1993,13 @@ public class MainActivity extends Activity {
                 payload.put("login", login);
                 payload.put("password", password);
                 JSONObject response = apiClient.postJson("/auth/login", payload);
-                apiClient.setAuthToken(response.optString("token", ""));
+                String token = response.optString("token", "");
+                if (token.isEmpty()) throw new IllegalStateException("Сервер не вернул токен.");
+                apiClient.setAuthToken(token);
                 runOnUiThread(() -> {
-                    isAdmin = true;
+                    accountLogin = response.optString("login", login);
+                    isAdmin = "admin".equals(response.optString("role"));
+                    if ("login".equals(page)) page = loginReturnPage;
                     isLoading = false;
                     loadError = "";
                     refreshData();
@@ -1724,6 +2072,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.BLACK);
 
         playerView = new PlayerView(this);
+        playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING);
         playerView.setUseController(true);
         playerView.setKeepContentOnPlayerReset(true);
         playerView.setControllerShowTimeoutMs(5000);
@@ -1812,9 +2161,10 @@ public class MainActivity extends Activity {
             .setBufferDurationsMs(12000, 50000, 1500, 3000)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build();
+        DefaultMediaSourceFactory directSources = new DefaultMediaSourceFactory(dataSourceFactory);
         player = new ExoPlayer.Builder(this)
             .setLoadControl(loadControl)
-            .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(directSources)
             .build();
         player.setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT);
         playerView.setPlayer(player);
@@ -1833,28 +2183,39 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPlayerError(PlaybackException error) {
-                long position = Math.max(0, player.getCurrentPosition() - 2000);
-                player.seekTo(position);
-                player.prepare();
-                player.play();
+                ExoPlayer failedPlayer = player;
+                new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Не удалось воспроизвести видео")
+                    .setMessage(error.getErrorCodeName())
+                    .setNegativeButton("Закрыть", null)
+                    .setPositiveButton("Повторить", (dialog, which) -> {
+                        if (player == failedPlayer && player != null) {
+                            player.prepare();
+                            player.play();
+                        }
+                    })
+                    .show();
             }
         });
-        List<MediaItem> mediaItems = new ArrayList<>();
-        for (VideoFile video : playbackQueue) {
-            mediaItems.add(new MediaItem.Builder()
-                .setMediaId(video.id)
-                .setUri(Uri.parse(video.streamUrl))
-                .build());
-        }
-        if (mediaItems.isEmpty()) {
-            mediaItems.add(new MediaItem.Builder()
-                .setMediaId(selectedVideo.id)
-                .setUri(Uri.parse(selectedVideo.streamUrl))
-                .build());
+        if (playbackQueue.isEmpty()) {
             playbackQueue.add(selectedVideo);
             playbackIndex = 0;
         }
-        player.setMediaItems(mediaItems, Math.max(0, playbackIndex), 0L);
+        List<MediaSource> sources = new ArrayList<>();
+        for (VideoFile video : playbackQueue) {
+            if (video.usesHls()) {
+                String url = apiClient.absoluteUrl("/videos/" + Uri.encode(video.id) + "/hls/master.m3u8");
+                MediaItem item = new MediaItem.Builder().setMediaId(video.id)
+                    .setUri(url).setMimeType(MimeTypes.APPLICATION_M3U8).build();
+                sources.add(new HlsMediaSource.Factory(dataSourceFactory)
+                    .setPlaylistParserFactory(new VaultHlsPlaylistParser(apiClient, video.id))
+                    .createMediaSource(item));
+            } else {
+                sources.add(directSources.createMediaSource(new MediaItem.Builder()
+                    .setMediaId(video.id).setUri(video.streamUrl).build()));
+            }
+        }
+        player.setMediaSources(sources, Math.max(0, playbackIndex), 0L);
         player.prepare();
         player.play();
 
@@ -1926,6 +2287,12 @@ public class MainActivity extends Activity {
         for (int controlId : controlIds) {
             View control = view.findViewById(controlId);
             if (control != null) {
+                if (!isTvLayout()) {
+                    ViewGroup.LayoutParams size = control.getLayoutParams();
+                    size.width = dp(38);
+                    size.height = dp(38);
+                    control.setLayoutParams(size);
+                }
                 allowFocusOverflow(control, view);
                 applyPlayerControlFocus(control);
             }
@@ -1935,6 +2302,23 @@ public class MainActivity extends Activity {
         View playPause = view.findViewById(androidx.media3.ui.R.id.exo_play_pause);
         View next = view.findViewById(androidx.media3.ui.R.id.exo_next);
         View settings = view.findViewById(androidx.media3.ui.R.id.exo_settings);
+        if (settings != null) {
+            ViewGroup parent = (ViewGroup) settings.getParent();
+            TextView more = text("⋮", 22, Color.WHITE, true);
+            more.setId(View.generateViewId());
+            more.setGravity(Gravity.CENTER);
+            more.setContentDescription("Действия с видео");
+            applyPlayerControlFocus(more);
+            more.setOnClickListener(anchor -> {
+                PopupMenu menu = new PopupMenu(this, anchor);
+                menu.getMenu().add("Сообщить о проблеме").setOnMenuItemClickListener(item -> {
+                    showVideoReport();
+                    return true;
+                });
+                menu.show();
+            });
+            parent.addView(more, parent.indexOfChild(settings) + 1, new ViewGroup.LayoutParams(dp(38), dp(38)));
+        }
         if (previous != null && playPause != null && next != null) {
             previous.setNextFocusRightId(playPause.getId());
             playPause.setNextFocusLeftId(previous.getId());
@@ -1954,6 +2338,36 @@ public class MainActivity extends Activity {
             }
             previous.setNextFocusLeftId(previous.getId());
         }
+    }
+
+    private void showVideoReport() {
+        VideoFile video = selectedVideo;
+        if (video == null || player == null) return;
+        long position = Math.max(0, player.getCurrentPosition() / 1000);
+        String[] reasons = {"Зависает или повторяет кадры", "Нет звука или звук отстаёт", "Не открывается", "Другая проблема"};
+        new AlertDialog.Builder(this).setTitle("Проблема с видео")
+            .setItems(reasons, (dialog, index) -> {
+                EditText comment = input("Комментарий", "");
+                new AlertDialog.Builder(this).setTitle(reasons[index]).setView(comment)
+                    .setNegativeButton("Отмена", null)
+                    .setPositiveButton("Отправить", (details, button) -> {
+                        String note = comment.getText().toString().trim();
+                        new Thread(() -> {
+                            try {
+                                SimpleDateFormat timestamp = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT);
+                                timestamp.setTimeZone(TimeZone.getTimeZone("UTC"));
+                                JSONObject payload = new JSONObject().put("videoId", video.id)
+                                    .put("title", video.title).put("reason", reasons[index])
+                                    .put("positionSecond", position).put("comment", note)
+                                    .put("status", "open").put("createdAt", timestamp.format(new Date()));
+                                apiClient.postJson("/videos/reports", payload);
+                                runOnUiThread(() -> toastDialog("Жалоба отправлена", "Администратор получит время сбоя."));
+                            } catch (Exception error) {
+                                runOnUiThread(() -> toastDialog("Ошибка отправки", safeText(error.getMessage())));
+                            }
+                        }).start();
+                    }).show();
+            }).setNegativeButton("Отмена", null).show();
     }
 
     private void applyPlayerControlFocus(View control) {
@@ -2036,7 +2450,8 @@ public class MainActivity extends Activity {
         nav.setBackgroundColor(Color.rgb(15, 20, 26));
         nav.addView(navButton("Видео", "videos"), new LinearLayout.LayoutParams(0, dp(54), 1));
         nav.addView(navButton("Файлы", "files"), new LinearLayout.LayoutParams(0, dp(54), 1));
-        nav.addView(navButton("Админка", "admin"), new LinearLayout.LayoutParams(0, dp(54), 1));
+        nav.addView(navButton(accountNavLabel(), accountNavPage()), new LinearLayout.LayoutParams(0, dp(54), 1));
+        if (isAdmin) nav.addView(navButton("Настройки", "settings"), new LinearLayout.LayoutParams(0, dp(54), 1));
         root.addView(nav);
     }
 
@@ -2050,12 +2465,25 @@ public class MainActivity extends Activity {
         if (selected) {
             rememberTvFallbackFocus(button);
         }
-        button.setOnClickListener(v -> {
-            page = targetPage;
-            selectedVideo = null;
-            render();
-        });
+        button.setOnClickListener(v -> openNavigationPage(targetPage));
         return button;
+    }
+
+    private String accountNavLabel() {
+        if (isAdmin) return "Админка";
+        return accountLogin.isEmpty() ? "Войти" : "Аккаунт";
+    }
+
+    private String accountNavPage() {
+        if (isAdmin) return "admin";
+        return accountLogin.isEmpty() ? "login" : "account";
+    }
+
+    private void openNavigationPage(String targetPage) {
+        if ("login".equals(targetPage) && !"login".equals(page)) loginReturnPage = page;
+        page = targetPage;
+        selectedVideo = null;
+        render();
     }
 
     private TextView actionButton(String label, int background, int color) {
@@ -2365,6 +2793,7 @@ public class MainActivity extends Activity {
     }
 
     private Drawable makeLensDrawable(int tintColor, int radiusDp, boolean focused) {
+        if (!glassTheme) return makeRoundDrawable(focused ? SURFACE_SELECTED : DARK, LINE, radiusDp);
         return new RefractiveGlassDrawable(tintColor, dp(radiusDp), focused);
     }
 

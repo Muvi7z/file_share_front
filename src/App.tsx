@@ -1505,13 +1505,16 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
   const stageRef = useRef<HTMLElement>(null);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(true);
+  const [waitingForAudio, setWaitingForAudio] = useState(false);
   const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
   const [playbackAttempt, setPlaybackAttempt] = useState(0);
-  const useHls = video.extension?.trim().replace(/^\./, "").toLowerCase() === "mkv";
+  const extension = video.extension?.trim().replace(/^\./, "").toLowerCase();
+  const isMkv = extension ? extension === "mkv" : /\.mkv$/i.test(video.path);
   const hlsRef = useRef<ReturnType<typeof attachHls> | null>(null);
   const [audio, setAudio] = useState<{ tracks: PlaybackAudioTrack[]; selected: number }>({ tracks: [], selected: -1 });
   const [audioLabels, setAudioLabels] = useState<Record<string, string>>({});
+  const isBuffering = waiting || waitingForAudio;
   useEffect(() => {
     const media = mediaRef.current;
     if (!media) return;
@@ -1519,19 +1522,35 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
     let cleanup: (() => void) | undefined;
     const useRanges = ("MediaSource" in window || "ManagedMediaSource" in window) && /\.mp4$/i.test(video.path || video.title)
       && video.sizeBytes > 512 * 1024 * 1024;
-    if (useHls) {
+    if (isMkv) {
       const controller = new AbortController();
+      setWaiting(true);
       setAudio({ tracks: [], selected: -1 });
-      const onError = (message: string) => { setWaiting(false); setError(message); };
+      setAudioLabels({});
+      setWaitingForAudio(false);
+
+      const failHls = (message: string, audioUnavailable?: boolean) => {
+        if (cancelled || controller.signal.aborted) return;
+        controller.abort();
+        media.pause();
+        hlsRef.current?.destroy();
+        hlsRef.current = null;
+        setWaitingForAudio(false);
+        setWaiting(false);
+        setError(audioUnavailable ? `Не удалось загрузить аудиодорожку. ${message}` : message);
+      };
       void getVideoAudioTracks(video.id, controller.signal).then(tracks => {
-        if (!cancelled) setAudioLabels(Object.fromEntries(tracks.map(track => [track.id, track.title?.trim() || track.language])));
+        if (!cancelled && !controller.signal.aborted) {
+          setAudioLabels(Object.fromEntries(tracks.map(track => [track.id, track.title?.trim() || track.language])));
+        }
       }).catch(() => { /* Manifest labels remain available. */ });
       void import("./hlsPlayback").then(({ attachHls }) => {
         if (cancelled) return;
         hlsRef.current = attachHls(media, getHlsMasterUrl(video.id), (tracks, selected) => {
-          if (!cancelled) setAudio({ tracks, selected });
-        }, message => { if (!cancelled) onError(message); });
-      }).catch(() => { if (!cancelled) onError("Не удалось загрузить HLS-плеер."); });
+          if (!cancelled && !controller.signal.aborted) setAudio({ tracks, selected });
+        }, failHls, waiting => { if (!cancelled) setWaitingForAudio(waiting); });
+      }).catch(() => failHls("Не удалось загрузить HLS-плеер."));
+
       cleanup = () => {
         controller.abort();
         hlsRef.current?.destroy();
@@ -1544,7 +1563,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
       }).catch(() => { if (!cancelled) media.src = video.streamUrl; });
     } else media.src = video.streamUrl;
     return () => { cancelled = true; cleanup?.(); };
-  }, [video.id, video.streamUrl, video.path, video.title, video.sizeBytes, useHls, playbackAttempt]);
+  }, [video.id, video.streamUrl, video.path, video.title, video.sizeBytes, isMkv, playbackAttempt]);
   const [speed, setSpeed] = useState(1);
   const [ambient, setAmbient] = useState(() => {
     try { return localStorage.getItem("vault-player-ambient") !== "off"; } catch { return true; }
@@ -1554,13 +1573,13 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
   const selectedAudio = audio.tracks.find(track => track.index === audio.selected);
   const settingsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!waiting || error) {
+    if (!isBuffering || error) {
       setSlowLoading(false);
       return;
     }
     const timer = window.setTimeout(() => setSlowLoading(true), 15000);
     return () => window.clearTimeout(timer);
-  }, [waiting, error]);
+  }, [isBuffering, error]);
   useEffect(() => {
     try { localStorage.setItem("vault-player-ambient", ambient ? "on" : "off"); } catch { /* Session preference remains usable. */ }
   }, [ambient]);
@@ -1761,9 +1780,9 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
     const media = mediaRef.current;
     if (!media) return;
     if (media.paused) void media.play().catch((playError: unknown) => {
+      if (playError instanceof DOMException && playError.name === "AbortError") return;
       setWaiting(false);
       setPlaying(false);
-      if (playError instanceof DOMException && playError.name === "AbortError") return;
       setError("Не удалось начать воспроизведение. Проверьте соединение и формат видео или попробуйте ещё раз.");
     });
     else media.pause();
@@ -1833,7 +1852,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
         <VideoProblemControl key={video.id} id={video.id} title={video.title} getTime={() => mediaRef.current?.currentTime ?? 0} />
       </header>
 
-      <section className={`player-surface custom-player ${controlsVisible || playerSettings || !playing || waiting || error ? "controls-visible" : ""} ${forcedLandscape ? "forced-landscape" : ""} ${isAppFullscreen ? "app-fullscreen" : ""}`} ref={stageRef}
+      <section className={`player-surface custom-player ${controlsVisible || playerSettings || !playing || isBuffering || error ? "controls-visible" : ""} ${forcedLandscape ? "forced-landscape" : ""} ${isAppFullscreen ? "app-fullscreen" : ""}`} ref={stageRef}
         tabIndex={0} aria-label="Видеоплеер" onPointerMove={revealControls} onFocus={revealControls}
         onKeyDown={(event) => {
           if (event.key === "Escape" && playerSettings) {
@@ -1886,12 +1905,17 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
             onWaiting={() => setWaiting(true)} onPlaying={() => setWaiting(false)}
             onCanPlay={() => setWaiting(false)} onEnded={() => setPlaying(false)}
             onError={event => {
+              setWaitingForAudio(false);
               setWaiting(false);
+              if (isMkv) {
+                setError(current => current || "Не удалось воспроизвести MKV через HLS.");
+                return;
+              }
               const code = event.currentTarget.error?.code;
               setError(code === 2 ? "Ошибка сети при загрузке видео. Проверьте соединение и попробуйте ещё раз." : code === 3 ? "Браузер не смог декодировать видео. Возможно, файл повреждён или использует неподдерживаемый кодек." : "Не удалось открыть видео. Проверьте доступность файла и поддерживаемый формат.");
             }} />
-          {waiting && !error && <div className="player-loading" role="status"><RefreshCw className="spin" size={22} /><span>{slowLoading ? "Загрузка занимает больше времени. Проверьте соединение или попробуйте снова." : "Загрузка видео"}</span></div>}
-          {!waiting && !error && (controlsVisible || !playing) && (
+          {isBuffering && !error && <div className="player-loading" role="status"><RefreshCw className="spin" size={22} /><span>{waitingForAudio ? "Загрузка аудиодорожки" : slowLoading ? "Загрузка занимает больше времени. Проверьте соединение или попробуйте снова." : "Загрузка видео"}</span></div>}
+          {!isBuffering && !error && (controlsVisible || !playing) && (
             <button className="center-play" onClick={() => { togglePlayback(); revealControls(); }} aria-label={playing ? "Пауза" : "Воспроизвести"}>
               {playing ? <Pause size={34} fill="currentColor" /> : <Play size={38} fill="currentColor" />}
             </button>
@@ -1931,7 +1955,7 @@ function PlayerPage({ video, onBack }: { video: VideoFile; onBack: () => void })
                   <span>Фоновая подсветка</span><span className={ambient ? "player-switch enabled" : "player-switch"} aria-hidden="true" />
                 </button>
                 <button onClick={() => setPlayerSettings("speed")}><span>Скорость</span><span>{speed}×</span><ChevronRight size={16} /></button>
-                {useHls && audio.tracks.length > 0 && <button onClick={() => setPlayerSettings("audio")}>
+                {isMkv && audio.tracks.length > 0 && <button onClick={() => setPlayerSettings("audio")}>
                   <span>Аудиодорожка</span>
                   {selectedAudio && <span className="player-setting-value" title={audioLabel(selectedAudio)}>{audioLabel(selectedAudio)}</span>}
                   <ChevronRight size={16} />
@@ -2275,6 +2299,7 @@ function AdminPage({
             disabled={updatingPosterId !== null || deletingVideoId !== null}
             onVideoChange={changePoster}
             onVideoDelete={deleteVideoItem}
+            onVideoDeleted={onVideoDeleted}
             onFileDeleted={onFileDeleted}
           />
         </section>
@@ -2292,6 +2317,7 @@ function AdminMediaManager({
   disabled,
   onVideoChange,
   onVideoDelete,
+  onVideoDeleted,
   onFileDeleted
 }: {
   folders: VaultFolder[];
@@ -2302,6 +2328,7 @@ function AdminMediaManager({
   disabled: boolean;
   onVideoChange: (video: VideoFile, file: File) => void;
   onVideoDelete: (video: VideoFile) => Promise<boolean>;
+  onVideoDeleted: (videoId: string) => void;
   onFileDeleted: (fileId: string) => void;
 }) {
   const sortedFolders = useMemo(
@@ -2312,52 +2339,85 @@ function AdminMediaManager({
     const rootFolders = sortedFolders.filter((folder) => folder.isRoot);
     return rootFolders.length > 0 ? rootFolders : sortedFolders;
   }, [sortedFolders]);
-  const [folderId, setFolderId] = useState("");
-  const [entries, setEntries] = useState<FileBrowserEntry[]>([]);
+  const [rootId, setRootId] = useState("");
+  const [subfolderId, setSubfolderId] = useState("");
+  const [loadedEntries, setLoadedEntries] = useState<{ folderId: string; entries: FileBrowserEntry[] } | null>(null);
   const [query, setQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [loading, setLoading] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [selectedKeys, setSelectedKeys] = useState(new Set<string>());
+  const [deletingSelection, setDeletingSelection] = useState(false);
+  const requestVersion = useRef(0);
+
+  const root = selectableFolders.find((folder) => folder.id === rootId);
+  const subfolders = useMemo(
+    () => root ? sortedFolders.filter((folder) => !folder.isRoot && folder.id !== root.id && folder.rootFolderId === root.id) : [],
+    [root, sortedFolders]
+  );
+  const rootPath = root && `${root.path.replace(/\\/g, "/").replace(/\/+$/, "")}/`;
+  const activeSubfolder = subfolders.find((folder) => folder.id === subfolderId);
+  const folderId = activeSubfolder?.id ?? root?.id ?? "";
+  const getSubfolderLabel = (folder: VaultFolder) => {
+    const path = folder.path.replace(/\\/g, "/");
+    return rootPath && path.startsWith(rootPath) ? path.slice(rootPath.length) : folder.name;
+  };
+  const subfolderLabel = activeSubfolder ? getSubfolderLabel(activeSubfolder) : "Весь корень";
 
   useEffect(() => {
-    if (folderId && selectableFolders.some((folder) => folder.id === folderId)) return;
-    const firstFolder = selectableFolders[0];
-    setFolderId(firstFolder?.id ?? "");
-  }, [folderId, selectableFolders]);
+    if (rootId && !root) setRootId("");
+    if (subfolderId && !activeSubfolder) setSubfolderId("");
+    if ((rootId && !root) || (subfolderId && !activeSubfolder)) setSelectedKeys(new Set());
+  }, [root, rootId, activeSubfolder, subfolderId]);
 
   const loadMedia = useCallback(async () => {
+    const version = ++requestVersion.current;
+    setError("");
     if (!folderId) {
-      setEntries([]);
+      setLoadedEntries(null);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
-    setError("");
     try {
-      setEntries(await getFolderEntries(folderId));
+      const next = await getFolderEntries(folderId);
+      if (version === requestVersion.current) setLoadedEntries({ folderId, entries: next });
     } catch (nextError) {
-      setEntries([]);
+      if (version !== requestVersion.current) return;
+      setLoadedEntries(null);
       setError(nextError instanceof Error ? nextError.message : "Не удалось загрузить файлы и видео.");
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }, [folderId]);
 
   useEffect(() => {
     void loadMedia();
+    return () => { requestVersion.current++; };
   }, [loadMedia]);
+
+  const availableEntries = useMemo(() => {
+    const items = new Map<string, AdminMediaEntry>();
+    if (loadedEntries?.folderId === folderId) {
+      for (const entry of loadedEntries.entries) {
+        if (entry.type !== "folder") items.set(adminMediaKey(entry), entry);
+      }
+    }
+    for (const video of videos) {
+      if (!folderId || video.parentFolderId === folderId || (!activeSubfolder && video.folderId === folderId)) {
+        items.set(`video-${video.id}`, { type: "video", video });
+      }
+    }
+    return [...items.values()];
+  }, [activeSubfolder, folderId, loadedEntries, videos]);
 
   const mediaEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
-    const currentVideos = new Map(videos.map((video) => [video.id, video]));
 
-    return entries
-      .filter((entry) => entry.type === "file" || entry.type === "video")
-      .map((entry) => entry.type === "video"
-        ? { ...entry, video: currentVideos.get(entry.video.id) ?? entry.video }
-        : entry)
+    return availableEntries
       .filter((entry) => {
         if (!normalizedQuery) return true;
         const values = entry.type === "video"
@@ -2366,7 +2426,65 @@ function AdminMediaManager({
         return values.some((value) => value?.toLocaleLowerCase().includes(normalizedQuery));
       })
       .sort((left, right) => compareFileEntries(left, right, sortField, sortDirection));
-  }, [entries, query, sortDirection, sortField, videos]);
+  }, [availableEntries, query, sortDirection, sortField]);
+
+  const selectedEntries = availableEntries.filter(entry => selectedKeys.has(adminMediaKey(entry)));
+  const busy = disabled || loading || deletingSelection || deletingFileId !== null;
+  const selectRoot = (id: string) => {
+    if (id === rootId && !subfolderId) return;
+    setRootId(id);
+    setSubfolderId("");
+    setSelectedKeys(new Set());
+  };
+  const selectSubfolder = (id: string) => {
+    if (id === subfolderId) return;
+    setSubfolderId(id);
+    setSelectedKeys(new Set());
+  };
+  const toggleSelection = (key: string) => setSelectedKeys(current => {
+    const next = new Set(current);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
+  const removeEntry = (key: string) => {
+    setLoadedEntries(current => current && {
+      ...current,
+      entries: current.entries.filter(entry => entry.type === "folder" || adminMediaKey(entry) !== key)
+    });
+    setSelectedKeys(current => {
+      const next = new Set(current);
+      next.delete(key);
+      return next;
+    });
+  };
+  const removeSelected = async () => {
+    if (busy || !selectedEntries.length) return;
+    if (!window.confirm(`Удалить выбранные объекты из медиатеки (${selectedEntries.length})?`)) return;
+    setDeletingSelection(true);
+    setError("");
+    const failures: string[] = [];
+    try {
+      for (const entry of selectedEntries) {
+        try {
+          if (entry.type === "video") {
+            await deleteMediaVideo(entry.video.id);
+            onVideoDeleted(entry.video.id);
+          } else {
+            await deleteMediaFile(entry.file.id);
+            onFileDeleted(entry.file.id);
+          }
+          removeEntry(adminMediaKey(entry));
+        } catch (nextError) {
+          const name = entry.type === "video" ? entry.video.title : getFileDisplayName(entry.file);
+          failures.push(`${name} — ${nextError instanceof Error ? nextError.message : "ошибка удаления"}`);
+        }
+      }
+      if (failures.length) setError(`Не удалось удалить ${failures.length} из ${selectedEntries.length}. ${failures.join("; ")}`);
+    } finally {
+      setDeletingSelection(false);
+    }
+  };
 
   const removeFile = async (file: SharedFile) => {
     const displayName = getFileDisplayName(file);
@@ -2376,7 +2494,7 @@ function AdminMediaManager({
     setError("");
     try {
       await deleteMediaFile(file.id);
-      setEntries((current) => current.filter((entry) => entry.type !== "file" || entry.file.id !== file.id));
+      removeEntry(`file-${file.id}`);
       onFileDeleted(file.id);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Не удалось удалить файл.");
@@ -2387,7 +2505,7 @@ function AdminMediaManager({
 
   const removeVideo = async (video: VideoFile) => {
     if (!await onVideoDelete(video)) return;
-    setEntries((current) => current.filter((entry) => entry.type !== "video" || entry.video.id !== video.id));
+    removeEntry(`video-${video.id}`);
   };
 
   return (
@@ -2395,18 +2513,23 @@ function AdminMediaManager({
       <header className="poster-manager-header">
         <div>
           <h2>Файлы и видео</h2>
-          <span>{mediaEntries.length} объектов в выбранной папке</span>
+          <span>{mediaEntries.length} объектов</span>
         </div>
       </header>
 
-      <nav className="admin-folder-strip" aria-label="Папка медиатеки">
+      <nav className="admin-folder-strip" aria-label="Корневая папка медиатеки">
+        <button type="button" className={!root ? "selected" : ""} aria-pressed={!root}
+          disabled={busy} onClick={() => selectRoot("")}>
+          <FileVideo size={16} /><span>Все видео</span>
+        </button>
         {selectableFolders.map((folder) => (
           <button
             type="button"
             key={folder.id}
-            className={folderId === folder.id ? "selected" : ""}
-            aria-pressed={folderId === folder.id}
-            onClick={() => setFolderId(folder.id)}
+            className={root?.id === folder.id ? "selected" : ""}
+            aria-pressed={root?.id === folder.id}
+            disabled={busy}
+            onClick={() => selectRoot(folder.id)}
             title={folder.path || folder.name}
           >
             <Folder size={16} />
@@ -2415,6 +2538,43 @@ function AdminMediaManager({
           </button>
         ))}
       </nav>
+
+      {root && subfolders.length > 0 && (
+        <details className="sort-menu admin-sort-menu admin-folder-menu">
+          <summary aria-label={`Вложенная папка: ${subfolderLabel}`} title={subfolderLabel}>
+            <FolderOpen size={18} />
+            <span>{subfolderLabel}</span>
+            <ChevronDown size={16} />
+          </summary>
+          <div className="sort-options">
+            {[null, ...subfolders].map((folder) => {
+              const id = folder?.id ?? "";
+              const selected = id === (activeSubfolder?.id ?? "");
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  className={selected ? "selected" : ""}
+                  aria-pressed={selected}
+                  disabled={busy}
+                  onClick={(event) => {
+                    selectSubfolder(id);
+                    const menu = event.currentTarget.closest("details");
+                    if (menu) {
+                      menu.open = false;
+                      menu.querySelector("summary")?.focus();
+                    }
+                  }}
+                >
+                  <Folder size={16} />
+                  <span>{folder ? getSubfolderLabel(folder) : "Весь корень"}</span>
+                  {selected && <Check size={16} />}
+                </button>
+              );
+            })}
+          </div>
+        </details>
+      )}
 
       <div className="admin-file-controls">
         <label className="admin-video-search">
@@ -2465,8 +2625,22 @@ function AdminMediaManager({
         >
           {sortDirection === "asc" ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
         </button>
-        <button className="icon-button" type="button" onClick={() => void loadMedia()} disabled={loading} title="Обновить медиатеку">
+        {folderId && <button className="icon-button" type="button" onClick={() => void loadMedia()} disabled={busy} title="Обновить медиатеку">
           <RefreshCw className={loading ? "spin" : undefined} size={18} />
+        </button>}
+      </div>
+
+      <div className="admin-media-selection">
+        <span aria-live="polite">Выбрано: {selectedEntries.length}</span>
+        <button className="ghost-button" type="button" disabled={busy || !mediaEntries.length}
+          onClick={() => setSelectedKeys(current => new Set([...current, ...mediaEntries.map(adminMediaKey)]))}>
+          Выделить результаты
+        </button>
+        <button className="ghost-button" type="button" disabled={busy || !selectedEntries.length}
+          onClick={() => setSelectedKeys(new Set())}>Снять выделение</button>
+        <button className="ghost-button admin-media-remove" type="button" disabled={busy || !selectedEntries.length}
+          onClick={() => void removeSelected()}>
+          <Trash2 size={16} />{deletingSelection ? "Удаление…" : "Удалить выбранные"}
         </button>
       </div>
 
@@ -2480,7 +2654,9 @@ function AdminMediaManager({
           updatingPosterId={updatingPosterId}
           deletingVideoId={deletingVideoId}
           deletingFileId={deletingFileId}
-          disabled={disabled || deletingFileId !== null}
+          disabled={busy}
+          selectedKeys={selectedKeys}
+          onToggleSelection={toggleSelection}
           onVideoChange={onVideoChange}
           onVideoDelete={(video) => void removeVideo(video)}
           onFileDelete={(file) => void removeFile(file)}
@@ -2492,6 +2668,10 @@ function AdminMediaManager({
 
 type AdminMediaEntry = Exclude<FileBrowserEntry, { type: "folder" }>;
 
+function adminMediaKey(entry: AdminMediaEntry) {
+  return entry.type === "video" ? `video-${entry.video.id}` : `file-${entry.file.id}`;
+}
+
 function VirtualAdminMediaGrid({
   entries,
   scrollContainerRef,
@@ -2499,6 +2679,8 @@ function VirtualAdminMediaGrid({
   deletingVideoId,
   deletingFileId,
   disabled,
+  selectedKeys,
+  onToggleSelection,
   onVideoChange,
   onVideoDelete,
   onFileDelete
@@ -2509,6 +2691,8 @@ function VirtualAdminMediaGrid({
   deletingVideoId: string | null;
   deletingFileId: string | null;
   disabled: boolean;
+  selectedKeys: ReadonlySet<string>;
+  onToggleSelection: (key: string) => void;
   onVideoChange: (video: VideoFile, file: File) => void;
   onVideoDelete: (video: VideoFile) => void;
   onFileDelete: (file: SharedFile) => void;
@@ -2569,7 +2753,10 @@ function VirtualAdminMediaGrid({
       scroller.removeEventListener("scroll", scheduleMeasure);
       window.removeEventListener("scroll", scheduleMeasure);
       window.removeEventListener("resize", scheduleMeasure);
-      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
     };
   }, [entries.length, measure, scrollContainerRef]);
 
@@ -2594,11 +2781,13 @@ function VirtualAdminMediaGrid({
         const index = firstIndex + sliceIndex;
         const row = Math.floor(index / columns);
         const column = index % columns;
-        const key = entry.type === "video" ? `video-${entry.video.id}` : `file-${entry.file.id}`;
+        const key = adminMediaKey(entry);
+        const selected = selectedKeys.has(key);
+        const title = entry.type === "video" ? entry.video.title : getFileDisplayName(entry.file);
 
         return (
           <div
-            className="admin-media-virtual-cell"
+            className={selected ? "admin-media-virtual-cell selected" : "admin-media-virtual-cell"}
             key={key}
             style={{
               width: columnWidth,
@@ -2606,6 +2795,10 @@ function VirtualAdminMediaGrid({
               transform: `translate3d(${column * (columnWidth + gap)}px, ${row * rowHeight}px, 0)`
             }}
           >
+            <label className="admin-media-select" title={`Выделить ${title}`}>
+              <input type="checkbox" aria-label={`Выделить ${title}`} checked={selected}
+                disabled={disabled} onChange={() => onToggleSelection(key)} />
+            </label>
             {entry.type === "video" ? (
               <AdminPosterRow
                 video={entry.video}

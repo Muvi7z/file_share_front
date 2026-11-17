@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.localvideovault.tv9fresh"
-    android:versionCode="1"
-    android:versionName="1.0.3-tv9-fresh" >
+    android:versionCode="2"
+    android:versionName="1.0.4-tv9-fresh" >
 
     <uses-sdk
         android:minSdkVersion="21"
@@ -43,6 +43,10 @@
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>

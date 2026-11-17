@@ -1,0 +1,32 @@
+<variant
+    name="workingDebug"
+    package="com.localvideovault.mobile"
+    minSdkVersion="24"
+    targetSdkVersion="35"
+    debuggable="true"
+    mergedManifest="build\intermediates\merged_manifest\workingDebug\processWorkingDebugMainManifest\AndroidManifest.xml"
+    proguardFiles="build\intermediates\default_proguard_files\global\proguard-android-optimize.txt-9.2.1"
+    partialResultsDir="build\intermediates\lint_partial_results\workingDebug\lintAnalyzeWorkingDebug\out"
+    desugaredMethodsFiles="C:\Users\Ochir\.gradle\caches\9.4.1\transforms\9b1b48e6dfff527b0444b7832c0806fa\transformed\D8BackportedDesugaredMethods.txt">
+  <buildFeatures/>
+  <sourceProviders>
+    <sourceProvider
+        manifests="src\main\AndroidManifest.xml"
+        javaDirectories="src\main\java;src\working\java;src\debug\java;src\workingDebug\java;src\main\kotlin;src\working\kotlin;src\debug\kotlin;src\workingDebug\kotlin"
+        resDirectories="src\main\res;src\working\res;src\debug\res;src\workingDebug\res"
+        assetsDirectories="src\main\assets;src\working\assets;src\debug\assets;src\workingDebug\assets"
+        keepRulesDirectories="src\main\keepRules;src\working\keepRules;src\debug\keepRules;src\workingDebug\keepRules"/>
+  </sourceProviders>
+  <testSourceProviders>
+  </testSourceProviders>
+  <testFixturesSourceProviders>
+  </testFixturesSourceProviders>
+  <artifact
+      classOutputs="build\intermediates\javac\workingDebug\compileWorkingDebugJavaWithJavac\classes;build\intermediates\compile_and_runtime_r_class_jar\workingDebug\processWorkingDebugResources\R.jar"
+      type="MAIN"
+      applicationId="com.localvideovault.mobile"
+      generatedSourceFolders="build\generated\ap_generated_sources\workingDebug\out"
+      generatedResourceFolders="build\generated\res\resValues\working\debug"
+      desugaredMethodsFiles="C:\Users\Ochir\.gradle\caches\9.4.1\transforms\9b1b48e6dfff527b0444b7832c0806fa\transformed\D8BackportedDesugaredMethods.txt">
+  </artifact>
+</variant>

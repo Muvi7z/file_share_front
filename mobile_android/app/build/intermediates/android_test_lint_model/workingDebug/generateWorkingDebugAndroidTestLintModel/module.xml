@@ -1,0 +1,27 @@
+<lint-module
+    format="1"
+    dir="C:\Users\Ochir\Documents\file_share\mobile_android\app"
+    name=":app"
+    type="APP"
+    maven="LocalVideoVaultMobile:app:unspecified"
+    agpVersion="9.2.1"
+    buildFolder="build"
+    bootClassPath="C:\Users\Ochir\AppData\Local\Android\Sdk\platforms\android-35\android.jar;C:\Users\Ochir\AppData\Local\Android\Sdk\build-tools\36.0.0\core-lambda-stubs.jar"
+    javaSourceLevel="11"
+    compileTarget="android-35"
+    neverShrinking="true"
+    highlightGradualR8Api="false">
+  <lintOptions
+      disable="ExpiredTargetSdkVersion"
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true">
+    <severities>
+      <severity
+        id="ExpiredTargetSdkVersion"
+        severity="IGNORE" />
+    </severities>
+  </lintOptions>
+  <variant name="workingDebug"/>
+</lint-module>

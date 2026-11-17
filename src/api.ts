@@ -263,7 +263,7 @@ export async function browseServerFolders(path: string | null): Promise<ServerFo
 
 
 export async function getVideos(): Promise<VideoFile[]> {
-  return requestArray<VideoFile>("/videos", { retryWithoutAuth: true });
+  return requestArray<VideoFile>("/videos/", { retryWithoutAuth: true });
 }
 
 export async function getVideo(videoId: string): Promise<VideoFile> {
@@ -295,7 +295,7 @@ export async function updateVideoPoster(videoId: string, poster: File): Promise<
 }
 
 export async function getFolders(): Promise<Folder[]> {
-  const payload = await requestArray<Folder & { videosCount?: number }>("/folders", { retryWithoutAuth: true });
+  const payload = await requestArray<Folder & { videosCount?: number }>("/folders/", { retryWithoutAuth: true });
   return payload.map(normalizeFolder);
 }
 
@@ -331,7 +331,7 @@ export async function loginAdmin(login: string, password: string): Promise<Admin
 }
 
 export async function addFolder(path: string): Promise<{ folder: Folder }> {
-  const payload = await request<{ folder: Folder & { videosCount?: number } }>("/folders", {
+  const payload = await request<{ folder: Folder & { videosCount?: number } }>("/folders/", {
     method: "POST",
     body: JSON.stringify({ path })
   });

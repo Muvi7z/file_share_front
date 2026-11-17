@@ -391,6 +391,18 @@ library {
 library {
   maven_library {
     groupId: "androidx.media3"
+    artifactId: "media3-exoplayer-hls"
+    version: "1.5.1"
+  }
+  digests {
+    sha256: "\214>\274\310\367\262\205\252\336c\315\326\027!%m\266\363\222\351}\t\306\306\023\031o\210\205\310\274\r"
+  }
+  repo_index {
+  }
+}
+library {
+  maven_library {
+    groupId: "androidx.media3"
     artifactId: "media3-extractor"
     version: "1.5.1"
   }
@@ -469,7 +481,7 @@ library_dependencies {
   library_dep_index: 24
   library_dep_index: 26
   library_dep_index: 31
-  library_dep_index: 32
+  library_dep_index: 33
   library_dep_index: 25
 }
 library_dependencies {
@@ -558,6 +570,7 @@ library_dependencies {
   library_dep_index: 0
   library_dep_index: 32
   library_dep_index: 33
+  library_dep_index: 34
 }
 library_dependencies {
   library_index: 19
@@ -626,46 +639,52 @@ library_dependencies {
 library_dependencies {
   library_index: 32
   library_dep_index: 1
+  library_dep_index: 0
+}
+library_dependencies {
+  library_index: 33
+  library_dep_index: 1
   library_dep_index: 18
   library_dep_index: 24
   library_dep_index: 31
 }
 library_dependencies {
-  library_index: 33
-  library_dep_index: 18
-  library_dep_index: 34
-  library_dep_index: 1
-  library_dep_index: 35
-}
-library_dependencies {
   library_index: 34
+  library_dep_index: 18
+  library_dep_index: 35
   library_dep_index: 1
-  library_dep_index: 6
-  library_dep_index: 7
-  library_dep_index: 7
+  library_dep_index: 36
 }
 library_dependencies {
   library_index: 35
   library_dep_index: 1
   library_dep_index: 6
   library_dep_index: 7
-  library_dep_index: 36
-  library_dep_index: 37
+  library_dep_index: 7
 }
 library_dependencies {
   library_index: 36
   library_dep_index: 1
+  library_dep_index: 6
   library_dep_index: 7
+  library_dep_index: 37
+  library_dep_index: 38
 }
 library_dependencies {
   library_index: 37
+  library_dep_index: 1
+  library_dep_index: 7
+}
+library_dependencies {
+  library_index: 38
   library_dep_index: 16
   library_dep_index: 3
 }
 module_dependencies {
   module_name: "base"
   dependency_index: 0
-  dependency_index: 33
+  dependency_index: 32
+  dependency_index: 34
   dependency_index: 27
   dependency_index: 28
 }

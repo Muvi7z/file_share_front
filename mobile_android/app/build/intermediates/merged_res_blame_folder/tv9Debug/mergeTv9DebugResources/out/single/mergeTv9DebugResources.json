@@ -16,6 +16,10 @@
         "source": "C:\\Users\\Ochir\\.gradle\\daemon\\9.4.1\\com.localvideovault.mobile.app-main-15:\\drawable\\ic_grid_tv.xml"
     },
     {
+        "merged": "com.localvideovault.mobile.app-tv9Debug-13:/drawable-nodpi_vault_glass_background.jpg.flat",
+        "source": "com.localvideovault.mobile.app-main-15:/drawable-nodpi/vault_glass_background.jpg"
+    },
+    {
         "merged": "C:\\Users\\Ochir\\.gradle\\daemon\\9.4.1\\com.localvideovault.mobile.app-tv9Debug-13:\\drawable-nodpi_windows_11_green.jpg.flat",
         "source": "C:\\Users\\Ochir\\.gradle\\daemon\\9.4.1\\com.localvideovault.mobile.app-main-15:\\drawable-nodpi\\windows_11_green.jpg"
     },
@@ -86,10 +90,6 @@
     {
         "merged": "C:\\Users\\Ochir\\.gradle\\daemon\\9.4.1\\com.localvideovault.mobile.app-tv9Debug-13:\\drawable-anydpi-v24_ic_folder_tv.xml.flat",
         "source": "C:\\Users\\Ochir\\.gradle\\daemon\\9.4.1\\com.localvideovault.mobile.app-tv9-9:\\drawable-anydpi-v24\\ic_folder_tv.xml"
-    },
-    {
-        "merged": "com.localvideovault.mobile.app-tv9Debug-13:/drawable-nodpi_windows_11_green.jpg.flat",
-        "source": "com.localvideovault.mobile.app-main-15:/drawable-nodpi/windows_11_green.jpg"
     },
     {
         "merged": "C:\\Users\\Ochir\\.gradle\\daemon\\9.4.1\\com.localvideovault.mobile.app-tv9Debug-13:\\drawable-xxhdpi_ic_folder_tv.png.flat",

@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 9.2.1" type="incidents">
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="536"
+            column="20"
+            startOffset="21440"
+            endLine="536"
+            endColumn="74"
+            endOffset="21494"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="538"
+            column="16"
+            startOffset="21521"
+            endLine="538"
+            endColumn="58"
+            endOffset="21563"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="553"
+            column="15"
+            startOffset="21961"
+            endLine="553"
+            endColumn="59"
+            endOffset="22005"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="554"
+            column="15"
+            startOffset="22020"
+            endLine="554"
+            endColumn="59"
+            endOffset="22064"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="1171"
+            column="75"
+            startOffset="47831"
+            endLine="1171"
+            endColumn="86"
+            endOffset="47842"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="1175"
+            column="81"
+            startOffset="48099"
+            endLine="1175"
+            endColumn="92"
+            endOffset="48110"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="1181"
+            column="72"
+            startOffset="48505"
+            endLine="1181"
+            endColumn="83"
+            endOffset="48516"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/data/VaultRepository.java"
+            line="51"
+            column="63"
+            startOffset="1616"
+            endLine="51"
+            endColumn="74"
+            endOffset="1627"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/data/VaultRepository.java"
+            line="58"
+            column="104"
+            startOffset="2034"
+            endLine="58"
+            endColumn="115"
+            endOffset="2045"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/data/VaultRepository.java"
+            line="67"
+            column="63"
+            startOffset="2393"
+            endLine="67"
+            endColumn="74"
+            endOffset="2404"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/data/VaultRepository.java"
+            line="74"
+            column="72"
+            startOffset="2791"
+            endLine="74"
+            endColumn="83"
+            endOffset="2802"/>
+    </incident>
+
+    <incident
+        id="DefaultLocale"
+        severity="warning"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/data/VaultRepository.java"
+            line="83"
+            column="83"
+            startOffset="3228"
+            endLine="83"
+            endColumn="94"
+            endOffset="3239"/>
+    </incident>
+
+    <incident
+        id="OldTargetApi"
+        severity="warning"
+        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details.">
+        <fix-replace
+            description="Update targetSdkVersion to 37"
+            oldString="35"
+            replacement="37"
+            priority="0"/>
+        <location
+            file="${:app*projectDir}/build.gradle"
+            line="12"
+            column="9"
+            startOffset="215"
+            endLine="12"
+            endColumn="21"
+            endOffset="227"/>
+    </incident>
+
+    <incident
+        id="VectorRaster"
+        severity="warning"
+        message="Limit vector icons sizes to 200×200 to keep icon drawing fast; see https://developer.android.com/studio/write/vector-asset-studio#when for more">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*resDir*0}/drawable/tv_banner.xml"
+            line="3"
+            column="20"
+            startOffset="125"
+            endLine="3"
+            endColumn="25"
+            endOffset="130"/>
+    </incident>
+
+    <incident
+        id="AndroidGradlePluginVersion"
+        severity="warning"
+        message="A newer version of Gradle than 9.4.1 is available: 9.9.1">
+        <fix-replace
+            description="Update to 9.9.1"
+            oldString="9.4.1"
+            replacement="9.9.1"
+            priority="0"/>
+        <location
+            file="$HOME/Documents/file_share/mobile_android/gradle/wrapper/gradle-wrapper.properties"
+            line="3"
+            column="17"
+            startOffset="81"
+            endLine="3"
+            endColumn="80"
+            endOffset="144"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of `compileSdk` than 35 is available: 37">
+        <fix-replace
+            description="Set compileSdk to 37"
+            oldString="35"
+            replacement="37"
+            priority="0"/>
+        <location
+            file="${:app*projectDir}/build.gradle"
+            line="7"
+            column="5"
+            startOffset="103"
+            endLine="7"
+            endColumn="18"
+            endOffset="116"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.media3:media3-exoplayer than 1.5.1 is available: 1.11.1">
+        <fix-replace
+            description="Change to 1.11.1"
+            family="Update versions"
+            oldString="1.5.1"
+            replacement="1.11.1"
+            priority="0"/>
+        <location
+            file="${:app*projectDir}/build.gradle"
+            line="73"
+            column="20"
+            startOffset="1576"
+            endLine="73"
+            endColumn="60"
+            endOffset="1616"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.media3:media3-exoplayer-hls than 1.5.1 is available: 1.11.1">
+        <fix-replace
+            description="Change to 1.11.1"
+            family="Update versions"
+            oldString="1.5.1"
+            replacement="1.11.1"
+            priority="0"/>
+        <location
+            file="${:app*projectDir}/build.gradle"
+            line="74"
+            column="20"
+            startOffset="1636"
+            endLine="74"
+            endColumn="64"
+            endOffset="1680"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.media3:media3-ui than 1.5.1 is available: 1.11.1">
+        <fix-replace
+            description="Change to 1.11.1"
+            family="Update versions"
+            oldString="1.5.1"
+            replacement="1.11.1"
+            priority="0"/>
+        <location
+            file="${:app*projectDir}/build.gradle"
+            line="75"
+            column="20"
+            startOffset="1700"
+            endLine="75"
+            endColumn="53"
+            endOffset="1733"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.media3:media3-datasource-okhttp than 1.5.1 is available: 1.11.1">
+        <fix-replace
+            description="Change to 1.11.1"
+            family="Update versions"
+            oldString="1.5.1"
+            replacement="1.11.1"
+            priority="0"/>
+        <location
+            file="${:app*projectDir}/build.gradle"
+            line="76"
+            column="20"
+            startOffset="1753"
+            endLine="76"
+            endColumn="68"
+            endOffset="1801"/>
+    </incident>
+
+    <incident
+        id="NewerVersionAvailable"
+        severity="warning"
+        message="A newer version of com.squareup.okhttp3:okhttp than 4.12.0 is available: 5.5.1">
+        <fix-replace
+            description="Change to 5.5.1"
+            family="Update versions"
+            oldString="4.12.0"
+            replacement="5.5.1"
+            priority="0"/>
+        <location
+            file="${:app*projectDir}/build.gradle"
+            line="77"
+            column="20"
+            startOffset="1821"
+            endLine="77"
+            endColumn="56"
+            endOffset="1857"/>
+    </incident>
+
+    <incident
+        id="InsecureBaseConfiguration"
+        severity="warning"
+        message="Insecure Base Configuration">
+        <fix-replace
+            description="Replace with false"
+            replacement="false"
+            priority="0">
+            <range
+                file="${:app*workingDebug*MAIN*sourceProvider*0*resDir*0}/xml/network_security_config.xml"
+                startOffset="109"
+                endOffset="113"/>
+        </fix-replace>
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*resDir*0}/xml/network_security_config.xml"
+            line="3"
+            column="45"
+            startOffset="109"
+            endLine="3"
+            endColumn="49"
+            endOffset="113"/>
+    </incident>
+
+    <incident
+        id="NotShrinkingResources"
+        severity="warning"
+        message="Avoid setting shrinkResources = false">
+        <fix-replace
+            description="Replace with true"
+            oldPattern="(false)"
+            replacement="true"
+            priority="0"/>
+        <location
+            file="${:app*projectDir}/build.gradle"
+            line="63"
+            column="29"
+            startOffset="1457"
+            endLine="63"
+            endColumn="34"
+            endOffset="1462"/>
+    </incident>
+
+    <incident
+        id="MonochromeLauncherIcon"
+        severity="warning"
+        message="The application adaptive icon is missing a monochrome tag">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*resDir*0}/mipmap-anydpi-v26/ic_launcher.xml"
+            line="2"
+            column="1"
+            startOffset="39"
+            endLine="5"
+            endColumn="17"
+            endOffset="266"/>
+    </incident>
+
+    <incident
+        id="ClickableViewAccessibility"
+        severity="warning"
+        message="Custom view ``ImageView`` has `setOnTouchListener` called on it but does not override `performClick`">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="1428"
+            column="9"
+            startOffset="59891"
+            endLine="1428"
+            endColumn="73"
+            endOffset="59955"/>
+    </incident>
+
+    <incident
+        id="ClickableViewAccessibility"
+        severity="warning"
+        message="`onTouch` lambda should call `View#performClick` when a click is detected">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="1428"
+            column="34"
+            startOffset="59916"
+            endLine="1428"
+            endColumn="72"
+            endOffset="59954"/>
+    </incident>
+
+    <incident
+        id="SetTextI18n"
+        severity="warning"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders.">
+        <location
+            file="${:app*workingDebug*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="2411"
+            column="34"
+            startOffset="104341"
+            endLine="2411"
+            endColumn="90"
+            endOffset="104397"/>
+    </incident>
+
+</incidents>

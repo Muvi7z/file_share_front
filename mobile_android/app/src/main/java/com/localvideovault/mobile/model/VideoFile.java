@@ -15,6 +15,7 @@ public class VideoFile {
     public final String posterUrl;
     public final String streamUrl;
     public final String path;
+    public final String extension;
 
     public VideoFile(
         String id,
@@ -30,7 +31,8 @@ public class VideoFile {
         String resolution,
         String posterUrl,
         String streamUrl,
-        String path
+        String path,
+        String extension
     ) {
         this.id = id;
         this.title = title;
@@ -46,5 +48,11 @@ public class VideoFile {
         this.posterUrl = posterUrl;
         this.streamUrl = streamUrl;
         this.path = path;
+        this.extension = extension.trim().replaceFirst("^\\.", "");
+    }
+
+    public boolean usesHls() {
+        if (!extension.isEmpty()) return "mkv".equalsIgnoreCase(extension);
+        return path.toLowerCase(java.util.Locale.ROOT).endsWith(".mkv");
     }
 }

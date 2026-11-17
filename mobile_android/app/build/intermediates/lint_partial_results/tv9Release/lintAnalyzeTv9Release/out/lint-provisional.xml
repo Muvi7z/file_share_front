@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 9.2.1" type="conditional_incidents">
+
+    <incident
+        id="GestureBackNavigation"
+        severity="warning"
+        message="`onBackPressed` is no longer called for back gestures; migrate to AndroidX&apos;s backward compatible `OnBackPressedDispatcher`">
+        <show-url
+            description="Show https://developer.android.com/guide/navigation/custom-back/predictive-back-gesture"
+            url="https://developer.android.com/guide/navigation/custom-back/predictive-back-gesture"/>
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="205"
+            column="17"
+            startOffset="8183"
+            endLine="205"
+            endColumn="30"
+            endOffset="8196"/>
+    </incident>
+
+    <incident
+        id="UnusedAttribute"
+        severity="warning"
+        message="">
+        <fix-data minSdk="21-∞" requiresApi="24-∞"/>
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*manifest*0}"
+            line="13"
+            column="9"
+            startOffset="622"
+            endLine="13"
+            endColumn="69"
+            endOffset="682"/>
+        <map>
+            <entry
+                name="message"
+                string="Attribute `networkSecurityConfig` is only used in API level 24 and higher (current min is %1$s)"/>
+            <api-levels id="minSdk"
+                value="21-∞"/>
+            <api-levels id="requiresApi"
+                value="24-∞"/>
+        </map>
+    </incident>
+
+    <incident
+        id="UnusedAttribute"
+        severity="warning"
+        message="">
+        <fix-data minSdk="21-∞" requiresApi="23-∞"/>
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*manifest*0}"
+            line="15"
+            column="9"
+            startOffset="731"
+            endLine="15"
+            endColumn="44"
+            endOffset="766"/>
+        <map>
+            <entry
+                name="message"
+                string="Attribute `usesCleartextTraffic` is only used in API level 23 and higher (current min is %1$s)"/>
+            <api-levels id="minSdk"
+                value="21-∞"/>
+            <api-levels id="requiresApi"
+                value="23-∞"/>
+        </map>
+    </incident>
+
+    <incident
+        id="VectorRaster"
+        severity="warning"
+        message="">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*resDir*0}/drawable/ic_admin_tv.xml"
+            line="8"
+            column="28"
+            startOffset="258"
+            endLine="8"
+            endColumn="54"
+            endOffset="284"/>
+        <map>
+            <entry
+                name="containsFillType"
+                boolean="false"/>
+            <entry
+                name="containsGradient"
+                boolean="false"/>
+            <entry
+                name="folderVersion"
+                int="-1"/>
+            <entry
+                name="message"
+                string="Resource references will not work correctly in images generated for this vector icon for API &lt; %1$d; check generated icon to make sure it looks acceptable"/>
+        </map>
+    </incident>
+
+    <incident
+        id="VectorRaster"
+        severity="warning"
+        message="">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*resDir*0}/drawable/ic_brand_tv.xml"
+            line="8"
+            column="28"
+            startOffset="258"
+            endLine="8"
+            endColumn="54"
+            endOffset="284"/>
+        <map>
+            <entry
+                name="containsFillType"
+                boolean="false"/>
+            <entry
+                name="containsGradient"
+                boolean="false"/>
+            <entry
+                name="folderVersion"
+                int="-1"/>
+            <entry
+                name="message"
+                string="Resource references will not work correctly in images generated for this vector icon for API &lt; %1$d; check generated icon to make sure it looks acceptable"/>
+        </map>
+    </incident>
+
+    <incident
+        id="VectorRaster"
+        severity="warning"
+        message="">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*resDir*0}/drawable/ic_brand_tv.xml"
+            line="15"
+            column="28"
+            startOffset="533"
+            endLine="15"
+            endColumn="54"
+            endOffset="559"/>
+        <map>
+            <entry
+                name="containsFillType"
+                boolean="false"/>
+            <entry
+                name="containsGradient"
+                boolean="false"/>
+            <entry
+                name="folderVersion"
+                int="-1"/>
+            <entry
+                name="message"
+                string="Resource references will not work correctly in images generated for this vector icon for API &lt; %1$d; check generated icon to make sure it looks acceptable"/>
+        </map>
+    </incident>
+
+    <incident
+        id="VectorRaster"
+        severity="warning"
+        message="">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*resDir*0}/drawable/ic_folder_tv.xml"
+            line="8"
+            column="28"
+            startOffset="258"
+            endLine="8"
+            endColumn="54"
+            endOffset="284"/>
+        <map>
+            <entry
+                name="containsFillType"
+                boolean="false"/>
+            <entry
+                name="containsGradient"
+                boolean="false"/>
+            <entry
+                name="folderVersion"
+                int="-1"/>
+            <entry
+                name="message"
+                string="Resource references will not work correctly in images generated for this vector icon for API &lt; %1$d; check generated icon to make sure it looks acceptable"/>
+        </map>
+    </incident>
+
+    <incident
+        id="VectorRaster"
+        severity="warning"
+        message="">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*resDir*0}/drawable/ic_launcher_foreground.xml"
+            line="8"
+            column="30"
+            startOffset="409"
+            endLine="8"
+            endColumn="56"
+            endOffset="435"/>
+        <map>
+            <entry
+                name="containsFillType"
+                boolean="false"/>
+            <entry
+                name="containsGradient"
+                boolean="false"/>
+            <entry
+                name="folderVersion"
+                int="-1"/>
+            <entry
+                name="message"
+                string="Resource references will not work correctly in images generated for this vector icon for API &lt; %1$d; check generated icon to make sure it looks acceptable"/>
+        </map>
+    </incident>
+
+    <incident
+        id="VectorRaster"
+        severity="warning"
+        message="">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*resDir*0}/drawable/ic_video_tv.xml"
+            line="8"
+            column="28"
+            startOffset="258"
+            endLine="8"
+            endColumn="54"
+            endOffset="284"/>
+        <map>
+            <entry
+                name="containsFillType"
+                boolean="false"/>
+            <entry
+                name="containsGradient"
+                boolean="false"/>
+            <entry
+                name="folderVersion"
+                int="-1"/>
+            <entry
+                name="message"
+                string="Resource references will not work correctly in images generated for this vector icon for API &lt; %1$d; check generated icon to make sure it looks acceptable"/>
+        </map>
+    </incident>
+
+    <incident
+        id="VectorRaster"
+        severity="warning"
+        message="">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*resDir*0}/drawable/tv_banner.xml"
+            line="9"
+            column="30"
+            startOffset="488"
+            endLine="9"
+            endColumn="56"
+            endOffset="514"/>
+        <map>
+            <entry
+                name="containsFillType"
+                boolean="false"/>
+            <entry
+                name="containsGradient"
+                boolean="false"/>
+            <entry
+                name="folderVersion"
+                int="-1"/>
+            <entry
+                name="message"
+                string="Resource references will not work correctly in images generated for this vector icon for API &lt; %1$d; check generated icon to make sure it looks acceptable"/>
+        </map>
+    </incident>
+
+    <incident
+        id="RtlHardcoded"
+        severity="warning"
+        message="Use &quot;`Gravity.START`&quot; instead of &quot;`Gravity.LEFT`&quot; to ensure correct behavior in right-to-left locales">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="776"
+            column="119"
+            startOffset="31738"
+            endLine="776"
+            endColumn="123"
+            endOffset="31742"/>
+        <map>
+            <entry
+                name="applies"
+                int="2"/>
+        </map>
+    </incident>
+
+    <incident
+        id="RtlHardcoded"
+        severity="warning"
+        message="Use &quot;`Gravity.END`&quot; instead of &quot;`Gravity.RIGHT`&quot; to ensure correct behavior in right-to-left locales">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="1505"
+            column="132"
+            startOffset="63969"
+            endLine="1505"
+            endColumn="137"
+            endOffset="63974"/>
+        <map>
+            <entry
+                name="applies"
+                int="2"/>
+        </map>
+    </incident>
+
+    <incident
+        id="RtlHardcoded"
+        severity="warning"
+        message="Use &quot;`Gravity.END`&quot; instead of &quot;`Gravity.RIGHT`&quot; to ensure correct behavior in right-to-left locales">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="1774"
+            column="114"
+            startOffset="75529"
+            endLine="1774"
+            endColumn="119"
+            endOffset="75534"/>
+        <map>
+            <entry
+                name="applies"
+                int="2"/>
+        </map>
+    </incident>
+
+    <incident
+        id="RtlHardcoded"
+        severity="warning"
+        message="Use &quot;`Gravity.START`&quot; instead of &quot;`Gravity.LEFT`&quot; to ensure correct behavior in right-to-left locales">
+        <location
+            file="${:app*tv9Release*MAIN*sourceProvider*0*javaDir*0}/com/localvideovault/mobile/MainActivity.java"
+            line="2103"
+            column="39"
+            startOffset="90305"
+            endLine="2103"
+            endColumn="43"
+            endOffset="90309"/>
+        <map>
+            <entry
+                name="applies"
+                int="2"/>
+        </map>
+    </incident>
+
+</incidents>

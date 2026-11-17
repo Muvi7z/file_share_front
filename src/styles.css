@@ -1454,6 +1454,57 @@ dd {
   gap: 8px;
 }
 
+.admin-media-selection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.admin-media-selection .ghost-button {
+  min-height: 34px;
+}
+
+.admin-media-selection .admin-media-remove:not(:disabled) {
+  color: #ffaaa4;
+}
+
+.admin-media-virtual-cell .admin-media-select {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #ffffff40;
+  border-radius: 6px;
+  background: #141818ed;
+  cursor: pointer;
+}
+
+.admin-media-select input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #d6ff6f;
+}
+
+.admin-media-virtual-cell.selected .poster-video-card {
+  outline: 2px solid #d6ff6f;
+  outline-offset: -2px;
+}
+
+.theme-glass .admin-media-select input {
+  accent-color: white;
+}
+
+.theme-glass .admin-media-virtual-cell.selected .poster-video-card {
+  outline-color: white;
+}
+
 .admin-folder-strip {
   display: flex;
   min-width: 0;
@@ -1510,15 +1561,34 @@ dd {
   flex: 1 1 280px;
 }
 
-.admin-file-controls select {
-  width: min(320px, 34vw);
-  min-width: 180px;
-  min-height: 42px;
-  padding: 0 10px;
-  border: 1px solid #ccd8d4;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #182126;
+.admin-folder-menu {
+  width: min(320px, 100%);
+}
+
+.admin-folder-menu[open] {
+  z-index: 13;
+}
+
+.admin-folder-menu summary > span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-folder-menu .sort-options {
+  left: 0;
+  right: auto;
+  width: 100%;
+  max-height: min(320px, 45vh);
+  overflow-y: auto;
+}
+
+.admin-folder-menu .sort-options button {
+  overflow-wrap: anywhere;
+}
+
+.admin-folder-menu svg {
+  flex-shrink: 0;
 }
 
 .admin-media-virtual-grid {
@@ -1895,7 +1965,6 @@ dd {
   color: #090909;
 }
 
-.theme-glass.page-admin .admin-file-controls select,
 .theme-glass.page-admin .admin-video-search,
 .theme-glass.page-admin .admin-sort-menu summary,
 .theme-glass.page-admin .admin-sort-direction,
@@ -2071,6 +2140,10 @@ dd {
   border-color: rgba(255, 255, 255, 0.2);
   background: rgba(12, 12, 14, 0.86);
   backdrop-filter: blur(18px) saturate(110%);
+}
+
+.theme-glass.page-admin .account-center .admin-folder-menu .sort-options {
+  background: #101012;
 }
 
 .theme-glass.page-admin .account-center .admin-sort-menu .sort-options button:hover,
@@ -2453,11 +2526,6 @@ dd {
 
   .admin-file-controls {
     width: 100%;
-  }
-
-  .admin-file-controls select {
-    width: 100%;
-    min-width: 0;
   }
 
   .admin-file-controls .admin-video-search {

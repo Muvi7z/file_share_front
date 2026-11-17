@@ -12,6 +12,7 @@ MERGED from [androidx.media3:media3-datasource:1.5.1] C:\Users\Ochir\.gradle\cac
 MERGED from [androidx.media3:media3-decoder:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\0dbea23a6bb47f30606d1f6a65838bef\transformed\media3-decoder-1.5.1\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.media3:media3-database:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\d15a61a854fb93ded10c807eb4f1650f\transformed\media3-database-1.5.1\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.media3:media3-common:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\6054a915585907460143b40d75171945\transformed\media3-common-1.5.1\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.media3:media3-exoplayer-hls:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\a02644c85878d70e06bdfe9aef3bc77f\transformed\media3-exoplayer-hls-1.5.1\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.media3:media3-exoplayer:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\e37e7315cfeab6e71b1c469999f13684\transformed\media3-exoplayer-1.5.1\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.media:media:1.7.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\190ba93aa01e088e8fbe9ea9fb496d8f\transformed\media-1.7.0\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.recyclerview:recyclerview:1.3.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\91b6baf2ff3ffbba66cf620f594aac20\transformed\recyclerview-1.3.0\AndroidManifest.xml:17:1-22:12
@@ -125,6 +126,8 @@ MERGED from [androidx.media3:media3-database:1.5.1] C:\Users\Ochir\.gradle\cache
 MERGED from [androidx.media3:media3-database:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\d15a61a854fb93ded10c807eb4f1650f\transformed\media3-database-1.5.1\AndroidManifest.xml:20:5-44
 MERGED from [androidx.media3:media3-common:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\6054a915585907460143b40d75171945\transformed\media3-common-1.5.1\AndroidManifest.xml:20:5-44
 MERGED from [androidx.media3:media3-common:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\6054a915585907460143b40d75171945\transformed\media3-common-1.5.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-hls:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\a02644c85878d70e06bdfe9aef3bc77f\transformed\media3-exoplayer-hls-1.5.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-hls:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\a02644c85878d70e06bdfe9aef3bc77f\transformed\media3-exoplayer-hls-1.5.1\AndroidManifest.xml:20:5-44
 MERGED from [androidx.media3:media3-exoplayer:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\e37e7315cfeab6e71b1c469999f13684\transformed\media3-exoplayer-1.5.1\AndroidManifest.xml:20:5-44
 MERGED from [androidx.media3:media3-exoplayer:1.5.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\e37e7315cfeab6e71b1c469999f13684\transformed\media3-exoplayer-1.5.1\AndroidManifest.xml:20:5-44
 MERGED from [androidx.media:media:1.7.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\190ba93aa01e088e8fbe9ea9fb496d8f\transformed\media-1.7.0\AndroidManifest.xml:5:5-44
