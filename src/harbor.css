@@ -1,0 +1,17 @@
+.harbor-page {min-height:100svh;display:flex;flex-direction:column;background:#191e1e;color:#faf3e5}
+.harbor-nav {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px clamp(20px,5%,84px);border-bottom:1px solid #ffffff14}
+.harbor-nav strong {display:inline-flex;align-items:center;gap:12px;font-size:19px}
+.harbor-nav strong svg {color:#ffc269}
+.harbor-main {flex:1;display:grid;place-items:center;padding:48px 24px 16px}
+.harbor-access {width:min(100%,360px);color:#faf3e5}
+.harbor-access h1 {margin:0 0 32px;font-size:36px;line-height:1.12;font-weight:650}
+.harbor-access form,.harbor-access label {display:grid;gap:18px}
+.harbor-access label {gap:8px;font-size:14px;font-weight:550;color:#e3e3d9}
+.harbor-access input {height:46px;width:100%;background:#252c2c;color:#fff;border:1px solid #53605e;border-radius:7px;padding:0 12px}
+.harbor-access input:focus-visible,.harbor-access button:focus-visible {outline:2px solid #ffbf64;outline-offset:3px}
+.harbor-access .harbor-submit {margin-top:4px;height:46px;background:#ffc269;color:#23211b;font-weight:650;border-radius:7px}
+.harbor-access .harbor-submit:hover {background:#ffd293}
+.harbor-access > p {margin:22px 0 0;color:#bfcbc5;font-size:14px}
+.harbor-access > p button {background:none;border:0;color:#ffd293;font:inherit;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.harbor-scene {display:block;width:100%;height:auto;pointer-events:none}
+@media(max-width:650px){.harbor-access h1{font-size:30px}.harbor-scene{height:auto;aspect-ratio:3.8;object-fit:cover}.harbor-main{padding-block:36px}.harbor-nav{padding:16px 20px}}

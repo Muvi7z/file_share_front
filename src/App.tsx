@@ -833,30 +833,49 @@ function App() {
   }, [playerQueue, filteredVideos, videos, selectedVideo]);
 
   if (page === "login" || (page === "admin" && !session)) {
-    return <div className="theme-classic dark auth-screen">
-      <header className="auth-header"><div className="auth-brand"><span><MonitorPlay size={22} /></span><strong>Video Vault</strong></div></header>
-      <div className="auth-back">
-        <Button variant="ghost" onClick={() => openPage(loginFromFiles ? "files" : "videos")}>
-          <ArrowLeft size={16} />{loginFromFiles ? "К файлам" : "В медиатеку"}
-        </Button>
-      </div>
-      <main className="auth-main">
-        <div className="auth-form-panel">
-          <svg className="auth-panel-art auth-panel-art-top" viewBox="0 0 240 220" fill="none" aria-hidden="true">
-            <path d="M240 10C110 10 10 110 10 240M240 36C124 36 36 124 36 240M240 62C140 62 62 140 62 240" stroke="currentColor" strokeWidth="2" />
-            <path d="M240 100a140 140 0 0 0-140 140h48a92 92 0 0 1 92-92Z" fill="currentColor" />
-          </svg>
-          <div className="auth-window"><AuthForm onLogin={handleLogin} /></div>
-          <svg className="auth-panel-art auth-panel-art-bottom" viewBox="0 0 360 170" fill="none" aria-hidden="true">
-            <path d="M0 170C70 40 150 40 220 100s105 30 140-10v80Z" fill="#bc7939" />
-            <path d="M0 170C95 75 150 85 220 130s105 10 140-15v55Z" fill="#e6bb77" />
-            <path d="M0 170C95 120 140 120 210 155s115-5 150-15v30Z" fill="#656745" />
-            <circle cx="310" cy="38" r="20" fill="#e8b259" />
-            <path d="m246 26 3 10 10 3-10 3-3 10-3-10-10-3 10-3Z" fill="#e6bb77" />
-          </svg>
-        </div>
-        <div className="auth-mural-window" aria-hidden="true" />
-      </main>
+    return <div className="theme-classic dark harbor-page">
+      <header className="harbor-nav"><strong><MonitorPlay size={23} /> Video Vault</strong>
+        <Button variant="ghost" onClick={() => openPage(loginFromFiles ? "files" : "videos")}><ArrowLeft size={16} />Назад</Button>
+      </header>
+      <main className="harbor-main"><AuthForm onLogin={handleLogin} /></main>
+      <svg className="harbor-scene" viewBox="0 0 1440 270" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
+        <defs><linearGradient id="harbor-lantern"><stop stopColor="#ffcb80" stopOpacity=".26"/><stop offset="1" stopColor="#ffcb80" stopOpacity="0"/></linearGradient></defs>
+        <path d="M202 23 844 67 844 124 202 31Z" fill="url(#harbor-lantern)"/>
+        <circle cx="1110" cy="86" r="43" fill="#ffd598"/>
+        <path d="M0 164Q140 108 272 144T570 144Q700 106 858 145T1190 131Q1320 99 1440 107V270H0Z" fill="#364846"/>
+        <path d="M0 166Q260 140 508 163T1030 161T1440 153V270H0Z" fill="#486663"/>
+        <path d="m1109 163-65 5 109 2-81 6 54 2-40 6 12 2-45 6 80-5-19-3 40-8-30-2 49-8Z" fill="#cbac75"/>
+        <g transform="translate(789 193)">
+          <path d="m-36 3 65 1-8 3-53-1Zm9 9 41-1 7 2-33 1Zm17 8 18-2 5 2-19 2Z" fill="#d09c77" opacity=".55"/>
+          <path d="M-32-4q15-21 27-68L-7-8Z" fill="#db896b"/>
+          <path d="M-3-73Q17-49 26-16L-3-9Z" fill="#efd9b2"/>
+          <path d="M-3-73Q4-42 0-10l-3 1Z" fill="#c8b599"/>
+          <path d="M-4-78v74" stroke="#3b3933" strokeWidth="2"/>
+          <path d="m-5-78-14 3 14 2Z" fill="#f1b761"/>
+          <path d="m-40-6 73-3-12 12h-48Z" fill="#293532"/>
+          <path d="m-40-6 73-3-3 3-65 3Z" fill="#dbb084"/>
+        </g>
+        <path d="m0 121 111-12 107 17 81 26 92 12 69 23-89 4-72-9-145 12L0 175Z" fill="#87664f"/>
+        <path d="m0 139 122-8 93 11 79 25 97 10 69 10-98 11-132-5-86 12L0 196Z" fill="#414442"/>
+        <g>
+          <path d="m184 43-9 106q18 5 37 0l-9-106Z" fill="#efd6ac"/>
+          <path d="m181 77 25-8 2 20-29 9Z" fill="#bd6c50"/>
+          <path d="m199 44 4-1 9 106-10 2Z" fill="#654934" opacity=".22"/>
+          <path d="M192 57q2-4 4 0v7h-4Zm-1 46q2-4 4 0v7h-4Zm-2 47v-12a5 5 0 0 1 10 0v12Z" fill="#564b42"/>
+          <path d="M173 149q20 4 41 0v5q-20 4-41 0Z" fill="#c4a484"/>
+          <path d="m179 39 29 0-5 6h-19Z" fill="#965d46"/>
+          <path d="M184 19h19v18h-19Z" fill="#ffc877"/>
+          <path d="m194 21 3 6-3 6-3-6Z" fill="#fff0bd"/>
+          <path d="M185 20v16m17-16v16m-14-16v16" stroke="#675044" strokeWidth="1.7"/>
+          <path d="m180 19 13-10 14 10v2h-27Z" fill="#b66e53"/>
+          <path d="m193 9 14 10h-8Z" fill="#885340"/>
+          <path d="M193 9V5m-15 33v-7h31v7m-25-7v7m19-7v7" fill="none" stroke="#987d68" strokeWidth="1.6"/>
+          <path d="M176 37h35v3h-35Z" fill="#685448"/>
+        </g>
+        <path d="m174 124-38-4v-20h38z" fill="#d5b590"/><path d="m130 101 16-16 34 4-5 14Z" fill="#a5654c"/>
+        <path d="m0 216 91-10 79 8 89 23 117 11 58 22H0Zm1440-39-97 12-76 33-97 10-106 38h376Z" fill="#283634"/>
+        <g fill="none" stroke="#85a49a" strokeWidth="2" strokeLinecap="round"><path d="M468 194h53m12 0h13m162-15h38m-156 46h75m264-25h47m-151 44h92m302-55h32"/></g>
+      </svg>
     </div>;
   }
 

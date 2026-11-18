@@ -1,3 +1,4 @@
+import "./harbor.css";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Ban, Check, CircleX, Clock3, X, Users, Inbox, Folder, LogOut, RefreshCw, Trash2, Save, Shield, KeyRound } from "lucide-react";
 import { changePassword, deleteAccount, getAccounts, getInactiveAccountStatus, loginAdmin, registerUser, revokeSessions, updateAccount, type InactiveAccountStatus } from "./api";
@@ -112,14 +113,20 @@ export function AuthForm({ onLogin }: { onLogin: (value: AdminSession) => void }
       else { onLogin(await loginAdmin(login.trim(), password)); }
     } catch (err) { const nextStatus = getInactiveAccountStatus(err); if (nextStatus) setAccountStatus(nextStatus); else setError(message(err)); } finally { setBusy(false); }
   }
-  return <section className="account-center auth-center"><p className="eyebrow">VIDEO VAULT</p><h1>{register ? "Создать аккаунт" : "Вход в аккаунт"}</h1>
-    <p className="auth-intro">{register ? "Отправьте заявку, чтобы присоединиться к медиатеке." : "Рады видеть вас снова. Войдите в свою медиатеку."}</p>
-    <div className="account-tabs"><Button disabled={busy} aria-current={!register ? "page" : undefined} onClick={() => { setRegister(false); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Вход</Button><Button disabled={busy} aria-current={register ? "page" : undefined} onClick={() => { setRegister(true); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Регистрация</Button></div>
-    <form className="account-form" onSubmit={submit}><label>Логин<Input name="login" required autoComplete="username" maxLength={64} value={login} onChange={event => { setLogin(event.target.value); setAccountStatus(null); }} /></label>
-      <label>Пароль<Input name="password" type="password" required autoComplete={register ? "new-password" : "current-password"} value={password} onChange={event => { setPassword(event.target.value); setAccountStatus(null); }} /></label>
-      {register && <label>Повторите пароль<Input name="confirm" type="password" required autoComplete="new-password" value={confirm} onChange={event => setConfirm(event.target.value)} /></label>}
-      {error && <p className="error" role="alert">{error}</p>}{notice && <p className="account-notice" role="status">{notice}</p>}{accountStatus && <AccountAuthStatus status={accountStatus} />}
-      <Button className="primary-button" disabled={busy}>{busy ? "Отправка…" : register ? "Отправить заявку" : "Войти"}</Button></form></section>;
+  function switchMode() {
+    setRegister(!register); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null);
+  }
+  return <section className="harbor-access">
+    <h1>{register ? "Новый аккаунт" : "С возвращением"}</h1>
+    <form onSubmit={submit}>
+      <label>Имя пользователя<Input name="login" required autoComplete="username" maxLength={64} value={login} onChange={e => { setLogin(e.target.value); setAccountStatus(null); }} /></label>
+      <label>Пароль<Input name="password" type="password" required autoComplete={register ? "new-password" : "current-password"} value={password} onChange={e => { setPassword(e.target.value); setAccountStatus(null); }} /></label>
+      {register && <label>Пароль ещё раз<Input name="confirm" type="password" required autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} /></label>}
+      {error && <p className="error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{accountStatus && <AccountAuthStatus status={accountStatus} />}
+      <Button className="harbor-submit" disabled={busy}>{busy ? "Подождите…" : register ? "Запросить доступ" : "Войти"}</Button>
+    </form>
+    <p>{register ? "Уже есть аккаунт?" : "Впервые здесь?"} <button type="button" disabled={busy} onClick={switchMode}>{register ? "Перейти ко входу" : "Создать аккаунт"}</button></p>
+  </section>;
 }
 
 function AccountRow({ account, self, busy, onSave, onDelete, onRevoke }: {
