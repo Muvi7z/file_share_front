@@ -32,9 +32,15 @@ import {
   ArrowLeft,
   ArrowUp,
   CalendarDays,
+  Clock3,
   ChevronRight,
   Download,
   File as FileIcon,
+  FileArchive,
+  FileAudio,
+  FileCode2,
+  FileSpreadsheet,
+  FileText,
   FileVideo,
   Folder,
   FolderOpen,
@@ -49,6 +55,7 @@ import {
   MonitorPlay,
   Pencil,
   Play,
+  Presentation,
   SkipBack,
   SkipForward,
   RefreshCw,
@@ -56,7 +63,7 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
-  Shield,
+  LogIn,
   Smartphone,
   Monitor,
   Trash2,
@@ -236,6 +243,8 @@ function toUnknownFolderVideoEntry(video: VideoFile, knownFolderIds: Set<string>
 
 type RouteState = {
   page: Page;
+  loginFromFiles: boolean;
+  playerFromVideos: boolean;
   currentFolderId: string | null;
   selectedFolder: string;
   query: string;
@@ -337,6 +346,8 @@ function readRouteState(): RouteState {
 
   return {
     page: page === "files" || page === "player" || page === "admin" || page === "settings" || page === "login" ? page : "videos",
+    loginFromFiles: page === "login" && params.get("from") === "files",
+    playerFromVideos: page === "player" && params.get("from") === "videos",
     currentFolderId: params.get("folder"),
     selectedFolder: params.get("selected") || "all",
     query: params.get("q") || "",
@@ -351,7 +362,7 @@ function readRouteState(): RouteState {
 function App() {
   const [initialRouteState] = useState(readRouteState);
   const contentRef = useRef<HTMLElement | null>(null);
-  const playerReturnPageRef = useRef<Page>(initialRouteState.page === "player" ? "files" : initialRouteState.page);
+  const playerReturnPageRef = useRef<Page>(initialRouteState.playerFromVideos ? "videos" : "files");
   const returnScrollTopRef = useRef(0);
   const pendingScrollRestoreRef = useRef<number | null>(null);
   const [videos, setVideos] = useState<VideoFile[]>([]);
@@ -359,6 +370,7 @@ function App() {
   const [fileEntries, setFileEntries] = useState<FileBrowserEntry[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialRouteState.currentFolderId);
   const [page, setPage] = useState<Page>(initialRouteState.page);
+  const [loginFromFiles, setLoginFromFiles] = useState(initialRouteState.loginFromFiles);
   const [showBackToTop, setShowBackToTop] = useState(false);
   useEffect(() => {
     const content = contentRef.current;
@@ -422,6 +434,7 @@ function App() {
   }, []);
   const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [playerQueue, setPlayerQueue] = useState<VideoFile[]>([]);
+  const [playlistCollapsed, setPlaylistCollapsed] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(initialRouteState.videoId);
   const [loadError, setLoadError] = useState("");
   const [session, setSession] = useState<AdminSession | null>(() => {
@@ -456,11 +469,14 @@ function App() {
     refreshData();
   }, [refreshData, session]);
 
-  useEffect(() => {
+  const routeSearch = useMemo(() => {
     const params = new URLSearchParams();
 
     if (page !== "videos") {
       params.set("page", page);
+    }
+    if (page === "login" && loginFromFiles) {
+      params.set("from", "files");
     }
     if (currentFolderId) {
       params.set("folder", currentFolderId);
@@ -480,19 +496,27 @@ function App() {
     if (sortDirection !== "asc") {
       params.set("order", sortDirection);
     }
-    if (page === "files" && fileTypeFilter !== "videos") {
+    if ((page === "files" || (page === "login" && loginFromFiles) ||
+      (page === "player" && playerReturnPageRef.current === "files")) && fileTypeFilter !== "videos") {
       params.set("type", fileTypeFilter);
     }
     if (page === "player") {
+      if (playerReturnPageRef.current === "videos") {
+        params.set("from", "videos");
+      }
       const videoId = selectedVideo?.id ?? activeVideoId;
       if (videoId) {
         params.set("video", videoId);
       }
     }
 
-    const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`;
+    return params.toString();
+  }, [activeVideoId, currentFolderId, fileTypeFilter, loginFromFiles, page, query, selectedFolder, selectedVideo, sortDirection, sortField, viewMode]);
+
+  useEffect(() => {
+    const nextUrl = `${window.location.pathname}${routeSearch ? `?${routeSearch}` : ""}${window.location.hash}`;
     window.history.replaceState(null, "", nextUrl);
-  }, [activeVideoId, currentFolderId, fileTypeFilter, page, query, selectedFolder, selectedVideo, sortDirection, sortField, viewMode]);
+  }, [routeSearch]);
 
   useEffect(() => {
     if (page !== "player" || selectedVideo || !activeVideoId) {
@@ -696,7 +720,9 @@ function App() {
   }, [filteredVideos.length, page, visibleFileEntries.length]);
 
   const openPage = (nextPage: Page) => {
-    setPage(nextPage === "admin" && !session ? "login" : nextPage);
+    const destination = nextPage === "admin" && !session ? "login" : nextPage;
+    setLoginFromFiles(destination === "login" && page === "files");
+    setPage(destination);
     setSelectedVideo(null);
     if (nextPage !== "player") {
       setActiveVideoId(null);
@@ -737,7 +763,7 @@ function App() {
   const handleLogin = (nextSession: AdminSession) => {
     localStorage.setItem(sessionStorageKey, JSON.stringify(nextSession));
     setSession(nextSession);
-    openPage("settings");
+    openPage(loginFromFiles ? "files" : "settings");
   };
 
   const handleLogout = () => {
@@ -790,6 +816,13 @@ function App() {
   };
 
   const browsePage = page === "player" ? playerReturnPageRef.current : page;
+  const getVideoHref = (videoId: string) => {
+    const params = new URLSearchParams(routeSearch);
+    params.set("page", "player");
+    params.set("video", videoId);
+    if (browsePage === "videos") params.set("from", "videos");
+    return `?${params}${window.location.hash}`;
+  };
   const pageTitle = browsePage === "files" ? "Все файлы" : "Видеотека";
   const pageEyebrow = browsePage === "files" ? "Проводник" : "VIDEO VAULT / AFTER DARK";
   const playerPlaylist = useMemo(() => {
@@ -801,12 +834,28 @@ function App() {
 
   if (page === "login" || (page === "admin" && !session)) {
     return <div className="theme-classic dark auth-screen">
-      <header className="auth-header">
-        <div className="auth-brand"><span><MonitorPlay size={24} /></span><strong>Video Vault</strong></div>
-        <Button variant="ghost" onClick={() => openPage("videos")}><ArrowLeft size={16} />В медиатеку</Button>
-      </header>
+      <header className="auth-header"><div className="auth-brand"><span><MonitorPlay size={22} /></span><strong>Video Vault</strong></div></header>
+      <div className="auth-back">
+        <Button variant="ghost" onClick={() => openPage(loginFromFiles ? "files" : "videos")}>
+          <ArrowLeft size={16} />{loginFromFiles ? "К файлам" : "В медиатеку"}
+        </Button>
+      </div>
       <main className="auth-main">
-        <div className="auth-window"><div className="auth-emblem"><Lock size={22} /></div><AuthForm onLogin={handleLogin} /></div>
+        <div className="auth-form-panel">
+          <svg className="auth-panel-art auth-panel-art-top" viewBox="0 0 240 220" fill="none" aria-hidden="true">
+            <path d="M240 10C110 10 10 110 10 240M240 36C124 36 36 124 36 240M240 62C140 62 62 140 62 240" stroke="currentColor" strokeWidth="2" />
+            <path d="M240 100a140 140 0 0 0-140 140h48a92 92 0 0 1 92-92Z" fill="currentColor" />
+          </svg>
+          <div className="auth-window"><AuthForm onLogin={handleLogin} /></div>
+          <svg className="auth-panel-art auth-panel-art-bottom" viewBox="0 0 360 170" fill="none" aria-hidden="true">
+            <path d="M0 170C70 40 150 40 220 100s105 30 140-10v80Z" fill="#bc7939" />
+            <path d="M0 170C95 75 150 85 220 130s105 10 140-15v55Z" fill="#e6bb77" />
+            <path d="M0 170C95 120 140 120 210 155s115-5 150-15v30Z" fill="#656745" />
+            <circle cx="310" cy="38" r="20" fill="#e8b259" />
+            <path d="m246 26 3 10 10 3-10 3-3 10-3-10-10-3 10-3Z" fill="#e6bb77" />
+          </svg>
+        </div>
+        <div className="auth-mural-window" aria-hidden="true" />
       </main>
     </div>;
   }
@@ -852,6 +901,7 @@ function App() {
           {visibleRootFolders.map((folder) => (
             <button
               key={folder.id}
+              title={folder.name}
               className={selectedFolder === folder.id ? "active" : ""}
               onClick={() => {
                 setSelectedFolder(folder.id);
@@ -872,7 +922,8 @@ function App() {
 
       <main ref={contentRef} className={page === "player" ? "content player-page" : "content"}>
         {page === "player" && selectedVideo ? (
-          <PlayerPage key={selectedVideo.id} video={selectedVideo} playlist={playerPlaylist} onSelectVideo={openPlayer} onBack={closePlayer} />
+          <PlayerPage key={selectedVideo.id} video={selectedVideo} playlist={playerPlaylist} onSelectVideo={openPlayer} onBack={closePlayer}
+            playlistCollapsed={playlistCollapsed} onPlaylistCollapsedChange={setPlaylistCollapsed} />
         ) : page === "player" ? (
           <section className="empty-folder">
             <MonitorPlay size={34} />
@@ -903,10 +954,12 @@ function App() {
                 <p className="eyebrow">{theme === "classic" ? "Медиатека / " + (browsePage === "files" ? "Файлы" : "Видео") : pageEyebrow}</p>
                 <h1>{pageTitle}</h1>
               </div>
-              <button className="icon-text" onClick={() => openPage(session ? "settings" : "login")}>
-                <Shield size={18} />
+              <Button type="button" variant="outline" className="icon-text browse-account-button"
+                aria-label={session ? `Настройки аккаунта ${session.login}` : undefined}
+                onClick={() => openPage(session ? "settings" : "login")}>
+                {session ? <UserRound aria-hidden="true" /> : <LogIn aria-hidden="true" />}
                 <span>{session ? session.login : "Войти"}</span>
-              </button>
+              </Button>
             </header>
             {loadError && <p className="error app-error">{loadError}</p>}
 
@@ -1040,11 +1093,10 @@ function App() {
                 currentFolder={currentFolder}
                 viewMode={viewMode}
                 fileTypeFilter={fileTypeFilter}
-                canDeleteFiles={isAdminSession}
                 onOpenFolder={(folder) => setCurrentFolderId(folder.id)}
                 onOpenRoot={() => setCurrentFolderId(null)}
                 onOpenVideo={openPlayer}
-                onFileDeleted={handleFileDeleted}
+                getVideoHref={getVideoHref}
               />
             ) : (
               <>
@@ -1058,7 +1110,7 @@ function App() {
 
                 <section className={viewMode === "tiles" ? "video-grid" : "video-list"} aria-label="Видео">
                   {filteredVideos.map((video) => (
-                    <VideoItem key={video.id} video={video} mode={viewMode} onPlay={() => openPlayer(video)} />
+                    <VideoItem key={video.id} video={video} mode={viewMode} href={getVideoHref(video.id)} onPlay={() => openPlayer(video)} />
                   ))}
                 </section>
               </>
@@ -1096,6 +1148,9 @@ function SettingsPanel({ theme, wallpaper, session, onThemeChange, onWallpaperCh
   return <section className="settings-panel settings-page" aria-labelledby="settings-title">
       <header className="settings-header">
         <div><span>VIDEO VAULT</span><h1 id="settings-title">Настройки</h1></div>
+        {session && <Button type="button" variant="outline" className="settings-logout" onClick={onLogout}>
+          <LogOut aria-hidden="true" />Выйти из аккаунта
+        </Button>}
       </header>
 
       <div className="settings-section">
@@ -1140,7 +1195,6 @@ function SettingsPanel({ theme, wallpaper, session, onThemeChange, onWallpaperCh
         <div className="settings-account-card">
           <span className="settings-avatar">{session ? session.login.slice(0, 2).toUpperCase() : <UserRound size={20} />}</span>
           <span><strong>{session?.login ?? "Гость"}</strong><small>{session ? (session.role === "admin" ? "Администратор" : "Пользователь") : "Аккаунт не подключён"}</small></span>
-          {session && <button className="settings-logout" onClick={onLogout} aria-label="Выйти из аккаунта"><LogOut size={18} /></button>}
         </div>
         {session ? <div className="account-center settings-account-form"><PasswordForm /></div> : <Button className="primary-button" onClick={onOpenLogin}>Войти в аккаунт</Button>}
       </div>
@@ -1165,46 +1219,25 @@ function FileBrowser({
   currentFolder,
   viewMode,
   fileTypeFilter,
-  canDeleteFiles,
   onOpenFolder,
   onOpenRoot,
   onOpenVideo,
-  onFileDeleted
+  getVideoHref
 }: {
   entries: FileBrowserEntry[];
   breadcrumbs: VaultFolder[];
   currentFolder: VaultFolder | null;
   viewMode: ViewMode;
   fileTypeFilter: FileTypeFilter;
-  canDeleteFiles: boolean;
   onOpenFolder: (folder: VaultFolder) => void;
   onOpenRoot: () => void;
   onOpenVideo: (video: VideoFile) => void;
-  onFileDeleted: (fileId: string) => void;
+  getVideoHref: (videoId: string) => string;
 }) {
   const [previewFile, setPreviewFile] = useState<SharedFile | null>(null);
-  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState("");
   const folderCount = entries.filter((entry) => entry.type === "folder").length;
   const videoCount = entries.filter((entry) => entry.type === "video").length;
   const fileCount = entries.filter((entry) => entry.type === "file").length;
-
-  const removeFile = async (file: SharedFile) => {
-    const displayName = getFileDisplayName(file);
-    if (!window.confirm(`Удалить файл «${displayName}» из медиатеки? Файл на диске останется без изменений.`)) return;
-
-    setDeletingFileId(file.id);
-    setDeleteError("");
-    try {
-      await deleteMediaFile(file.id);
-      setPreviewFile((current) => current?.id === file.id ? null : current);
-      onFileDeleted(file.id);
-    } catch (nextError) {
-      setDeleteError(nextError instanceof Error ? nextError.message : "Не удалось удалить файл.");
-    } finally {
-      setDeletingFileId(null);
-    }
-  };
 
   return (
     <>
@@ -1225,8 +1258,6 @@ function FileBrowser({
         <span>{fileCount} файлов</span>
       </section>
 
-      {deleteError && <p className="error file-delete-error" role="alert">{deleteError}</p>}
-
       {entries.length === 0 ? (
         <section className="empty-folder">
           <FolderOpen size={34} />
@@ -1239,14 +1270,12 @@ function FileBrowser({
             entry.type === "folder" ? (
               <FolderItem key={entry.folder.id} folder={entry.folder} onOpen={() => onOpenFolder(entry.folder)} />
             ) : entry.type === "video" ? (
-              <VideoItem key={entry.video.id} video={entry.video} mode={viewMode} onPlay={() => onOpenVideo(entry.video)} />
+              <VideoItem key={entry.video.id} video={entry.video} mode={viewMode} href={getVideoHref(entry.video.id)} onPlay={() => onOpenVideo(entry.video)} />
             ) : (
               <FileItem
                 key={entry.file.id}
                 file={entry.file}
                 onPreview={() => setPreviewFile(entry.file)}
-                onDelete={canDeleteFiles ? () => { void removeFile(entry.file); } : undefined}
-                isDeleting={deletingFileId === entry.file.id}
               />
             )
           )}
@@ -1313,11 +1342,28 @@ function getFileDisplaySize(file: Pick<SharedFile, "size" | "sizeBytes">) {
   return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: value >= 10 ? 1 : 2 }).format(value)} ${units[unitIndex]}`;
 }
 
-function FileItem({ file, onPreview, onDelete, isDeleting = false }: {
+const filePreviewIcons = [
+  { icon: FileText, extensions: /^(PDF|DOCX?|ODT|RTF|TXT|MD)$/ },
+  { icon: FileSpreadsheet, extensions: /^(XLSX?|XLSM|ODS|CSV|TSV)$/ },
+  { icon: Presentation, extensions: /^(PPTX?|ODP|KEY)$/ },
+  { icon: FileArchive, extensions: /^(ZIP|7Z|RAR|TAR|GZ|TGZ|BZ2|XZ)$/ },
+  { icon: FileAudio, extensions: /^(MP3|AAC|FLAC|WAV|OGG|OPUS|M4A)$/ },
+  { icon: FileCode2, extensions: /^(HTML?|CSS|JS|TS|JSX|TSX|JSON|XML|YAML|YML|SQL|PY|SH|PS1)$/ }
+];
+
+function FileTypePreview({ extension, mimeType }: { extension: string; mimeType?: string }) {
+  const Icon = filePreviewIcons.find(({ extensions }) => extensions.test(extension))?.icon
+    ?? (mimeType?.toLowerCase().startsWith("audio/") ? FileAudio : FileIcon);
+
+  return <span className="file-type-preview" aria-hidden="true">
+    <span className="file-type-preview-icon"><Icon size={27} strokeWidth={1.7} /></span>
+    <span className="file-type-extension">{extension}</span>
+  </span>;
+}
+
+function FileItem({ file, onPreview }: {
   file: SharedFile;
   onPreview: () => void;
-  onDelete?: () => void;
-  isDeleting?: boolean;
 }) {
   const image = isImageFile(file);
   const extension = getFileExtension(file);
@@ -1331,10 +1377,7 @@ function FileItem({ file, onPreview, onDelete, isDeleting = false }: {
         {image ? (
           <img src={fileUrl} alt="" loading="lazy" />
         ) : (
-          <span className="file-type-preview">
-            <FileIcon size={38} />
-            <b>{extensionLabel}</b>
-          </span>
+          <FileTypePreview extension={extension} mimeType={file.mimeType} />
         )}
       </span>
       <span className="file-copy">
@@ -1351,17 +1394,7 @@ function FileItem({ file, onPreview, onDelete, isDeleting = false }: {
   );
 
   return (
-    <article className="shared-file-card">
-      {onDelete && <button
-        type="button"
-        className="file-delete-button"
-        onClick={onDelete}
-        disabled={isDeleting}
-        title="Удалить из медиатеки"
-        aria-label={`Удалить файл ${displayName}`}
-      >
-        {isDeleting ? <RefreshCw className="spin" size={17} /> : <Trash2 size={17} />}
-      </button>}
+    <article className={image ? "shared-file-card" : "shared-file-card document-file-card"}>
       {image ? (
         <button className="shared-file-open" onClick={onPreview} aria-label={`Открыть изображение ${displayName}`}>
           {content}
@@ -1533,19 +1566,23 @@ function PosterImage({ video }: { video: VideoFile }) {
   );
 }
 
-function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; onPlay: () => void }) {
+function VideoItem({ video, mode, href, onPlay }: { video: VideoFile; mode: ViewMode; href: string; onPlay: () => void }) {
   const duration = formatDuration(video.duration);
 
   return (
     <article className="video-item">
       <VideoProblemBadge id={video.id} />
-      <button className="poster-button" onClick={onPlay} aria-label={`Открыть ${video.title}`}>
+      <a className="poster-button" href={href} rel="noopener" aria-label={`Открыть ${video.title}`} onClick={(event) => {
+        if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        onPlay();
+      }}>
         <PosterImage video={video} />
         <span className="play-badge">
           <Play size={18} fill="currentColor" />
         </span>
         <span className="duration">{duration}</span>
-      </button>
+      </a>
 
       <div className="video-info">
         <div>
@@ -1569,16 +1606,25 @@ function VideoItem({ video, mode, onPlay }: { video: VideoFile; mode: ViewMode; 
   );
 }
 
-function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
+const defaultSeekSeconds = 5;
+
+function PlayerPage({ video, playlist, onSelectVideo, onBack, playlistCollapsed, onPlaylistCollapsedChange }: {
   video: VideoFile;
   playlist: VideoFile[];
   onSelectVideo: (video: VideoFile) => void;
   onBack: () => void;
+  playlistCollapsed: boolean;
+  onPlaylistCollapsedChange: (collapsed: boolean) => void;
 }) {
   const duration = formatDuration(video.duration);
   const mediaRef = useRef<HTMLVideoElement>(null);
   const stageRef = useRef<HTMLElement>(null);
-  const [videoAspect, setVideoAspect] = useState(16 / 9);
+  const topbarRef = useRef<HTMLElement>(null);
+  const [videoAspect, setVideoAspect] = useState(() => {
+    const dimensions = video.resolution?.trim().match(/^(\d+)\s*[x×]\s*(\d+)$/i);
+    const aspect = Number(dimensions?.[1]) / Number(dimensions?.[2]);
+    return Number.isFinite(aspect) && aspect > 0 ? aspect : 16 / 9;
+  });
   const [holdingSpeed, setHoldingSpeed] = useState(false);
   const holdRef = useRef<ReturnType<typeof createHoldToSpeed> | null>(null);
   useEffect(() => {
@@ -1609,22 +1655,28 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
     const media = mediaRef.current;
     const stage = stageRef.current;
     const layout = stage?.closest<HTMLElement>(".watch-layout");
-    if (!media || !stage || !layout) return;
+    const content = layout?.parentElement;
+    const topbar = topbarRef.current;
+    if (!media || !stage || !layout || !content || !topbar) return;
     const updateAspect = () => {
       if (media.videoWidth && media.videoHeight) setVideoAspect(media.videoWidth / media.videoHeight);
     };
     const measure = () => {
-      if (stage.matches(":fullscreen") || stage.classList.contains("app-fullscreen")) return;
-      layout.style.setProperty("--watch-player-height", `${stage.getBoundingClientRect().height}px`);
+      const layoutTop = layout.getBoundingClientRect().top + content.scrollTop + window.scrollY;
+      const bottomPadding = parseFloat(getComputedStyle(content).paddingBottom);
+      const availableHeight = Math.max(120, window.innerHeight - layoutTop - bottomPadding);
+      layout.style.setProperty("--watch-available-height", `${availableHeight}px`);
     };
     updateAspect();
     measure();
     media.addEventListener("loadedmetadata", updateAspect);
     media.addEventListener("resize", updateAspect);
+    window.addEventListener("resize", measure);
     const observer = new ResizeObserver(measure);
-    observer.observe(stage);
+    observer.observe(topbar);
     return () => {
       observer.disconnect();
+      window.removeEventListener("resize", measure);
       media.removeEventListener("loadedmetadata", updateAspect);
       media.removeEventListener("resize", updateAspect);
     };
@@ -1808,8 +1860,8 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
     const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
       play: () => { void mediaRef.current?.play(); },
       pause: () => mediaRef.current?.pause(),
-      seekbackward: (details) => seek(-(details.seekOffset ?? 5)),
-      seekforward: (details) => seek(details.seekOffset ?? 5),
+      seekbackward: (details) => seek(-(details.seekOffset ?? defaultSeekSeconds)),
+      seekforward: (details) => seek(details.seekOffset ?? defaultSeekSeconds),
       previoustrack: previousVideo ? () => onSelectVideo(previousVideo) : undefined,
       nexttrack: nextVideo ? () => onSelectVideo(nextVideo) : undefined
     };
@@ -1960,7 +2012,7 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
       if (tapTimer.current) clearTimeout(tapTimer.current);
       tapTimer.current = null;
       lastTap.current = null;
-      seek(side === "left" ? -5 : 5);
+      seek(side === "left" ? -defaultSeekSeconds : defaultSeekSeconds);
       showTapFeedback(side);
       revealControls();
       return;
@@ -1974,9 +2026,16 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
     }, 320);
   };
 
+  const videoDetails = [
+    { label: "Длительность", value: duration, icon: Clock3 },
+    { label: "Разрешение", value: video.resolution, icon: Monitor },
+    { label: "Кодек", value: video.codec, icon: FileVideo },
+    { label: "Папка", value: video.folderName || video.path, icon: Folder, hint: video.path }
+  ].filter(({ value }) => value);
+
   return (
     <>
-      <header className="player-topbar">
+      <header className="player-topbar" ref={topbarRef}>
         <Button variant="outline" className="player-back-button" onClick={onBack} type="button" aria-label="Вернуться назад">
           <ArrowLeft size={18} />
           <span>Назад</span>
@@ -1984,14 +2043,23 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
         <div>
           <p className="eyebrow">Медиатека / Плеер</p>
           <h1>{video.title}</h1>
-          <span title={video.path}>{video.folderName || video.path}</span>
+          {videoDetails.length > 0 && <dl className="watch-video-details">
+            {videoDetails.map(({ label, value, icon: Icon, hint }) => (
+              <div key={label}>
+                <dt className="visually-hidden">{label}</dt>
+                <dd title={hint || `${label} · ${value}`}>
+                  <Icon size={14} aria-hidden="true" />
+                  <span>{value}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>}
         </div>
         <VideoProblemControl key={video.id} id={video.id} title={video.title} getTime={() => mediaRef.current?.currentTime ?? 0} />
       </header>
 
-      <div className="watch-layout"><div className="watch-main">
+      <div className="watch-layout" style={{ "--video-aspect": videoAspect } as CSSProperties}><div className="watch-main">
       <section className={`player-surface custom-player ${controlsVisible || playerSettings || !playing || isBuffering || error ? "controls-visible" : ""} ${forcedLandscape ? "forced-landscape" : ""} ${isAppFullscreen ? "app-fullscreen" : ""}`} ref={stageRef}
-        style={{ "--video-aspect": videoAspect, "--video-width-limit": `calc(min(70dvh, 760px) * ${videoAspect})` } as CSSProperties}
         tabIndex={0} aria-label="Видеоплеер" onPointerMove={revealControls} onFocus={revealControls}
         onKeyDown={(event) => {
           if (event.key === "Escape" && playerSettings) {
@@ -2007,8 +2075,8 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
           if (event.target !== event.currentTarget && event.target !== mediaRef.current) return;
           if ([" ", "k", "ArrowLeft", "ArrowRight", "f", "m"].includes(event.key)) event.preventDefault();
           if (event.key === " " || event.key === "k") togglePlayback();
-          if (event.key === "ArrowLeft") seek(-10);
-          if (event.key === "ArrowRight") seek(10);
+          if (event.key === "ArrowLeft") seek(-defaultSeekSeconds);
+          if (event.key === "ArrowRight") seek(defaultSeekSeconds);
           if (event.key === "f") void fullscreen();
           if (event.key === "m" && mediaRef.current) mediaRef.current.muted = !mediaRef.current.muted;
           revealControls();
@@ -2080,7 +2148,7 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
           {tapFeedback && (
             <div className={`tap-seek-feedback ${tapFeedback}`} aria-live="polite">
               {tapFeedback === "left" ? <RotateCcw size={28} /> : <RotateCw size={28} />}
-              <span>{tapFeedback === "left" ? "−5" : "+5"}</span>
+              <span>{tapFeedback === "left" ? "−" : "+"}{defaultSeekSeconds}</span>
             </div>
           )}
           {holdingSpeed && <div className="player-speed-hold" role="status"><SkipForward size={16} fill="currentColor" /><span>2x</span></div>}
@@ -2145,26 +2213,9 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack }: {
         </div>}
       </section>
 
-      <section className="player-details">
-        <div>
-          <FileVideo size={18} />
-          <span>{video.codec}</span>
-        </div>
-        <div>
-          <Play size={18} />
-          <span>{duration}</span>
-        </div>
-        <div>
-          <MonitorPlay size={18} />
-          <span>{video.resolution}</span>
-        </div>
-        <div>
-          <Folder size={18} />
-          <span>{video.folderName}</span>
-        </div>
-      </section>
       </div>
       <PlayerPlaylist playlist={playlist} currentIndex={currentIndex} autoplay={autoplayNext} onAutoplayChange={setAutoplayNext}
+        collapsed={playlistCollapsed} onCollapsedChange={onPlaylistCollapsedChange}
         onSelect={onSelectVideo} renderPoster={item => <><PosterImage video={item} /><span>{formatDuration(item.duration)}</span></>} />
       </div>
     </>
@@ -2956,7 +3007,8 @@ function AdminFileTile({
   details: ReactNode;
 }) {
   const [previewFailed, setPreviewFailed] = useState(false);
-  const image = isImageFile(file) && !previewFailed;
+  const imageFile = isImageFile(file);
+  const image = imageFile && !previewFailed;
   const displayName = getFileDisplayName(file);
   const extension = getFileExtension(file);
   const extensionLabel = extension === "ФАЙЛ" ? extension : `.${extension}`;
@@ -2973,12 +3025,12 @@ function AdminFileTile({
             loading="lazy"
             onError={() => setPreviewFailed(true)}
           />
-        ) : (
+        ) : imageFile ? (
           <span className="admin-media-file-type" aria-hidden="true">
-            {isImageFile(file) ? <ImageIcon size={42} /> : <FileIcon size={42} />}
+            <ImageIcon size={42} />
             <b>{extensionLabel}</b>
           </span>
-        )}
+        ) : <FileTypePreview extension={extension} mimeType={file.mimeType} />}
       </div>
       {details}
       <div className="media-card-actions">

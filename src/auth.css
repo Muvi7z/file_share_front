@@ -1,0 +1,56 @@
+.auth-screen {
+  --auth-muted: #aaa49a;
+  position: relative; isolation: isolate;
+  height: 100dvh; min-height: 100dvh; overflow: auto;
+  padding: 0; background: #111110;
+}
+.auth-back { position: absolute; z-index: 2; top: 24px; right: 28px; }
+.auth-screen .auth-back [data-slot="button"] { background: #111110; color: #bcb7ad; border-radius: 12px; }
+.auth-screen .auth-back [data-slot="button"]:hover { color: #fff; background: #24231f; }
+.auth-screen .auth-main {
+  flex: none; display: grid; grid-template-columns: minmax(0, 1fr) clamp(380px, 35vw, 520px);
+  align-items: stretch; justify-items: stretch; gap: 0;
+  width: 100%; max-width: none; min-height: 100dvh; margin: 0; padding: 0;
+}
+.auth-form-panel {
+  position: relative; isolation: isolate; overflow: hidden;
+  grid-column: 2; grid-row: 1; min-width: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 100px clamp(28px, 3.4vw, 56px) 80px;
+  background: linear-gradient(155deg, #1e1d19 0%, #141413 42%, #111110 100%); border-left: 1px solid #dac39726; box-shadow: -24px 0 64px #0002;
+}
+.auth-screen .auth-header { position: absolute; top: 28px; left: 32px; margin: 0; padding: 0; border: 0; }
+.auth-panel-art { position: absolute; z-index: -1; pointer-events: none; }
+.auth-panel-art-top { width: 190px; height: 175px; left: -80px; top: -62px; color: #d5a35a; opacity: .14; transform: rotate(90deg); }
+.auth-panel-art-bottom { width: min(78%, 350px); height: auto; right: -30px; bottom: -35px; opacity: .19; }
+.auth-screen .auth-brand { gap: 10px; font-size: 16px; padding: 10px 14px; border-radius: 14px; background: #171a17; border: 1px solid #e1c69a26; }
+.auth-screen .auth-brand > span { width: 34px; height: 34px; border-radius: 10px; background: #fca311; color: #111; }
+.auth-screen .auth-window { width: 100%; max-width: 352px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.auth-mural-window {
+  grid-column: 1; grid-row: 1; min-width: 0;
+  background: url("/media/auth-flat-mural.png") center / cover no-repeat;
+}
+@media (max-width: 680px) {
+  .auth-screen .auth-main { grid-template-columns: minmax(0, 1fr); }
+  .auth-mural-window { grid-column: 1; grid-row: 1; height: 220px; background-position: center 45%; }
+  .auth-form-panel { grid-column: 1; grid-row: 2; padding: 40px 24px 48px; border: 0; }
+  .auth-screen .auth-header { left: 16px; top: 20px; }
+  .auth-screen .auth-brand { font-size: 14px; gap: 8px; padding: 8px; }
+  .auth-screen .auth-back { top: 24px; right: 16px; }
+  .auth-screen .auth-back [data-slot="button"] { font-size: 12px; }
+}
+.auth-screen .auth-center h1 { font-size: clamp(27px, 2.5vw, 34px); font-weight: 600; letter-spacing: -.035em; margin: 0 0 12px; }
+.auth-intro { color: var(--auth-muted, #a8a8a8); font-size: 14px; line-height: 1.65; margin: 0 0 28px; }
+.auth-screen .account-tabs { padding: 5px; border: 1px solid #ffffff0d; border-radius: 14px; background: #1b1b19; gap: 5px; margin-bottom: 26px; }
+.auth-screen .account-tabs button { border-radius: 10px; font-size: 13px; min-height: 40px; }
+.auth-screen .account-tabs button[aria-current="page"] { background: #34312a; color: #f4d6a0; box-shadow: 0 2px 5px #0003, inset 0 1px #ffffff09; }
+.auth-screen .account-tabs button:hover { color: #fff; }
+.auth-screen .account-form { gap: 20px; }
+.auth-screen .account-form label { gap: 10px; color: #cfcdc7; font-size: 13px; font-weight: 500; }
+.theme-classic.auth-screen .account-form input { height: 48px; border-radius: 12px; background: #1b1b19; border: 1px solid #373630; padding: 0 16px; font-size: 16px; color: #f5f2eb; box-shadow: none; transition: border-color .2s, background .2s; }
+.theme-classic.auth-screen .account-form input:hover { border-color: #666052; }
+.theme-classic.auth-screen .account-form input:focus-visible { border-color: #fca311; outline: 2px solid #fca31140; outline-offset: 3px; background: #20201c; }
+.auth-screen .account-form .primary-button { height: 48px; border-radius: 12px; margin-top: 6px; background: #fca311; color: #221907; border: 1px solid #ffbb4c; font-size: 14px; font-weight: 650; box-shadow: 0 5px 20px #fca31112, inset 0 1px #ffffff30; }
+.auth-screen .account-form .primary-button:hover:not(:disabled) { background: #ffb63f; box-shadow: 0 6px 24px #fca31124; }
+.auth-screen .account-form .primary-button:disabled { opacity: .55; }
+.auth-screen button:focus-visible { outline: 2px solid #fca311; outline-offset: 4px; }

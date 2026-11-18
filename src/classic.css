@@ -37,7 +37,8 @@
 }
 
 html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { background: var(--background); color-scheme: dark; }
-.theme-classic { color-scheme: dark; color: var(--foreground); background: var(--background); grid-template-columns: 232px minmax(0, 1fr); font-family: "Segoe UI", system-ui, sans-serif; }
+.theme-classic { color-scheme: dark; color: var(--foreground); background: var(--background); font-family: "Segoe UI", system-ui, sans-serif; }
+.theme-classic.app-shell { grid-template-columns: 232px minmax(0, 1fr); }
 .theme-classic *, .vault-menu * { letter-spacing: 0; }
 .theme-classic .sidebar { padding: 28px 16px 18px; gap: 26px; background: #171717; border-color: #303030; box-shadow: none; }
 .theme-classic .brand { gap: 12px; padding: 0 8px 9px; }
@@ -54,7 +55,6 @@ html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { 
 .theme-classic .nav-section-label { display: block; font-size: 12px; color: #7e848d; padding: 0 12px; margin-bottom: -18px; }
 .theme-classic .folder-nav { border: 0; gap: 2px; overflow: auto; min-height: 0; align-content: start; padding: 0; }
 .theme-classic .folder-nav button { min-height: 38px; gap: 10px; padding: 8px 12px; border: 0; color: #a7abb2; border-radius: 6px; font-size: 12px; }
-.theme-classic .folder-nav button span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .theme-classic .folder-nav .active, .theme-classic .folder-nav button:hover { background: #292929; color: #eee; }
 .theme-classic .folder-nav b { font-size: 11px; font-weight: 500; color: #a7abb2; }
 .sidebar-account { display: none; }
@@ -132,10 +132,20 @@ html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { 
 .theme-classic .folder-card-refined .folder-icon > svg { color: #fca311; stroke: currentColor; filter: none; }
 .theme-classic :is(.folder-card-meta,.folder-chevron,.file-meta,.file-copy > span) { color: #929ba6; }
 .theme-classic .folder-card-meta > span { background: transparent; color: #929ba6; }
-.theme-classic :is(.file-preview,.file-type-preview) { background: #22272b; color: #9eaab7; }
-.theme-classic :is(.file-crumbs,.breadcrumbs,.compact-summary) { background: transparent; border-color: #303437; color: #9ca5af; border-radius: 0; }
+.theme-classic .file-preview { background: #22272b; color: #9eaab7; }
+.theme-classic :is(.document-file-card,.admin-media-file-card) {
+  --file-type-surface: #2d2921;
+  --file-type-border: #574733;
+  --file-type-accent: var(--accent-icon);
+  --file-type-muted: #a8a8a8;
+}
+.theme-classic .document-file-card .file-meta b { background: var(--file-type-surface); color: #e9c48c; }
+.theme-classic .document-file-card .file-action-icon { background: #292929; color: #ddd; }
+.theme-classic .document-file-card .shared-file-open:hover .file-action-icon { background: var(--file-type-surface); color: var(--file-type-accent); }
+.theme-classic :is(.file-crumbs,.breadcrumbs,.compact-summary) { background: transparent; border-color: #303437; color: #9ca5af; }
+.theme-classic .breadcrumbs { border-radius: 0; }
 .theme-classic :is(.file-crumbs,.breadcrumbs) button { color: #dce2e7; background: transparent; }
-.theme-classic .compact-summary span { background: #24282c; color: #a9b3bd; border-radius: 4px; }
+.theme-classic .compact-summary span { background: #24282c; color: #a9b3bd; }
 .theme-classic.app-shell .content :is(.empty-folder,.night-empty) { background: transparent; border: 1px dashed #3b4045; border-radius: 8px; box-shadow: none; padding: 64px 24px; color: #9aa4ae; }
 .theme-classic.app-shell .content :is(.empty-folder,.night-empty) > svg { background: #262c30; color: #98a6b2; box-shadow: none; border: 0; border-radius: 8px; }
 .theme-classic.app-shell .content :is(.empty-folder,.night-empty) h2 { font-size: 20px; color: #e0e5ea; }
@@ -159,7 +169,7 @@ html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { 
 .theme-classic .account-row input { background: transparent; }
 .theme-classic .account-toolbar { padding: 8px 0; }
 .theme-classic .account-toolbar > input { min-width: 0; }
-.theme-classic .settings-panel.settings-page { background: transparent; padding: 0; max-width: 960px; color: #e5e9ed; border: 0; box-shadow: none; }
+.theme-classic .settings-panel.settings-page { color: #e5e9ed; }
 .theme-classic .settings-header { border-bottom: 1px solid #303030; padding-bottom: 24px; margin-bottom: 8px; }
 .theme-classic .settings-page > .settings-section { background: transparent; border: 0; border-bottom: 1px solid #303030; border-radius: 0; padding: 28px 0; margin: 0; }
 .theme-classic .settings-section-title { margin-bottom: 20px; color: #a8b1bb; }
@@ -178,7 +188,6 @@ html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { 
 .theme-classic :is(.admin-form label,.add-folder label,.folder-row span,.poster-video-row span,.poster-manager-header span) { color: #a0acb7; }
 .theme-classic .status.enabled { background: #202b25; color: #a6c6af; }
 .theme-classic .status { background: #303438; color: #b3bdc7; }
-.theme-classic .player-topbar { padding-bottom: 18px; border-bottom: 1px solid #303030; }
 .theme-classic .player-topbar h1 { font-size: 21px; }
 .theme-classic .player-surface { border: 1px solid #343a40; border-radius: 8px; background: #080909; box-shadow: none; }
 .theme-classic .player-back-button { background: #242b30; color: #e5edf3; border-radius: 6px; }
@@ -186,12 +195,12 @@ html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { 
 .theme-classic .player-speed-options { background: #1b2024; color: #e5edf3; border: 1px solid #3b454d; border-radius: 8px; }
 .theme-classic .video-problem-form { background: #1b2024; border-color: #3b454d; border-radius: 8px; }
 @media (max-width: 1100px) {
-  .theme-classic { grid-template-columns: 208px minmax(0,1fr); }
+  .theme-classic.app-shell { grid-template-columns: 208px minmax(0,1fr); }
   .theme-classic .content { padding: 26px 24px; }
   .theme-classic .video-grid { grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap: 16px; }
 }
 @media (max-width: 860px) {
-  .theme-classic { display: flex; flex-direction: column; }
+  .theme-classic.app-shell { display: flex; flex-direction: column; }
   .theme-classic .sidebar { position: relative; flex: 0 0 auto; width: 100%; height: auto; padding: 12px 16px 8px; gap: 12px; border-right: 0; border-bottom: 1px solid #303030; }
   .theme-classic .brand { display: flex; padding: 0; }
   .theme-classic .brand-mark { width: 32px; height: 32px; }

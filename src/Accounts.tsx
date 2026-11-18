@@ -113,6 +113,7 @@ export function AuthForm({ onLogin }: { onLogin: (value: AdminSession) => void }
     } catch (err) { const nextStatus = getInactiveAccountStatus(err); if (nextStatus) setAccountStatus(nextStatus); else setError(message(err)); } finally { setBusy(false); }
   }
   return <section className="account-center auth-center"><p className="eyebrow">VIDEO VAULT</p><h1>{register ? "Создать аккаунт" : "Вход в аккаунт"}</h1>
+    <p className="auth-intro">{register ? "Отправьте заявку, чтобы присоединиться к медиатеке." : "Рады видеть вас снова. Войдите в свою медиатеку."}</p>
     <div className="account-tabs"><Button disabled={busy} aria-current={!register ? "page" : undefined} onClick={() => { setRegister(false); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Вход</Button><Button disabled={busy} aria-current={register ? "page" : undefined} onClick={() => { setRegister(true); setPassword(""); setConfirm(""); setError(""); setNotice(""); setAccountStatus(null); }}>Регистрация</Button></div>
     <form className="account-form" onSubmit={submit}><label>Логин<Input name="login" required autoComplete="username" maxLength={64} value={login} onChange={event => { setLogin(event.target.value); setAccountStatus(null); }} /></label>
       <label>Пароль<Input name="password" type="password" required autoComplete={register ? "new-password" : "current-password"} value={password} onChange={event => { setPassword(event.target.value); setAccountStatus(null); }} /></label>

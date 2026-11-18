@@ -1,11 +1,8 @@
 export function startPlayerAmbient(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
   const page = document;
-  const frame = page.createElement("canvas");
-  const frameContext = frame.getContext("2d", { alpha: false });
-  const context = canvas.getContext("2d");
-  if (!frameContext || !context) return () => {};
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) return () => {};
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
-  const supportsFilter = typeof (context as Partial<CanvasRenderingContext2D>).filter === "string";
   const baseInterval = navigator.hardwareConcurrency > 4 ? 250 : 500;
   let interval = baseInterval;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -22,24 +19,19 @@ export function startPlayerAmbient(video: HTMLVideoElement, canvas: HTMLCanvasEl
     const aspect = video.videoWidth / video.videoHeight || 16 / 9;
     const width = Math.max(8, Math.round(64 * Math.min(1, aspect)));
     const height = Math.max(8, Math.round(64 / Math.max(1, aspect)));
-    if (frame.width !== width || frame.height !== height) {
-      frame.width = width;
-      frame.height = height;
-      canvas.width = Math.ceil(width * 1.5);
-      canvas.height = Math.ceil(height * 1.5);
-    }
-    const x = (canvas.width - width) / 2;
-    const y = (canvas.height - height) / 2;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
     try {
-      frameContext.drawImage(video, 0, 0, width, height);
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      if (supportsFilter) {
-        context.filter = "blur(5px) saturate(1.2) brightness(1.35)";
-        context.drawImage(frame, x, y);
-      } else {
-        context.globalAlpha = 1 / 9;
-        for (const dx of [-4, 0, 4]) for (const dy of [-4, 0, 4]) context.drawImage(frame, x + dx, y + dy);
-        context.globalAlpha = 1;
+      context.drawImage(video, 0, 0, width, height);
+      // Blend with a vertical reflection so both edges receive the same light.
+      context.save();
+      try {
+        context.translate(0, height);
+        context.scale(1, -1);
+        context.globalAlpha = 0.5;
+        context.drawImage(video, 0, 0, width, height);
+      } finally {
+        context.restore();
       }
       canvas.dataset.ready = "true";
       lastTime = video.currentTime;

@@ -8,6 +8,7 @@ import "./liquid-glass.css";
 import "./classic.css";
 import "./admin-library.css";
 import "./player.css";
+import "./auth.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

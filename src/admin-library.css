@@ -9,6 +9,13 @@
 .library-admin .media-card-actions [data-slot="button"] { height: 36px; min-height: 36px; font-size: 12px; }
 .library-admin .media-card-main-action { flex: 1; min-width: 0; text-decoration: none; }
 .library-admin .media-card-delete { width: 36px; flex: 0 0 36px; padding: 8px; }
+.library-admin .folder-row {
+  background: transparent;
+  border-color: #353b3d;
+  border-radius: 12px;
+}
+.library-admin .folder-name-cell strong { overflow-wrap: anywhere; }
+.account-center .library-admin :is(.add-folder, .folder-name-cell) input { border-radius: 12px; }
 .theme-classic.page-admin .content { background: #101010; background-image: none; box-shadow: none; }
 .theme-classic .management-workspace { display: block; min-width: 0; }
 .theme-classic .management-page .management-tab-list {
@@ -86,20 +93,15 @@
 .theme-classic .library-admin .add-folder { display: flex; align-items: end; gap: 12px; padding-bottom: 24px; border-bottom: 1px solid var(--library-border); }
 .theme-classic .library-admin .add-folder > label { flex: 1; min-width: 0; display: grid; gap: 12px; font-size: 15px; font-weight: 600; color: #e5e5e5; }
 .theme-classic .library-admin .path-actions { display: flex; flex-shrink: 0; gap: 8px; }
-.theme-classic .library-admin .folder-table { gap: 0; }
 .theme-classic .library-admin .folder-row {
   display: grid;
   grid-template-columns: minmax(0,1fr) 88px minmax(110px,.35fr) 40px 44px 40px;
   align-items: center;
   gap: 12px;
-  background: transparent;
-  padding: 16px 0;
-  border: 0;
-  border-bottom: 1px solid var(--library-border);
-  border-radius: 0;
+  border-color: var(--library-border);
 }
 .theme-classic .library-admin .folder-name-cell { gap: 6px; }
-.theme-classic .library-admin .folder-name-cell strong { color: #eee; font-size: 14px; overflow-wrap: anywhere; }
+.theme-classic .library-admin .folder-name-cell strong { color: #eee; font-size: 14px; }
 .theme-classic .library-admin :is(.folder-name-cell > span,.folder-meta span) { color: var(--library-muted); font-size: 12px; overflow-wrap: anywhere; }
 .theme-classic .library-admin .folder-meta { grid-column: auto; }
 .theme-classic .library-admin [data-slot="switch-thumb"] { translate: none; }
@@ -178,6 +180,7 @@
 .theme-classic .library-admin .admin-poster-input { display: none; }
 .theme-classic .library-admin .admin-media-file-preview { height: 100%; aspect-ratio: auto; background: #242424; color: #aaa; }
 .theme-classic .library-admin .admin-media-file-preview.image { background: #151515; }
+.theme-classic .library-admin .file-type-preview-icon > svg { width: 27px; height: 27px; stroke-width: 1.7; }
 .theme-classic .library-admin .admin-media-file-type > svg { width: 36px; height: 36px; stroke-width: 1.5; }
 .theme-classic .library-admin .admin-media-file-type b { font-size: 12px; color: #a4a4a4; font-weight: 500; }
 .theme-classic .library-admin :is(.library-loading,.library-empty-inline) { padding: 20px 0; margin: 0; font-size: 13px; color: #a4a4a4; }
@@ -197,7 +200,7 @@
 .theme-classic.library-folder-overlay .modal-header span { font-size: 12px; color: #aaa; overflow-wrap: anywhere; }
 .theme-classic.library-folder-overlay .folder-picker-toolbar { padding: 4px 20px; }
 .theme-classic.library-folder-overlay .folder-picker-list { padding: 4px 20px 20px; }
-.theme-classic.library-folder-overlay .folder-picker-row { display: grid; grid-template-columns: 24px minmax(0,.6fr) minmax(0,1fr) 18px; align-items: center; height: auto; min-height: 48px; background: #242424; color: #ddd; border: 1px solid #363636; border-radius: 6px; padding: 10px 12px; gap: 10px; }
+.theme-classic.library-folder-overlay .folder-picker-row { display: grid; grid-template-columns: 24px minmax(0,.6fr) minmax(0,1fr) 18px; align-items: center; height: auto; min-height: 48px; background: #242424; color: #ddd; border: 1px solid #363636; border-radius: 12px; padding: 10px 12px; gap: 10px; }
 .theme-classic.library-folder-overlay .folder-picker-row:hover { background: #303030; border-color: #555; }
 .theme-classic.library-folder-overlay .folder-picker-row > svg { color: #fca311; width: 18px; height: 18px; flex-shrink: 0; }
 .theme-classic.library-folder-overlay .folder-picker-row span { font-size: 13px; color: #eee; }
