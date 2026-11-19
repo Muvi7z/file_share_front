@@ -2,8 +2,10 @@
 .harbor-nav {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px clamp(20px,5%,84px);border-bottom:1px solid #ffffff14}
 .harbor-nav strong {display:inline-flex;align-items:center;gap:12px;font-size:19px}
 .harbor-nav strong svg {color:#ffc269}
-.harbor-main {flex:1;display:grid;place-items:center;padding:48px 24px 16px}
-.harbor-access {width:min(100%,360px);color:#faf3e5}
+.harbor-sky {position:relative;height:auto;flex:none;overflow:visible;pointer-events:none}
+.harbor-sky > svg {display:block;width:100%;height:auto;overflow:visible}
+.harbor-main {flex:1;display:grid;place-items:center;padding:16px 24px 16px}
+.harbor-access {width:min(100%,420px);padding:32px;border:0;border-radius:16px;background:#191e1e;color:#faf3e5}
 .harbor-access h1 {margin:0 0 32px;font-size:36px;line-height:1.12;font-weight:650}
 .harbor-access form,.harbor-access label {display:grid;gap:18px}
 .harbor-access label {gap:8px;font-size:14px;font-weight:550;color:#e3e3d9}
@@ -15,3 +17,74 @@
 .harbor-access > p button {background:none;border:0;color:#ffd293;font:inherit;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
 .harbor-scene {display:block;width:100%;height:auto;pointer-events:none}
 @media(max-width:650px){.harbor-access h1{font-size:30px}.harbor-scene{height:auto;aspect-ratio:3.8;object-fit:cover}.harbor-main{padding-block:36px}.harbor-nav{padding:16px 20px}}
+
+/* Let the night sky start behind the navigation and flow into the middle & harbor scene. */
+.theme-classic.harbor-page,.harbor-page {position:relative;background:linear-gradient(180deg,#142228 0%,#192a31 32%,#1b2a2d 66%,#191e1e 100%)}
+.harbor-nav {position:absolute;inset:0 0 auto;z-index:2;border:0}
+.harbor-sky {margin-bottom:clamp(-32px,-2vw,-12px);z-index:0}
+.harbor-sky > svg,.harbor-wind,.harbor-chart,.harbor-scene {overflow:visible}
+.harbor-main {position:relative;isolation:isolate;z-index:1}
+.harbor-access {position:relative;z-index:1}
+.harbor-wind,.harbor-chart {position:absolute;z-index:-1;pointer-events:none;height:auto;width:min(40%,calc(50% - 120px));top:46%;transform:translateY(-50%)}
+.harbor-wind {left:0}
+.harbor-chart {right:0}
+@media(max-width:650px){
+  .harbor-sky{margin-bottom:-12px}
+  .harbor-access{padding:24px 20px}
+  .harbor-wind,.harbor-chart{display:none}
+}
+
+.harbor-page {height:100dvh;min-height:0;overflow:auto;overflow-x:hidden}
+.harbor-page > :is(.harbor-sky,.harbor-scene){flex-shrink:0}
+.harbor-main {flex:1 0 auto}
+.harbor-nav .harbor-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #89948f;
+  border-radius: 10px;
+  background: #111516;
+  color: #f4efe7;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.harbor-nav .harbor-back:hover {background:#252d2e;border-color:#c2cbc6}
+.harbor-nav .harbor-back:active {background:#0b0f10}
+.harbor-nav .harbor-back:focus-visible {outline:2px solid #ffc269;outline-offset:3px}
+@media(max-width:650px){
+  .harbor-nav {padding: max(10px,env(safe-area-inset-top)) 16px 8px}
+  .harbor-nav strong {font-size:16px;gap:8px}
+  .harbor-sky {height:clamp(120px,19svh,162px)}
+  .harbor-main {padding:12px clamp(20px,7vw,40px) 24px}
+  .harbor-access h1 {font-size:clamp(27px,7vw,32px);margin-bottom:22px}
+  .harbor-access input {font-size:16px}
+  .harbor-scene {width:142%;max-width:none;align-self:flex-start;aspect-ratio:auto;height:auto;margin-bottom:env(safe-area-inset-bottom)}
+}
+@media(max-height:520px) and (orientation:landscape){
+  .harbor-sky {height:65px}
+  .harbor-nav {padding-block:8px}
+  .harbor-main {padding-block:16px}
+}
+
+.harbor-mobile-panorama {display:none}
+@media (max-width:650px) and (orientation:portrait) {
+  .theme-classic.harbor-page,.harbor-page {--harbor-shore:#121716;background:var(--harbor-shore)}
+  .harbor-page > .harbor-sky,.harbor-page > .harbor-scene {display:none}
+  .harbor-mobile-panorama {
+    display:block;order:0;flex:none;width:100%;
+    background:linear-gradient(#121e24,#191e1e);
+    height:clamp(230px,36svh,420px);
+  }
+  .harbor-nav {padding-inline:clamp(18px,5vw,32px)}
+  .harbor-main {
+    order:1;align-content:center;padding:32px clamp(20px,6vw,40px) max(32px,env(safe-area-inset-bottom));
+    background:var(--harbor-shore);
+  }
+  .harbor-access {width:100%;max-width:480px;padding:0;background:none}
+  .harbor-access h1 {font-size:clamp(32px,8vw,42px);margin-bottom:26px}
+  .harbor-access input,.harbor-access .harbor-submit {height:52px}
+}

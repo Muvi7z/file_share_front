@@ -719,8 +719,10 @@ function App() {
     restoreScrollPosition(nextScrollTop);
   }, [filteredVideos.length, page, visibleFileEntries.length]);
 
+  const loginReturnPage = useRef<Page>(initialRouteState.loginFromFiles ? "files" : "videos");
   const openPage = (nextPage: Page) => {
     const destination = nextPage === "admin" && !session ? "login" : nextPage;
+    if (destination === "login" && page !== "login" && page !== "admin") loginReturnPage.current = page;
     setLoginFromFiles(destination === "login" && page === "files");
     setPage(destination);
     setSelectedVideo(null);
@@ -835,17 +837,180 @@ function App() {
   if (page === "login" || (page === "admin" && !session)) {
     return <div className="theme-classic dark harbor-page">
       <header className="harbor-nav"><strong><MonitorPlay size={23} /> Video Vault</strong>
-        <Button variant="ghost" onClick={() => openPage(loginFromFiles ? "files" : "videos")}><ArrowLeft size={16} />Назад</Button>
+        <Button type="button" className="harbor-back" variant="ghost" onClick={() => openPage(loginReturnPage.current)}><ArrowLeft size={17} aria-hidden="true" />Назад</Button>
       </header>
-      <main className="harbor-main"><AuthForm onLogin={handleLogin} /></main>
+      <div className="harbor-sky" aria-hidden="true">
+        <svg viewBox="0 0 1440 240" preserveAspectRatio="xMidYMin meet" fill="none" focusable="false">
+          <defs>
+            <linearGradient id="harbor-sky-canopy" x1="720" y1="0" x2="720" y2="190" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#1b2929" stopOpacity=".85"/>
+              <stop offset=".6" stopColor="#203030" stopOpacity=".45"/>
+              <stop offset="1" stopColor="#191e1e" stopOpacity="0"/>
+            </linearGradient>
+            <radialGradient id="harbor-moon-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1110 98) rotate(90) scale(125 165)">
+              <stop stopColor="#ffcb80" stopOpacity=".2"/>
+              <stop offset=".55" stopColor="#ffd598" stopOpacity=".06"/>
+              <stop offset="1" stopColor="#ffd598" stopOpacity="0"/>
+            </radialGradient>
+            <linearGradient id="harbor-sky-aurora" x1="160" y1="16" x2="1260" y2="190" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#2f4746" stopOpacity=".42"/>
+              <stop offset=".5" stopColor="#3d5856" stopOpacity=".22"/>
+              <stop offset="1" stopColor="#283c3b" stopOpacity=".35"/>
+            </linearGradient>
+            <symbol id="harbor-star-glint" viewBox="-12 -12 24 24">
+              <path d="m0-11 2.4 8.6L11 0 2.4 2.4 0 11l-2.4-8.6L-11 0l8.6-2.4Z" fill="#ffd598"/>
+            </symbol>
+            <symbol id="harbor-gull" viewBox="0 0 56 26">
+              <path d="M2 16Q15 3 28 13Q41 2 54 12Q40 9 28 19Q16 10 2 16Z" fill="#efd9b2"/>
+              <path d="M28 13Q41 2 54 12Q40 9 28 19Z" fill="#c8b599"/>
+              <path d="M2 16Q8 10 13 11L9 15ZM54 12Q48 7 43 9L47 12Z" fill="#bd6c50"/>
+            </symbol>
+          </defs>
+          {/* Smooth night sky wave layers */}
+          <path d="M0 0H1440V182Q1310 144 1164 162T870 118Q720 82 564 118T264 160Q126 178 0 152Z" fill="url(#harbor-sky-canopy)"/>
+          <path d="M0 68Q180 34 368 64T736 58Q930 26 1126 60T1440 48V118Q1268 92 1094 108T734 90Q538 72 346 102T0 110Z" fill="url(#harbor-sky-aurora)"/>
+          {/* Soft moonlight halo */}
+          <ellipse cx="1110" cy="98" rx="165" ry="125" fill="url(#harbor-moon-glow)"/>
+          <circle cx="1110" cy="98" r="72" fill="#ffd598" opacity=".06"/>
+          <circle cx="1110" cy="98" r="52" fill="#ffd598" opacity=".11"/>
+          {/* Crisp flat starfield and nautical constellations */}
+          <g stroke="#cbb58b" strokeOpacity=".32" strokeWidth="1.2" strokeDasharray="3 4">
+            <path d="M412 52 458 36 504 54 542 40"/>
+            <path d="M862 44 906 30 948 50 982 32"/>
+          </g>
+          <g fill="#dfd4b8">
+            <circle cx="74" cy="42" r="1.6" opacity=".6"/><circle cx="298" cy="48" r="2" opacity=".8"/>
+            <circle cx="356" cy="78" r="1.5" opacity=".55"/><circle cx="412" cy="52" r="2.1"/>
+            <circle cx="458" cy="36" r="1.8"/><circle cx="504" cy="54" r="2.2"/><circle cx="542" cy="40" r="1.7"/>
+            <circle cx="792" cy="58" r="1.8" opacity=".75"/><circle cx="862" cy="44" r="2"/>
+            <circle cx="906" cy="30" r="2.2"/><circle cx="948" cy="50" r="1.8"/><circle cx="982" cy="32" r="2"/>
+            <circle cx="1268" cy="44" r="2" opacity=".85"/><circle cx="1358" cy="68" r="1.6" opacity=".65"/>
+            <circle cx="1396" cy="38" r="2" opacity=".8"/>
+          </g>
+          <use href="#harbor-star-glint" x="234" y="34" width="17" height="17" opacity=".85"/>
+          <use href="#harbor-star-glint" x="576" y="24" width="15" height="15" opacity=".75"/>
+          <use href="#harbor-star-glint" x="812" y="26" width="16" height="16" opacity=".8"/>
+          <use href="#harbor-star-glint" x="1008" y="42" width="18" height="18" opacity=".9"/>
+          <use href="#harbor-star-glint" x="1302" y="32" width="17" height="17" opacity=".85"/>
+          {/* Cloud 1: Upper-left cloud (compact and well-spaced) */}
+          <g>
+            <path d="M72 134c-15 0-26-8-26-18 0-9 9-16 21-17 6-13 21-20 39-19 12-13 33-17 50-7 8 4 14 10 17 18 13-3 28 2 34 11 12 1 20 8 19 17-2 9-13 15-28 15H72Z" fill="#283938"/>
+            <path d="M102 140c-12 0-20-6-20-14 0-7 7-13 17-14 5-10 17-16 31-14 10-10 27-13 41-6 6 3 11 8 14 14 11-3 22 1 27 9 9 1 16 6 15 13-1 7-11 12-22 12H102Z" fill="#364b49"/>
+          </g>
+          {/* Cloud 2: High center cloud above the auth form */}
+          <g>
+            <path d="M618 96c-12 0-21-6-21-14 0-7 7-13 17-14 5-10 17-16 31-14 10-10 27-13 40-5 6 3 11 8 14 14 11-3 22 1 27 8 9 1 16 6 15 13-1 7-11 12-22 12H618Z" fill="#283938"/>
+            <path d="M644 102c-9 0-16-5-16-11 0-6 6-10 13-11 4-8 13-12 24-11 8-8 21-10 32-4 5 2 9 6 11 11 8-2 17 1 21 7 7 1 12 5 11 10-1 6-8 8-17 8H644Z" fill="#364b49"/>
+          </g>
+          {/* Flat-styled Moon aligned with water reflection at x=1110 */}
+          <g>
+            <circle className="harbor-moon" cx="1110" cy="98" r="38" fill="#ffd598"/>
+            <path d="M1094 64a38 38 0 0 0-21 48 36 36 0 0 1 46-44 38 38 0 0 0-25-4Z" fill="#fff0bd" opacity=".65"/>
+            <circle cx="1123" cy="86" r="6.5" fill="#e5b573" opacity=".45"/>
+            <circle cx="1114" cy="108" r="9.5" fill="#e5b573" opacity=".35"/>
+            <circle cx="1131" cy="106" r="4.2" fill="#e5b573" opacity=".4"/>
+          </g>
+          {/* Cloud 3: Sleek cloud softly overlapping lower-right of the Moon */}
+          <g>
+            <path d="M1082 148c-14 0-25-8-25-17 0-9 9-15 20-16 6-12 20-19 37-18 11-12 31-16 48-7 7 4 13 10 16 17 13-3 26 2 32 10 11 1 19 8 18 16-2 9-13 15-26 15H1082Z" fill="#283938"/>
+            <path d="M1112 154c-11 0-19-6-19-13 0-7 7-12 16-13 5-9 16-15 29-13 9-10 25-12 38-5 6 3 10 8 13 13 10-2 21 1 25 8 9 1 15 6 14 12-1 6-10 11-21 11H1112Z" fill="#364b49"/>
+          </g>
+          {/* High gull & subtle breeze stripes */}
+          <use href="#harbor-gull" x="372" y="96" width="34" height="16" opacity=".82"/>
+          <g stroke="#85a49a" strokeWidth="2" strokeLinecap="round" opacity=".65">
+            <path d="M84 152h52m12 0h16M636 112h44M1086 166h56m14 0h18"/>
+          </g>
+        </svg>
+      </div>
+      <main className="harbor-main">
+        {/* Left middle sky: open starry space with soaring gulls above and one lower cloud on the far left */}
+        <svg className="harbor-wind" viewBox="0 0 460 320" aria-hidden="true" focusable="false" fill="none">
+          <g fill="#dfd4b8">
+            <circle cx="64" cy="44" r="1.8" opacity=".7"/><circle cx="168" cy="28" r="2" opacity=".8"/>
+            <circle cx="288" cy="52" r="1.6" opacity=".6"/><circle cx="88" cy="142" r="1.8" opacity=".7"/>
+            <circle cx="348" cy="196" r="1.5" opacity=".55"/>
+          </g>
+          <path d="m136 58 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" fill="#ffd598" opacity=".85"/>
+          {/* Soaring two-tone coastal seabirds in open sky */}
+          <path d="M118 118Q184 104 252 116T368 108" stroke="#486663" strokeWidth="2.2" strokeLinecap="round" opacity=".85"/>
+          <path d="M148 132Q214 120 278 130T384 122" stroke="#85a49a" strokeWidth="1.8" strokeLinecap="round" opacity=".7"/>
+          <g transform="translate(224 82)">
+            <path d="M0 24Q20 4 42 19Q64 2 84 17Q62 13 42 28Q22 15 0 24Z" fill="#efd9b2"/>
+            <path d="M42 19Q64 2 84 17Q62 13 42 28Z" fill="#c8b599"/>
+            <path d="M0 24Q9 15 17 16L11 22ZM84 17Q75 10 67 12L73 17Z" fill="#db896b"/>
+            <path d="M38 18 42 28 46 19Z" fill="#bd6c50"/>
+          </g>
+          <g transform="translate(308 54) scale(.74)">
+            <path d="M0 24Q20 4 42 19Q64 2 84 17Q62 13 42 28Q22 15 0 24Z" fill="#efd9b2"/>
+            <path d="M42 19Q64 2 84 17Q62 13 42 28Z" fill="#c8b599"/>
+            <path d="M0 24Q9 15 17 16L11 22ZM84 17Q75 10 67 12L73 17Z" fill="#bd6c50"/>
+          </g>
+          {/* Cloud 4: Single lower-left cloud bank well separated from the upper sky */}
+          <g>
+            <path d="M48 238c-15 0-26-8-26-18 0-9 9-16 20-17 6-13 20-20 38-18 12-13 33-17 50-7 8 4 14 10 17 17 13-3 27 2 33 11 11 1 20 8 18 16-2 9-13 16-27 16H48Z" fill="#283938"/>
+            <path d="M76 244c-12 0-21-6-21-14 0-7 7-13 17-14 5-10 16-16 30-14 10-10 26-13 40-5 6 3 11 8 14 14 10-3 22 1 26 8 9 1 16 6 15 13-1 7-10 12-21 12H76Z" fill="#364b49"/>
+          </g>
+          <path d="M58 256h64m14 0h20" stroke="#85a49a" strokeWidth="2" strokeLinecap="round" opacity=".68"/>
+        </svg>
+        <AuthForm onLogin={handleLogin} />
+        {/* Right middle sky: vintage hot-air balloon in clear starry sky & one lower-right cloud */}
+        <svg className="harbor-chart" viewBox="0 0 460 320" aria-hidden="true" focusable="false" fill="none">
+          <defs>
+            <radialGradient id="harbor-balloon-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(168 118) scale(86)">
+              <stop stopColor="#ffc877" stopOpacity=".28"/>
+              <stop offset="1" stopColor="#ffc877" stopOpacity="0"/>
+            </radialGradient>
+          </defs>
+          {/* Starfield and shooting star */}
+          <path d="M284 52 354 24" stroke="#ffd598" strokeWidth="1.6" strokeLinecap="round" opacity=".55"/>
+          <path d="m284 52 2.2 6.8 6.8 2.2-6.8 2.2-2.2 6.8-2.2-6.8-6.8-2.2 6.8-2.2Z" fill="#ffd598"/>
+          <path d="m382 88 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z" fill="#e9c58b" opacity=".85"/>
+          <g fill="#dfd4b8">
+            <circle cx="64" cy="68" r="1.7" opacity=".65"/><circle cx="248" cy="34" r="1.8" opacity=".7"/>
+            <circle cx="408" cy="48" r="2" opacity=".8"/><circle cx="342" cy="134" r="1.6" opacity=".6"/>
+            <circle cx="96" cy="248" r="1.7" opacity=".65"/>
+          </g>
+          {/* Distant warm harbor sky-lantern */}
+          <g transform="translate(62 146)">
+            <circle cx="12" cy="14" r="18" fill="#ffc877" opacity=".18"/>
+            <path d="M5 10c0-6 4-10 7-10s7 4 7 10l-2 9H7Z" fill="#bd6c50"/>
+            <path d="M8 1c2-1 6-1 8 0l-1 18H9Z" fill="#efd6ac"/>
+            <rect x="8" y="19" width="8" height="3" rx="1" fill="#ffc877"/>
+            <circle cx="12" cy="20.5" r="2" fill="#fff0bd"/>
+          </g>
+          {/* Main flat-styled Vintage Harbor Hot-Air Balloon in open sky with warm burner glow */}
+          <circle cx="168" cy="118" r="86" fill="url(#harbor-balloon-glow)"/>
+          <g transform="translate(128 58)">
+            <path d="M40 0C16 0 0 19 0 41c0 17 12 31 24 46l5 10h22l5-10C68 72 80 58 80 41 80 19 64 0 40 0Z" fill="#bd6c50"/>
+            <path d="M40 0C25 0 14 19 14 41c0 17 8 31 17 46l3 10h12l3-10c9-15 17-29 17-46C66 19 55 0 40 0Z" fill="#efd6ac"/>
+            <path d="M40 0c-6 0-11 19-11 41 0 17 3 31 7 46l1 10h6l1-10c4-15 7-29 7-46C51 19 46 0 40 0Z" fill="#293532"/>
+            <path d="M2 34h76c1 5 1 10 0 14H2c-1-4-1-9 0-14Z" fill="#db896b"/>
+            <path d="M15 34h50v14H15Z" fill="#f1b761"/>
+            <path d="M29 34h22v14H29Z" fill="#bd6c50"/>
+            <path d="M40 0c24 0 40 19 40 41 0 17-12 31-24 46l-5 10H40V0Z" fill="#654934" opacity=".22"/>
+            <rect x="27" y="96" width="26" height="4" rx="1.5" fill="#965d46"/>
+            <path d="M35 100v12m10-12v12" stroke="#987d68" strokeWidth="1.6"/>
+            <circle cx="40" cy="105" r="7" fill="#ffc877" opacity=".45"/>
+            <path d="m40 100 3.5 5-3.5 5-3.5-5Z" fill="#fff0bd"/>
+            <path d="M31 111h18l-2 12H33Z" fill="#87664f"/>
+            <path d="M30 110h20v3H30Z" fill="#d5b590"/>
+            <path d="M40 111h9l-2 12h-7Z" fill="#414442" opacity=".45"/>
+          </g>
+          {/* Cloud 5: Single lower-right cloud bank offset below and to the right of the balloon */}
+          <g>
+            <path d="M242 246c-15 0-26-8-26-18 0-9 9-16 20-17 6-13 20-20 38-18 12-13 33-17 50-7 8 4 14 10 17 17 13-3 27 2 33 11 11 1 20 8 18 16-2 9-13 16-27 16H242Z" fill="#283938"/>
+            <path d="M270 252c-12 0-21-6-21-14 0-7 7-13 17-14 5-10 16-16 30-14 10-10 26-13 40-5 6 3 11 8 14 14 10-3 22 1 26 8 9 1 16 6 15 13-1 7-10 12-21 12H270Z" fill="#364b49"/>
+          </g>
+          <path d="M256 264h68m14 0h20" stroke="#85a49a" strokeWidth="2" strokeLinecap="round" opacity=".68"/>
+        </svg>
+      </main>
       <svg className="harbor-scene" viewBox="0 0 1440 270" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
         <defs><linearGradient id="harbor-lantern"><stop stopColor="#ffcb80" stopOpacity=".26"/><stop offset="1" stopColor="#ffcb80" stopOpacity="0"/></linearGradient></defs>
         <path d="M202 23 844 67 844 124 202 31Z" fill="url(#harbor-lantern)"/>
-        <circle cx="1110" cy="86" r="43" fill="#ffd598"/>
         <path d="M0 164Q140 108 272 144T570 144Q700 106 858 145T1190 131Q1320 99 1440 107V270H0Z" fill="#364846"/>
         <path d="M0 166Q260 140 508 163T1030 161T1440 153V270H0Z" fill="#486663"/>
         <path d="m1109 163-65 5 109 2-81 6 54 2-40 6 12 2-45 6 80-5-19-3 40-8-30-2 49-8Z" fill="#cbac75"/>
-        <g transform="translate(789 193)">
+        <g transform="translate(789 193)"><g id="harbor-sailboat">
           <path d="m-36 3 65 1-8 3-53-1Zm9 9 41-1 7 2-33 1Zm17 8 18-2 5 2-19 2Z" fill="#d09c77" opacity=".55"/>
           <path d="M-32-4q15-21 27-68L-7-8Z" fill="#db896b"/>
           <path d="M-3-73Q17-49 26-16L-3-9Z" fill="#efd9b2"/>
@@ -855,9 +1020,10 @@ function App() {
           <path d="m-40-6 73-3-12 12h-48Z" fill="#293532"/>
           <path d="m-40-6 73-3-3 3-65 3Z" fill="#dbb084"/>
         </g>
+        </g>
         <path d="m0 121 111-12 107 17 81 26 92 12 69 23-89 4-72-9-145 12L0 175Z" fill="#87664f"/>
         <path d="m0 139 122-8 93 11 79 25 97 10 69 10-98 11-132-5-86 12L0 196Z" fill="#414442"/>
-        <g>
+        <g id="harbor-lighthouse">
           <path d="m184 43-9 106q18 5 37 0l-9-106Z" fill="#efd6ac"/>
           <path d="m181 77 25-8 2 20-29 9Z" fill="#bd6c50"/>
           <path d="m199 44 4-1 9 106-10 2Z" fill="#654934" opacity=".22"/>
@@ -875,6 +1041,24 @@ function App() {
         <path d="m174 124-38-4v-20h38z" fill="#d5b590"/><path d="m130 101 16-16 34 4-5 14Z" fill="#a5654c"/>
         <path d="m0 216 91-10 79 8 89 23 117 11 58 22H0Zm1440-39-97 12-76 33-97 10-106 38h376Z" fill="#283634"/>
         <g fill="none" stroke="#85a49a" strokeWidth="2" strokeLinecap="round"><path d="M468 194h53m12 0h13m162-15h38m-156 46h75m264-25h47m-151 44h92m302-55h32"/></g>
+      </svg>
+      <svg className="harbor-mobile-panorama" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+        <circle cx="284" cy="94" r="32" fill="#ffd598"/>
+        <path d="M236 112c-8-1-14-5-13-11 1-5 6-8 14-8 3-7 11-11 21-9 7-7 19-9 28-4 5 2 8 6 10 10 8-2 16 1 19 6 6 0 11 4 10 8-1 5-9 8-17 7-7 3-17 4-26 2-8 2-18 2-26-1-7 2-14 1-20 0Z" fill="#384c49"/>
+        <path d="M18 124c-7-1-12-4-11-9 1-4 5-7 11-6 3-6 10-9 18-8 6-6 16-7 24-3 4 2 7 5 8 8 7-1 13 1 16 5 5 0 9 3 8 7-1 4-7 6-14 6-6 3-14 3-22 1-7 2-15 2-21-1-6 1-12 1-17 0Z" fill="#314341"/>
+        <g fill="#edd3a4"><circle cx="64" cy="64" r="1.8"/><circle cx="123" cy="89" r="2"/><circle cx="225" cy="56" r="1.6"/><path d="m168 59 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z"/></g>
+        <use href="#harbor-gull" x="152" y="114" width="26" height="12" opacity=".78"/>
+        <path d="m78 115 322-22v65L78 121Z" fill="url(#harbor-lantern)"/>
+        <path d="M0 212q66-35 132-17t135-3q74-28 133-7v115H0Z" fill="#354744"/>
+        <path d="M0 208q90-11 189-2t211-7v101H0Z" fill="#486663"/>
+        <path d="m278 210-29 4 51 2-36 5 19 2-24 4 47-5-12-3 16-5Z" fill="#c1a276"/>
+        <path d="M0 197q72-19 119 6l54 29-74 7L0 226Z" fill="#896b55"/>
+        <path d="m0 211 76-5 97 26-66 12L0 232Z" fill="#414846"/>
+        <use href="#harbor-lighthouse" transform="translate(-65 98) scale(.72)"/>
+        <use href="#harbor-sailboat" transform="translate(290 240) scale(.9)"/>
+        <path d="M0 246q51-7 103 16l60 38H0Zm400 5q-60 8-124 49h124Z" fill="#283634"/>
+        <path d="M0 266q48-5 96 12t99 10q59-9 98-5t107-18v35H0Z" fill="var(--harbor-shore)" />
+        <path d="M118 249h29m23 18h42m17-43h20" stroke="#8ba79b" strokeWidth="2" strokeLinecap="round"/>
       </svg>
     </div>;
   }
