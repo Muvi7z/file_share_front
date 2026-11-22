@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:fontFamily">sans</item>
-        <item name="android:windowBackground">#0C110F</item>
-        <item name="android:statusBarColor">#0C110F</item>
-        <item name="android:navigationBarColor">#0C110F</item>
-        <item name="android:colorAccent">#D6FF6F</item>
-        <item name="android:textColorPrimary">#F1F6F3</item>
-        <item name="android:textColorSecondary">#9DB2AA</item>
+    <style name="AppTheme" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowBackground">@color/tv_bg</item>
+        <item name="android:statusBarColor">@color/tv_bg</item>
+        <item name="android:navigationBarColor">@color/tv_bg</item>
+        <item name="colorPrimary">@color/tv_accent</item>
+        <item name="colorSecondary">@color/tv_accent</item>
+        <item name="colorSurface">@color/tv_surface</item>
+        <item name="android:colorAccent">@color/tv_accent</item>
+        <item name="android:textColorPrimary">@color/tv_text_primary</item>
+        <item name="android:textColorSecondary">@color/tv_text_secondary</item>
         <item name="android:windowNoTitle">true</item>
     </style>
 </resources>

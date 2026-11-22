@@ -1,11 +1,15 @@
-﻿import type {
+import type {
   AdminSession,
   Account,
   AccountStatus,
+  CmdOpenOnTV,
+  CmdPlayNowOnTV,
   FileBrowserEntry,
   Folder,
   ServerFolderBrowseResponse,
   SharedFile,
+  TVDevice,
+  TVPlayNowPayload,
   VideoAudioTrack,
   VideoFile
 } from "./types";
@@ -176,7 +180,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 async function requestArray<T>(path: string, options: RequestOptions = {}): Promise<T[]> {
@@ -237,7 +242,7 @@ function normalizeFile(file: SharedFile): SharedFile {
   };
 }
 
-function normalizeFileBrowserEntry(entry: FileBrowserEntry): FileBrowserEntry {
+export function normalizeFileBrowserEntry(entry: FileBrowserEntry): FileBrowserEntry {
   if (entry.type === "folder") {
     return {
       ...entry,
@@ -254,6 +259,38 @@ function normalizeFileBrowserEntry(entry: FileBrowserEntry): FileBrowserEntry {
 
   return entry;
 }
+
+export function getWebSocketUrl(params: {
+  deviceId: string;
+  deviceName: string;
+  deviceType: "web" | "mobile" | "tv";
+}): string {
+  const base = apiBaseUrl.startsWith("http://") || apiBaseUrl.startsWith("https://")
+    ? apiBaseUrl.replace(/^http/, "ws")
+    : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}${apiBaseUrl}`;
+  const search = new URLSearchParams({
+    deviceId: params.deviceId,
+    deviceName: params.deviceName,
+    deviceType: params.deviceType
+  });
+  return `${base}/ws?${search.toString()}`;
+}
+
+export async function openOnTV(payload: CmdOpenOnTV): Promise<void> {
+  await request<void>("/tv/open", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function reportPlayNowOnTV(payload: CmdPlayNowOnTV | TVPlayNowPayload): Promise<void> {
+  await request<void>("/tv/play/now", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export type { TVDevice, CmdOpenOnTV, CmdPlayNowOnTV, TVPlayNowPayload };
 
 
 export async function browseServerFolders(path: string | null): Promise<ServerFolderBrowseResponse> {

@@ -96,3 +96,79 @@ export type ServerFolderBrowseResponse = {
   parent: string;
   entries: ServerFolderEntry[];
 };
+
+export type TVDevice = {
+  id: string;
+  name: string;
+  type: string;
+};
+
+export type TVEntryType = "video" | "file" | "audio";
+
+export type TVEntry = {
+  id: string;
+  type: TVEntryType;
+};
+
+export type TVOpenMode = "replace" | "append" | "sync" | "stop";
+
+export type CmdOpenOnTV = {
+  deviceId: string;
+  mode: TVOpenMode;
+  entries: TVEntry[];
+  fromDeviceId?: string;
+  fromDeviceName?: string;
+  senderName?: string;
+};
+
+export type TVQueueItem = {
+  id: string;
+  type: TVEntryType;
+  title: string;
+  subtitle?: string;
+  posterUrl?: string;
+  duration?: string;
+};
+
+export type TVPlayNowStatus = "playing" | "paused" | "stopped";
+
+export type TVNowPlaying = {
+  deviceId: string;
+  entryId: string;
+  type: TVEntryType;
+  title?: string;
+  subtitle?: string;
+  posterUrl?: string;
+  isPlaying: boolean;
+  status: TVPlayNowStatus;
+  source?: "local" | "remote";
+  updatedAt: number;
+};
+
+export type CmdPlayNowOnTV = {
+  deviceId: string;
+  entry: TVEntry;
+};
+
+export type TVPlayNowPayload = {
+  deviceId: string;
+  deviceName?: string;
+  entry?: TVEntry | null;
+  entries?: TVEntry[];
+  id?: string;
+  videoId?: string;
+  entryId?: string;
+  type?: TVEntryType | "";
+  title?: string;
+  playing?: boolean;
+  isPlaying?: boolean;
+  status?: TVPlayNowStatus;
+  source?: "local" | "remote" | "";
+};
+
+export type LibraryUpdateCommandType = "add" | "delete";
+
+export type CmdUpdateLibrary = {
+  file: FileBrowserEntry;
+  type: LibraryUpdateCommandType;
+};

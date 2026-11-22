@@ -1,17 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="launcher_background">#0B0F14</color>
+    <color name="launcher_background">#0F1014</color>
+    <color name="tv_accent">#FCA311</color>
+    <color name="tv_accent_soft">#2B2419</color>
+    <color name="tv_bg">#0F1014</color>
+    <color name="tv_stroke">#00000000</color>
+    <color name="tv_surface">#16181E</color>
+    <color name="tv_surface_elevated">#1E2028</color>
+    <color name="tv_surface_focused">#282B36</color>
+    <color name="tv_text_primary">#F3F4F6</color>
+    <color name="tv_text_secondary">#949BA6</color>
     <string name="app_name">Video Vault</string>
     <string name="backend_api_base_url">http://192.168.1.30:5544/api</string>
     <string name="backend_api_fallback_url">http://10.0.2.2:5544/api</string>
-    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:fontFamily">sans</item>
-        <item name="android:windowBackground">#0C110F</item>
-        <item name="android:statusBarColor">#0C110F</item>
-        <item name="android:navigationBarColor">#0C110F</item>
-        <item name="android:colorAccent">#D6FF6F</item>
-        <item name="android:textColorPrimary">#F1F6F3</item>
-        <item name="android:textColorSecondary">#9DB2AA</item>
+    <style name="AppTheme" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowBackground">@color/tv_bg</item>
+        <item name="android:statusBarColor">@color/tv_bg</item>
+        <item name="android:navigationBarColor">@color/tv_bg</item>
+        <item name="colorPrimary">@color/tv_accent</item>
+        <item name="colorSecondary">@color/tv_accent</item>
+        <item name="colorSurface">@color/tv_surface</item>
+        <item name="android:colorAccent">@color/tv_accent</item>
+        <item name="android:textColorPrimary">@color/tv_text_primary</item>
+        <item name="android:textColorSecondary">@color/tv_text_secondary</item>
         <item name="android:windowNoTitle">true</item>
     </style>
 </resources>

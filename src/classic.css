@@ -120,7 +120,8 @@ html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { 
 .theme-classic .video-grid .video-info { padding: 14px 16px; gap: 10px; background: transparent; }
 .theme-classic .video-info h2 { color: #e4e7eb; font-size: 14px; line-height: 1.5; font-weight: 550; }
 .theme-classic .video-info p { color: #8f98a3; font-size: 12px; }
-.theme-classic .video-info dl { border-top: 1px solid #2b2f33; padding-top: 10px; }
+.theme-classic .video-info-footer { border-top: 1px solid #2b2f33; padding-top: 8px; }
+.theme-classic .video-info dl { border-top: 0; padding-top: 0; min-height: 0; }
 .theme-classic .video-info :is(dt,dd) { color: #929ca7; font-size: 11px; font-weight: 400; }
 .theme-classic .video-list { gap: 8px; }
 .theme-classic .video-list .video-item { grid-template-columns: 180px minmax(0,1fr); align-items: center; }
@@ -205,9 +206,46 @@ html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { 
   .theme-classic .brand { display: flex; padding: 0; }
   .theme-classic .brand-mark { width: 32px; height: 32px; }
   .theme-classic .brand div > span { display: none; }
-  .theme-classic .main-nav { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; }
+  .theme-classic .main-nav { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
   .theme-classic .main-nav button { min-width: 0; justify-content: center; gap: 6px; padding: 8px 4px; font-size: 12px; }
-  .theme-classic :is(.nav-section-label,.folder-nav,.sidebar-account) { display: none; }
+  .theme-classic :is(.nav-section-label,.sidebar-account) { display: none; }
+  .app-shell:not(.page-videos) .folder-nav { display: none; }
+  .theme-classic.page-videos .folder-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 2px 0;
+  }
+  .theme-classic.page-videos .folder-nav::-webkit-scrollbar,
+  .theme-glass.page-videos .folder-nav::-webkit-scrollbar { display: none; }
+  .theme-glass.page-videos .folder-nav { scrollbar-width: none; }
+  .theme-classic.page-videos .folder-nav button {
+    flex: 0 0 auto;
+    min-height: 32px;
+    height: 32px;
+    padding: 0 10px;
+    gap: 6px;
+    border-radius: 7px;
+    background: #212124;
+    border: 1px solid #303034;
+    color: #b5bac2;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .theme-classic.page-videos .folder-nav button.active {
+    background: #2f2a22;
+    border-color: #6b532b;
+    color: #ffffff;
+  }
+  .theme-classic.page-videos .folder-nav button b {
+    font-size: 11px;
+    color: #8c939e;
+  }
+  .theme-classic.page-videos .folder-nav button.active b {
+    color: #f5c674;
+  }
   .theme-classic .content { height: auto; flex: 1; min-height: 0; padding: 24px 18px; }
   .theme-classic .topbar { min-height: 56px; }
   .theme-classic .toolbar-controls { width: 100%; justify-content: flex-end; }
@@ -282,4 +320,64 @@ html:has(.theme-classic), body:has(.theme-classic), #root:has(.theme-classic) { 
   .theme-classic .management-page .account-status { grid-column: 2; grid-row: 1; }
   .theme-classic .management-page .account-row > [data-slot="native-select-wrapper"] { grid-column: 1 / -1; }
   .theme-classic .management-page .account-actions { grid-column: 1 / -1; }
+}
+
+.sidebar-brand-row { display: block; }
+.mobile-brand-account-button { display: none; }
+
+@media (max-width: 860px) {
+  .sidebar-brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+  }
+  .sidebar .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    min-width: 0;
+  }
+  .sidebar .brand-mark {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+  .sidebar .brand strong {
+    font-size: 16px;
+    font-weight: 650;
+  }
+  .sidebar .brand div > span {
+    display: none;
+  }
+  .mobile-brand-account-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    min-height: 34px;
+    max-width: 46vw;
+    padding: 0 11px;
+    font-size: 12.5px;
+    font-weight: 550;
+    flex-shrink: 0;
+  }
+  .mobile-brand-account-button > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .theme-glass .mobile-brand-account-button {
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #f3f4f6;
+    border-radius: 10px;
+  }
+  .topbar .browse-account-button {
+    display: none;
+  }
 }

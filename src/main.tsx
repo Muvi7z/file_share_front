@@ -9,6 +9,7 @@ import "./classic.css";
 import "./admin-library.css";
 import "./player.css";
 import "./auth.css";
+import "./settings-hub.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -41,6 +41,117 @@ export function AccountAuthStatus({ status }: { status: InactiveAccountStatus })
   </div>;
 }
 
+export function AdminUsersPanel({
+  session,
+  onPendingCountChange
+}: {
+  session: AdminSession;
+  onPendingCountChange?: (count: number) => void;
+}) {
+  const [subtab, setSubtab] = useState<"requests" | "users">("requests");
+  const confirmAction = useConfirmation();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
+  const [notice, setNotice] = useState("");
+
+  const refresh = useCallback(async () => {
+    try {
+      const result = await getAccounts();
+      if (!Array.isArray(result)) throw new Error("Некорректный ответ сервера");
+      setAccounts(result);
+      onPendingCountChange?.(result.filter(a => a.status === "pending").length);
+      setError("");
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [onPendingCountChange]);
+
+  useEffect(() => {
+    void refresh();
+    const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  async function act(task: () => Promise<unknown>, success: string) {
+    setBusy(true); setError(""); setNotice("");
+    try { await task(); setNotice(success); await refresh(); } catch (e) { setError(message(e)); }
+    finally { setBusy(false); }
+  }
+
+  const pending = accounts.filter(a => a.status === "pending").length;
+  const activeCount = accounts.filter(a => a.status === "active").length;
+  const filtered = accounts.filter(a =>
+    (subtab !== "requests" || a.status === "pending") &&
+    (subtab === "requests" || status === "all" || a.status === status) &&
+    a.login.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div className="account-center management-page settings-users-panel">
+      <div className="settings-kpi-row">
+        <div className="settings-kpi-card">
+          <strong>{accounts.length}</strong>
+          <span>Всего аккаунтов</span>
+        </div>
+        <div className={`settings-kpi-card ${pending > 0 ? "has-pending" : ""}`}>
+          <strong>{pending}</strong>
+          <span>Ожидают одобрения</span>
+        </div>
+        <div className="settings-kpi-card">
+          <strong>{activeCount}</strong>
+          <span>Активных</span>
+        </div>
+      </div>
+
+      <Tabs value={subtab} onValueChange={v => setSubtab(v as "requests" | "users")} className="management-workspace">
+        <TabsList variant="line" className="management-tab-list" aria-label="Фильтр пользователей">
+          <TabsTrigger value="requests"><Inbox size={16} />Заявки <Badge variant="secondary">{pending}</Badge></TabsTrigger>
+          <TabsTrigger value="users"><Users size={16} />Все пользователи</TabsTrigger>
+        </TabsList>
+        <TabsContent value={subtab} className="management-tab-content">
+          <div className="account-toolbar">
+            <Input aria-label="Поиск пользователей" placeholder="Поиск по логину" value={query} onChange={e => setQuery(e.target.value)} />
+            {subtab === "users" && (
+              <NativeSelect aria-label="Статус" value={status} onChange={e => setStatus(e.target.value)}>
+                <NativeSelectOption value="all">Все статусы</NativeSelectOption>
+                {Object.entries(statusNames).map(([key, label]) => <NativeSelectOption key={key} value={key}>{label}</NativeSelectOption>)}
+              </NativeSelect>
+            )}
+            <Button className="icon-button" title="Обновить" disabled={busy} onClick={() => void refresh()}><RefreshCw size={18} /></Button>
+          </div>
+          {error && <p className="error" role="alert">{error}</p>}
+          {notice && <p className="account-notice" role="status">{notice}</p>}
+          {loading ? (
+            <p role="status">Загрузка пользователей…</p>
+          ) : filtered.length === 0 ? (
+            <p className="account-empty">{error ? "Список недоступен" : subtab === "requests" ? "Нет новых заявок" : "Пользователи не найдены"}</p>
+          ) : (
+            <div className="account-list">
+              {filtered.map(account => (
+                <AccountRow
+                  key={`${account.id}-${account.login}-${account.role}-${account.status}`}
+                  account={account}
+                  self={account.id === session.userId || account.login === session.login}
+                  busy={busy}
+                  onSave={patch => void act(() => updateAccount(account.id, patch), "Изменения сохранены")}
+                  onDelete={async () => { if (await confirmAction(`Удалить аккаунт ${account.login}? Это действие нельзя отменить.`)) void act(() => deleteAccount(account.id), "Аккаунт удалён"); }}
+                  onRevoke={async () => { if (await confirmAction(`Завершить все сеансы ${account.login}?`)) void act(() => revokeSessions(account.id), "Сеансы завершены"); }}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 export function AccountCenter({ session, onLogin, onLogout, children }: {
   session: AdminSession | null; onLogin: (value: AdminSession) => void; onLogout: () => void; children: ReactNode;
 }) {

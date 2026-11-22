@@ -102,6 +102,18 @@ public class VaultRepository {
         return null;
     }
 
+    public VideoFile findVideoById(String videoId) {
+        if (videoId == null || videoId.isEmpty()) {
+            return null;
+        }
+        for (VideoFile video : videos) {
+            if (video.id.equals(videoId)) {
+                return video;
+            }
+        }
+        return null;
+    }
+
     public List<SharedFolder> getBreadcrumbs(String folderId) {
         List<SharedFolder> result = new ArrayList<>();
         SharedFolder cursor = getDirectory(folderId);

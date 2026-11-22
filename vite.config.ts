@@ -11,7 +11,8 @@ export default defineConfig({
     proxy: {
       "/api": {
         target: process.env.API_PROXY_TARGET || "http://127.0.0.1:5544",
-        changeOrigin: true
+        changeOrigin: true,
+        ws: true
       }
     }
   }

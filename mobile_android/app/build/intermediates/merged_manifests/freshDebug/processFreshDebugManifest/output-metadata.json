@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 1,
-      "versionName": "1.0.3-tv9-fresh",
+      "versionCode": 2,
+      "versionName": "1.0.4-tv9-fresh",
       "outputFile": "AndroidManifest.xml"
     }
   ],

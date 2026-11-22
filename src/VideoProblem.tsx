@@ -84,11 +84,12 @@ export function VideoProblemControl({ id, title, getTime }: { id: string; title:
     }
   }
 
+  const buttonLabel = problem?.id ? "Жалоба отправлена" : "Сообщить о проблеме";
   return <section className="video-problem-control">
-    <button className="icon-text" onClick={() => {
+    <button className={`icon-text ${problem?.id ? "reported" : ""}`} onClick={() => {
       setReason(problem?.reason ?? "Зависает или повторяет кадры"); setComment(problem?.comment ?? "");
       setTime(problem?.positionSecond ?? Math.floor(getTime())); setError(""); setOpen(value => !value);
-    }} aria-expanded={open}><Flag size={17} />{problem?.id ? "Жалоба отправлена" : "Сообщить о проблеме"}</button>
+    }} aria-expanded={open} title={buttonLabel} aria-label={buttonLabel}><Flag size={17} aria-hidden="true" /><span className="video-problem-label">{buttonLabel}</span></button>
     {problem && !open && <small role="status">{problem.id ? "Отправлено администратору" : "Старая локальная отметка ещё не отправлена"} · {problem.reason}</small>}
     {open && <form className="video-problem-form" onSubmit={event => { event.preventDefault(); void submit(); }}>
       <h2>Проблема с видео</h2>

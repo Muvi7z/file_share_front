@@ -67,6 +67,33 @@ public class ApiClient {
         return new JSONArray(body);
     }
 
+    public JSONObject getObject(String path) throws Exception {
+        String body = execute(request(path));
+        return new JSONObject(body);
+    }
+
+    public String webSocketUrl(String deviceId, String deviceName, String deviceType, boolean useFallback) {
+        String base = (useFallback && !fallbackApiBaseUrl.isEmpty()) ? fallbackApiBaseUrl : apiBaseUrl;
+        String wsBase = base.startsWith("https://")
+            ? "wss://" + base.substring("https://".length())
+            : (base.startsWith("http://") ? "ws://" + base.substring("http://".length()) : base);
+        return wsBase + "/ws?deviceId=" + Uri.encode(deviceId == null ? "" : deviceId)
+            + "&deviceName=" + Uri.encode(deviceName == null ? "" : deviceName)
+            + "&deviceType=" + Uri.encode(deviceType == null ? "tv" : deviceType);
+    }
+
+    public boolean hasFallbackEndpoint() {
+        return !fallbackApiBaseUrl.isEmpty() && !fallbackApiBaseUrl.equals(primaryApiBaseUrl);
+    }
+
+    public OkHttpClient webSocketClient() {
+        return client.newBuilder()
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .callTimeout(0, TimeUnit.MILLISECONDS)
+            .pingInterval(25, TimeUnit.SECONDS)
+            .build();
+    }
+
     public JSONObject postJson(String path, JSONObject payload) throws Exception {
         return sendJson("POST", path, payload);
     }

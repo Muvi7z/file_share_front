@@ -1,4 +1,17 @@
 import { VideoProblemBadge, VideoProblemControl } from "./VideoProblem";
+import {
+  TVCardNowPlayingBadge,
+  TVCastCardControls,
+  TVCastModal,
+  TVFloatingDock,
+  TVPlayerButton,
+  TVStatusPill,
+  VaultLiveToast,
+  audioFileToTVQueueItem,
+  isAudioSharedFile,
+  useVaultWebSocket,
+  videoToTVQueueItem
+} from "./TVRemote";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { useConfirmation } from "./Confirmation";
@@ -16,7 +29,7 @@ import { createHoldToSpeed } from "./lib/hold-to-speed";
 import type { attachHls, PlaybackAudioTrack } from "./hlsPlayback";
 import { Wallpaper, type WallpaperVariant } from "./Wallpaper";
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject, type ReactNode, type CSSProperties } from "react";
-import { AccountAuthStatus, AccountCenter, AuthForm, PasswordForm, isAdministrator } from "./Accounts";
+import { AccountAuthStatus, AdminUsersPanel, AuthForm, PasswordForm, isAdministrator } from "./Accounts";
 import {
   ArrowDown,
   Check,
@@ -53,6 +66,7 @@ import {
   Lock,
   LogOut,
   MonitorPlay,
+  Palette,
   Pencil,
   Play,
   Presentation,
@@ -62,12 +76,14 @@ import {
   Save,
   Search,
   Settings,
+  Shield,
   SlidersHorizontal,
   LogIn,
   Smartphone,
   Monitor,
   Trash2,
   UserRound,
+  Users,
   X
 } from "lucide-react";
 import {
@@ -77,6 +93,7 @@ import {
   deleteFolder,
   deleteMediaFile,
   deleteMediaVideo,
+  getAccounts,
   getFolderEntries,
   getFileDownloadUrl,
   getFolders,
@@ -94,12 +111,15 @@ import {
 import type { InactiveAccountStatus } from "./api";
 import type {
   AdminSession,
+  CmdOpenOnTV,
   FileBrowserEntry,
   Folder as VaultFolder,
   Page,
   ServerFolderBrowseResponse,
   ServerFolderEntry,
   SharedFile,
+  TVDevice,
+  TVQueueItem,
   VideoFile,
   ViewMode
 } from "./types";
@@ -123,13 +143,14 @@ function trimPosterPreviewCache() {
 const pendingPosterPreviews = new Map<string, Promise<string>>();
 const posterPreviewQueue: Array<{
   url: string;
+  cacheMode: RequestCache;
   resolve: (value: string) => void;
   reject: (reason: unknown) => void;
 }> = [];
 let activePosterPreviewLoads = 0;
 
-async function createPosterPreview(url: string) {
-  const response = await fetch(url, { cache: "force-cache" });
+async function createPosterPreview(url: string, cacheMode: RequestCache = "force-cache") {
+  const response = await fetch(url, { cache: cacheMode });
   if (!response.ok) throw new Error(`Poster request failed: ${response.status}`);
   let blob = await response.blob();
 
@@ -160,7 +181,7 @@ function runPosterPreviewQueue() {
     const item = posterPreviewQueue.shift();
     if (!item) return;
     activePosterPreviewLoads += 1;
-    void createPosterPreview(item.url)
+    void createPosterPreview(item.url, item.cacheMode)
       .then((previewUrl) => {
         posterPreviewCache.set(item.url, previewUrl);
         trimPosterPreviewCache();
@@ -175,7 +196,7 @@ function runPosterPreviewQueue() {
   }
 }
 
-function loadPosterPreview(url: string) {
+function loadPosterPreview(url: string, cacheMode: RequestCache = "force-cache") {
   const cached = posterPreviewCache.get(url);
   if (cached) {
     posterPreviewCache.delete(url);
@@ -192,7 +213,7 @@ function loadPosterPreview(url: string) {
     rejectRequest = reject;
   });
   pendingPosterPreviews.set(url, request);
-  posterPreviewQueue.unshift({ url, resolve: resolveRequest, reject: rejectRequest });
+  posterPreviewQueue.unshift({ url, cacheMode, resolve: resolveRequest, reject: rejectRequest });
   runPosterPreviewQueue();
   return request;
 }
@@ -720,9 +741,61 @@ function App() {
   }, [filteredVideos.length, page, visibleFileEntries.length]);
 
   const loginReturnPage = useRef<Page>(initialRouteState.loginFromFiles ? "files" : "videos");
+  const settingsReturnPageRef = useRef<Page>("videos");
+  const [settingsSection, setSettingsSection] = useState<SettingsSectionId>(() => {
+    if (initialRouteState.page === "admin") return "users";
+    try {
+      const saved = sessionStorage.getItem(settingsSectionStorageKey) as SettingsSectionId | null;
+      if (saved === "appearance" || saved === "account" || saved === "folders" || saved === "media" || saved === "users") {
+        return saved;
+      }
+    } catch {
+      // Ignore storage errors.
+    }
+    return "appearance";
+  });
+  const [pendingAccountCount, setPendingAccountCount] = useState(0);
+
+  const activeSettingsSection: SettingsSectionId =
+    !isAdminSession && (settingsSection === "folders" || settingsSection === "media" || settingsSection === "users")
+      ? "account"
+      : settingsSection;
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(settingsSectionStorageKey, activeSettingsSection);
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [activeSettingsSection]);
+
+  useEffect(() => {
+    if (!isAdminSession) {
+      setPendingAccountCount(0);
+      return;
+    }
+    let cancelled = false;
+    void getAccounts()
+      .then((list) => {
+        if (!cancelled && Array.isArray(list)) {
+          setPendingAccountCount(list.filter((item) => item.status === "pending").length);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdminSession]);
+
   const openPage = (nextPage: Page) => {
     const destination = nextPage === "admin" && !session ? "login" : nextPage;
     if (destination === "login" && page !== "login" && page !== "admin") loginReturnPage.current = page;
+    if ((destination === "settings" || destination === "admin") && (page === "videos" || page === "files")) {
+      settingsReturnPageRef.current = page;
+    }
+    if (destination === "admin") {
+      setSettingsSection("users");
+    }
     setLoginFromFiles(destination === "login" && page === "files");
     setPage(destination);
     setSelectedVideo(null);
@@ -730,6 +803,13 @@ function App() {
       setActiveVideoId(null);
     }
     scrollToTop();
+  };
+
+  const openSettings = (targetSection?: SettingsSectionId) => {
+    if (targetSection) {
+      setSettingsSection(targetSection);
+    }
+    openPage("settings");
   };
 
   const openPlayer = (video: VideoFile) => {
@@ -816,6 +896,279 @@ function App() {
       setCurrentFolderId(null);
     }
   };
+
+  const [tvCastModal, setTvCastModal] = useState<{ open: boolean; focusItem: TVQueueItem | null; fromPlayer?: boolean }>({
+    open: false,
+    focusItem: null
+  });
+  const [tvDockCollapsed, setTvDockCollapsed] = useState(false);
+
+  const livePosterTimersRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    const timers = livePosterTimersRef.current;
+    return () => {
+      for (const timerId of timers.values()) {
+        window.clearTimeout(timerId);
+      }
+      timers.clear();
+    };
+  }, []);
+
+  const applyVideoPosterRevision = useCallback((videoId: string, posterRevision: number) => {
+    setVideos((current) =>
+      current.map((item) => (item.id === videoId ? { ...item, posterRevision } : item))
+    );
+    setFileEntries((current) =>
+      current.map((item) =>
+        item.type === "video" && item.video.id === videoId
+          ? { ...item, video: { ...item.video, posterRevision } }
+          : item
+      )
+    );
+    setSelectedVideo((current) =>
+      current && current.id === videoId ? { ...current, posterRevision } : current
+    );
+  }, []);
+
+  const prefetchLiveVideoPoster = useCallback((videoId: string, initialRevision: number) => {
+    const retryDelaysMs = [2000, 3000, 5000, 8000, 12000, 15000];
+    const existingTimer = livePosterTimersRef.current.get(videoId);
+    if (existingTimer !== undefined) {
+      window.clearTimeout(existingTimer);
+      livePosterTimersRef.current.delete(videoId);
+    }
+
+    const attemptFetch = (revision: number, retryIndex: number) => {
+      const posterUrl = getVideoPosterUrl(videoId, revision);
+      void loadPosterPreview(posterUrl, "no-store")
+        .then(() => {
+          livePosterTimersRef.current.delete(videoId);
+          if (retryIndex > 0) {
+            applyVideoPosterRevision(videoId, revision);
+          }
+        })
+        .catch(() => {
+          const delay = retryDelaysMs[retryIndex];
+          if (delay === undefined) {
+            livePosterTimersRef.current.delete(videoId);
+            return;
+          }
+          const timerId = window.setTimeout(() => {
+            livePosterTimersRef.current.delete(videoId);
+            attemptFetch(Date.now(), retryIndex + 1);
+          }, delay);
+          livePosterTimersRef.current.set(videoId, timerId);
+        });
+    };
+
+    attemptFetch(initialRevision, 0);
+  }, [applyVideoPosterRevision]);
+
+  const handleLiveLibraryEntry = useCallback((entry: FileBrowserEntry) => {
+    if (entry.type === "video") {
+      const nextVideo = withFreshPoster(entry.video);
+      const nextEntry: FileBrowserEntry = { type: "video", video: nextVideo };
+      setVideos((current) =>
+        current.some((item) => item.id === nextVideo.id)
+          ? current.map((item) => (item.id === nextVideo.id ? nextVideo : item))
+          : [nextVideo, ...current]
+      );
+      if (currentFolderId === nextVideo.parentFolderId) {
+        setFileEntries((current) =>
+          current.some((item) => item.type === "video" && item.video.id === nextVideo.id)
+            ? current.map((item) => (item.type === "video" && item.video.id === nextVideo.id ? nextEntry : item))
+            : [nextEntry, ...current]
+        );
+      }
+      if (nextVideo.posterRevision) {
+        prefetchLiveVideoPoster(nextVideo.id, nextVideo.posterRevision);
+      }
+      void getFolders().then(setFolders).catch(() => {});
+      return;
+    }
+
+    if (entry.type === "file") {
+      const nextFile = entry.file;
+      if (currentFolderId === nextFile.parentFolderId) {
+        setFileEntries((current) =>
+          current.some((item) => item.type === "file" && item.file.id === nextFile.id)
+            ? current.map((item) => (item.type === "file" && item.file.id === nextFile.id ? entry : item))
+            : [entry, ...current]
+        );
+      }
+      void getFolders().then(setFolders).catch(() => {});
+      return;
+    }
+
+    if (entry.type === "folder") {
+      const nextFolder = entry.folder;
+      setFolders((current) =>
+        current.some((item) => item.id === nextFolder.id)
+          ? current.map((item) => (item.id === nextFolder.id ? nextFolder : item))
+          : [nextFolder, ...current]
+      );
+      if (currentFolderId === nextFolder.parentId || (currentFolderId === null && nextFolder.isRoot)) {
+        setFileEntries((current) =>
+          current.some((item) => item.type === "folder" && item.folder.id === nextFolder.id)
+            ? current.map((item) => (item.type === "folder" && item.folder.id === nextFolder.id ? entry : item))
+            : [entry, ...current]
+        );
+      }
+    }
+  }, [currentFolderId, prefetchLiveVideoPoster]);
+
+  const handleLiveLibraryDelete = useCallback((entry: FileBrowserEntry) => {
+    if (entry.type === "video") {
+      const deletedVideoId = entry.video.id;
+      const pendingTimer = livePosterTimersRef.current.get(deletedVideoId);
+      if (pendingTimer !== undefined) {
+        window.clearTimeout(pendingTimer);
+        livePosterTimersRef.current.delete(deletedVideoId);
+      }
+      setVideos((current) => current.filter((item) => item.id !== deletedVideoId));
+      setFileEntries((current) => current.filter((item) => item.type !== "video" || item.video.id !== deletedVideoId));
+      setPlayerQueue((current) => current.filter((item) => item.id !== deletedVideoId));
+      setSelectedVideo((current) => (current?.id === deletedVideoId ? null : current));
+      setActiveVideoId((current) => (current === deletedVideoId ? null : current));
+      if (page === "player" && (selectedVideo?.id === deletedVideoId || activeVideoId === deletedVideoId)) {
+        closePlayer();
+      }
+      void getFolders().then(setFolders).catch(() => {});
+      return;
+    }
+
+    if (entry.type === "file") {
+      const deletedFileId = entry.file.id;
+      setFileEntries((current) => current.filter((item) => item.type !== "file" || item.file.id !== deletedFileId));
+      void getFolders().then(setFolders).catch(() => {});
+      return;
+    }
+
+    if (entry.type === "folder") {
+      const deletedFolderId = entry.folder.id;
+      setFolders((current) => current.filter((item) => item.id !== deletedFolderId));
+      setFileEntries((current) => current.filter((item) => item.type !== "folder" || item.folder.id !== deletedFolderId));
+      if (selectedFolder === deletedFolderId) {
+        setSelectedFolder("all");
+      }
+      if (currentFolderId === deletedFolderId) {
+        setCurrentFolderId(null);
+      }
+    }
+  }, [activeVideoId, currentFolderId, page, selectedFolder, selectedVideo]);
+
+  const handleLiveLibraryRefresh = useCallback(() => {
+    void refreshData();
+    void getFolderEntries(currentFolderId).then(setFileEntries).catch(() => {});
+  }, [currentFolderId, refreshData]);
+
+  const handleRemoteOpen = useCallback((cmd: CmdOpenOnTV) => {
+    if (cmd.mode === "stop") {
+      setPlayerQueue([]);
+      if (page === "player") {
+        closePlayer();
+      }
+      return;
+    }
+
+    const videoEntries = (cmd.entries ?? []).filter((entry) => entry.type === "video" || !entry.type);
+    if (videoEntries.length === 0) {
+      if (cmd.mode === "sync") {
+        setPlayerQueue([]);
+        if (page === "player") closePlayer();
+      }
+      return;
+    }
+
+    const catalog = new Map(videos.map((item) => [item.id, item]));
+    void Promise.all(
+      videoEntries.map(async (entry) => {
+        const found = catalog.get(entry.id);
+        if (found) return found;
+        try {
+          return await getVideo(entry.id);
+        } catch {
+          return null;
+        }
+      })
+    ).then((resolved) => {
+      const resolvedVideos = resolved.filter((item): item is VideoFile => item !== null);
+      if (resolvedVideos.length === 0) return;
+
+      if (cmd.mode === "append") {
+        setPlayerQueue((current) => {
+          const existingIds = new Set(current.map((item) => item.id));
+          const additions = resolvedVideos.filter((item) => !existingIds.has(item.id));
+          return [...current, ...additions];
+        });
+        if (page !== "player") {
+          setSelectedVideo(resolvedVideos[0]);
+          setActiveVideoId(resolvedVideos[0].id);
+          setPage("player");
+        }
+        return;
+      }
+
+      if (cmd.mode === "sync") {
+        if (page === "player" && selectedVideo && !resolvedVideos.some((item) => item.id === selectedVideo.id)) {
+          // Preserve currently playing local video and put the synced queue right after it
+          setPlayerQueue([selectedVideo, ...resolvedVideos]);
+          return;
+        }
+        setPlayerQueue(resolvedVideos);
+        return;
+      }
+
+      // Default: "replace" — replace queue and start playing from the first item
+      setPlayerQueue(resolvedVideos);
+      setSelectedVideo(resolvedVideos[0]);
+      setActiveVideoId(resolvedVideos[0].id);
+      setPage("player");
+      scrollToTop();
+    });
+  }, [page, selectedVideo, videos]);
+
+  const {
+    tvDevices,
+    connectedTv,
+    activeTargetTv,
+    tvQueue,
+    activeQueueItemId,
+    tvNowPlaying,
+    tvNowPlayingByDevice,
+    isSyncedWithTv,
+    wsConnected,
+    toast,
+    selectTvDevice,
+    playItemsOnTV,
+    playFromQueueIndex,
+    syncQueueToTV,
+    stopOnTV,
+    disconnectFromTV,
+    addItemToQueue,
+    removeItemFromQueue,
+    toggleItemInQueue,
+    moveQueueItem,
+    clearQueue,
+    reportCurrentPlaybackOnTV
+  } = useVaultWebSocket({
+    videos,
+    onLibraryEntry: handleLiveLibraryEntry,
+    onLibraryDelete: handleLiveLibraryDelete,
+    onLibraryRefresh: handleLiveLibraryRefresh,
+    onOpenFromRemote: handleRemoteOpen
+  });
+
+  useEffect(() => {
+    if (page === "player" && selectedVideo) {
+      reportCurrentPlaybackOnTV(selectedVideo, "playing", playerQueue.length > 0 ? "remote" : "local");
+    } else {
+      reportCurrentPlaybackOnTV(null, "stopped");
+    }
+  }, [page, playerQueue.length, reportCurrentPlaybackOnTV, selectedVideo]);
+
+  const tvQueueIdSet = useMemo(() => new Set(tvQueue.map((item) => item.id)), [tvQueue]);
 
   const browsePage = page === "player" ? playerReturnPageRef.current : page;
   const getVideoHref = (videoId: string) => {
@@ -1063,60 +1416,159 @@ function App() {
     </div>;
   }
 
+  const inSettings = page === "settings" || page === "admin";
+
   return (
     <div className={`app-shell page-${page} theme-${theme} ${theme === "classic" ? "dark" : ""}`}>
       {theme === "glass" && <Wallpaper variant={wallpaper} staticOnly={page === "player"} />}
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">
-            <MonitorPlay size={23} aria-hidden="true" />
-          </span>
-          <div>
-            <strong>Video Vault</strong>
-            <span>Личная медиатека</span>
+      <aside className={`sidebar ${inSettings ? "sidebar-in-settings" : ""}`}>
+        <div className="sidebar-brand-row">
+          <div
+            className="brand"
+            role={inSettings ? "button" : undefined}
+            tabIndex={inSettings ? 0 : undefined}
+            onClick={inSettings ? () => openPage(settingsReturnPageRef.current) : undefined}
+            onKeyDown={inSettings ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPage(settingsReturnPageRef.current); } } : undefined}
+            style={inSettings ? { cursor: "pointer" } : undefined}
+          >
+            <span className="brand-mark">
+              <MonitorPlay size={23} aria-hidden="true" />
+            </span>
+            <div>
+              <strong>Video Vault</strong>
+              <span>Личная медиатека</span>
+            </div>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="icon-text mobile-brand-account-button"
+            aria-label={session ? `Настройки аккаунта ${session.login}` : "Войти"}
+            onClick={() => (session ? openSettings("account") : openPage("login"))}
+          >
+            {session ? <UserRound aria-hidden="true" /> : <LogIn aria-hidden="true" />}
+            <span>{session ? session.login : "Войти"}</span>
+          </Button>
         </div>
 
-        <nav className="main-nav" aria-label="Основные разделы">
-          <Button variant="ghost" aria-current={page === "videos" ? "page" : undefined} className={page === "videos" ? "active" : ""} onClick={() => openPage("videos")}>
-            <Grid2X2 size={18} />
-            <span>Видео</span>
-          </Button>
-          <Button variant="ghost" aria-current={page === "files" ? "page" : undefined} className={page === "files" ? "active" : ""} onClick={() => openPage("files")}>
-            <FolderOpen size={18} />
-            <span>Все файлы</span>
-          </Button>
-          <Button variant="ghost" aria-current={page === "admin" ? "page" : undefined} className={page === "admin" ? "active" : ""} onClick={() => openPage("admin")}>
-            <Settings size={18} />
-            <span>Управление</span>
-          </Button>
-          <Button variant="ghost" aria-current={page === "settings" ? "page" : undefined} className={page === "settings" ? "settings-entry active" : "settings-entry"} onClick={() => openPage("settings")}>
-            <SlidersHorizontal size={18} />
-            <span>Настройки</span>
-          </Button>
-        </nav>
-        <div className="nav-section-label">Коллекции</div>
-        <nav className="folder-nav" aria-label="Папки">
-          <button className={selectedFolder === "all" ? "active" : ""} onClick={openAllVideos}>
-            <span>Все видео</span>
-            <b>{videos.length}</b>
-          </button>
-          {visibleRootFolders.map((folder) => (
+        {inSettings ? (
+          <nav className="sidebar-settings-nav" aria-label="Категории настроек">
             <button
-              key={folder.id}
-              title={folder.name}
-              className={selectedFolder === folder.id ? "active" : ""}
-              onClick={() => {
-                setSelectedFolder(folder.id);
-                openPage("videos");
-              }}
+              type="button"
+              className="sidebar-settings-back"
+              onClick={() => openPage(settingsReturnPageRef.current)}
             >
-              <span>{folder.name}</span>
-              <b>{folder.filesCount}</b>
+              <ArrowLeft size={16} aria-hidden="true" />
+              <span className="sidebar-settings-back-full">Назад в медиатеку</span>
+              <span className="sidebar-settings-back-short">Назад</span>
             </button>
-          ))}
-        </nav>
-        <Button variant="ghost" className="sidebar-account" onClick={() => openPage(session ? "settings" : "login")}>
+
+            <div className="sidebar-settings-groups">
+              <div className="sidebar-settings-group">
+                <span className="sidebar-settings-group-label">Личные</span>
+                <button
+                  type="button"
+                  className={`sidebar-settings-item ${activeSettingsSection === "appearance" ? "active" : ""}`}
+                  aria-current={activeSettingsSection === "appearance" ? "page" : undefined}
+                  onClick={() => setSettingsSection("appearance")}
+                >
+                  <Palette size={17} aria-hidden="true" />
+                  <span>Оформление</span>
+                </button>
+                <button
+                  type="button"
+                  className={`sidebar-settings-item ${activeSettingsSection === "account" ? "active" : ""}`}
+                  aria-current={activeSettingsSection === "account" ? "page" : undefined}
+                  onClick={() => setSettingsSection("account")}
+                >
+                  <UserRound size={17} aria-hidden="true" />
+                  <span>Аккаунт</span>
+                </button>
+              </div>
+
+              {isAdminSession && (
+                <div className="sidebar-settings-group">
+                  <span className="sidebar-settings-group-label">Администрирование</span>
+                  <button
+                    type="button"
+                    className={`sidebar-settings-item ${activeSettingsSection === "folders" ? "active" : ""}`}
+                    aria-current={activeSettingsSection === "folders" ? "page" : undefined}
+                    onClick={() => setSettingsSection("folders")}
+                  >
+                    <FolderOpen size={17} aria-hidden="true" />
+                    <span>Папки</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sidebar-settings-item ${activeSettingsSection === "media" ? "active" : ""}`}
+                    aria-current={activeSettingsSection === "media" ? "page" : undefined}
+                    onClick={() => setSettingsSection("media")}
+                  >
+                    <ImageIcon size={17} aria-hidden="true" />
+                    <span>Медиа и постеры</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sidebar-settings-item ${activeSettingsSection === "users" ? "active" : ""}`}
+                    aria-current={activeSettingsSection === "users" ? "page" : undefined}
+                    onClick={() => setSettingsSection("users")}
+                  >
+                    <Users size={17} aria-hidden="true" />
+                    <span>Пользователи</span>
+                    {pendingAccountCount > 0 && <span className="settings-hub-nav-badge">{pendingAccountCount}</span>}
+                  </button>
+                </div>
+              )}
+            </div>
+          </nav>
+        ) : (
+          <>
+            <nav className="main-nav" aria-label="Основные разделы">
+              <Button variant="ghost" aria-current={page === "videos" ? "page" : undefined} className={page === "videos" ? "active" : ""} onClick={() => openPage("videos")}>
+                <Grid2X2 size={18} />
+                <span>Видео</span>
+              </Button>
+              <Button variant="ghost" aria-current={page === "files" ? "page" : undefined} className={page === "files" ? "active" : ""} onClick={() => openPage("files")}>
+                <FolderOpen size={18} />
+                <span>Все файлы</span>
+              </Button>
+              <Button
+                variant="ghost"
+                aria-current={inSettings ? "page" : undefined}
+                className={inSettings ? "settings-entry active" : "settings-entry"}
+                onClick={() => openSettings()}
+              >
+                <Settings size={18} />
+                <span>Настройки</span>
+                {isAdminSession && pendingAccountCount > 0 && (
+                  <span className="settings-hub-nav-badge">{pendingAccountCount}</span>
+                )}
+              </Button>
+            </nav>
+            <div className="nav-section-label">Коллекции</div>
+            <nav className="folder-nav" aria-label="Папки">
+              <button className={selectedFolder === "all" ? "active" : ""} onClick={openAllVideos}>
+                <span>Все видео</span>
+                <b>{videos.length}</b>
+              </button>
+              {visibleRootFolders.map((folder) => (
+                <button
+                  key={folder.id}
+                  title={folder.name}
+                  className={selectedFolder === folder.id ? "active" : ""}
+                  onClick={() => {
+                    setSelectedFolder(folder.id);
+                    openPage("videos");
+                  }}
+                >
+                  <span>{folder.name}</span>
+                  <b>{folder.filesCount}</b>
+                </button>
+              ))}
+            </nav>
+          </>
+        )}
+        <Button variant="ghost" className="sidebar-account" onClick={() => (session ? openSettings("account") : openPage("login"))}>
           <UserRound size={19} />
           <span><strong>{session?.login || "Гостевой просмотр"}</strong><small>{session ? "Настройки аккаунта" : "Войти в аккаунт"}</small></span>
           <ChevronRight size={16} />
@@ -1126,7 +1578,9 @@ function App() {
       <main ref={contentRef} className={page === "player" ? "content player-page" : "content"}>
         {page === "player" && selectedVideo ? (
           <PlayerPage key={selectedVideo.id} video={selectedVideo} playlist={playerPlaylist} onSelectVideo={openPlayer} onBack={closePlayer}
-            playlistCollapsed={playlistCollapsed} onPlaylistCollapsedChange={setPlaylistCollapsed} />
+            playlistCollapsed={playlistCollapsed} onPlaylistCollapsedChange={setPlaylistCollapsed}
+            connectedTv={connectedTv} tvCount={tvDevices.length} queueCount={tvQueue.length}
+            onCastToTV={(video) => setTvCastModal({ open: true, focusItem: videoToTVQueueItem(video), fromPlayer: true })} />
         ) : page === "player" ? (
           <section className="empty-folder">
             <MonitorPlay size={34} />
@@ -1134,13 +1588,20 @@ function App() {
             <p>Восстанавливаем открытый плеер после обновления страницы.</p>
           </section>
         ) : null}
-        {page === "settings" ? (<SettingsPanel theme={theme} wallpaper={wallpaper} session={session} onThemeChange={setTheme} onWallpaperChange={setWallpaper} onOpenLogin={() => openPage("login")} onLogout={handleLogout} />) : page === "admin" ? (
-          <AccountCenter session={session} onLogin={handleLogin} onLogout={handleLogout}><AdminPage
+        {inSettings ? (
+          <SettingsPanel
+            section={activeSettingsSection}
+            theme={theme}
+            wallpaper={wallpaper}
+            session={session}
             folders={rootFolders}
             allFolders={folders}
             videos={videos}
             scrollContainerRef={contentRef}
-            session={session}
+            onPendingCountChange={setPendingAccountCount}
+            onThemeChange={setTheme}
+            onWallpaperChange={setWallpaper}
+            onOpenLogin={() => openPage("login")}
             onLogin={handleLogin}
             onLogout={handleLogout}
             onFolderCreated={handleFolderCreated}
@@ -1149,7 +1610,7 @@ function App() {
             onVideoUpdated={handleVideoUpdated}
             onVideoDeleted={handleVideoDeleted}
             onFileDeleted={handleFileDeleted}
-          /></AccountCenter>
+          />
         ) : (
           <div className="browse-page" hidden={page === "player"}>
             <header className="topbar">
@@ -1157,12 +1618,22 @@ function App() {
                 <p className="eyebrow">{theme === "classic" ? "Медиатека / " + (browsePage === "files" ? "Файлы" : "Видео") : pageEyebrow}</p>
                 <h1>{pageTitle}</h1>
               </div>
-              <Button type="button" variant="outline" className="icon-text browse-account-button"
-                aria-label={session ? `Настройки аккаунта ${session.login}` : undefined}
-                onClick={() => openPage(session ? "settings" : "login")}>
-                {session ? <UserRound aria-hidden="true" /> : <LogIn aria-hidden="true" />}
-                <span>{session ? session.login : "Войти"}</span>
-              </Button>
+              <div className="topbar-actions">
+                <TVStatusPill
+                  tvDevices={tvDevices}
+                  connectedTv={connectedTv}
+                  queueCount={tvQueue.length}
+                  tvNowPlaying={tvNowPlaying}
+                  wsConnected={wsConnected}
+                  onClick={() => setTvCastModal({ open: true, focusItem: null })}
+                />
+                <Button type="button" variant="outline" className="icon-text browse-account-button"
+                  aria-label={session ? `Настройки аккаунта ${session.login}` : undefined}
+                  onClick={() => openPage(session ? "settings" : "login")}>
+                  {session ? <UserRound aria-hidden="true" /> : <LogIn aria-hidden="true" />}
+                  <span>{session ? session.login : "Войти"}</span>
+                </Button>
+              </div>
             </header>
             {loadError && <p className="error app-error">{loadError}</p>}
 
@@ -1300,6 +1771,12 @@ function App() {
                 onOpenRoot={() => setCurrentFolderId(null)}
                 onOpenVideo={openPlayer}
                 getVideoHref={getVideoHref}
+                tvCount={tvDevices.length}
+                tvQueueIds={tvQueueIdSet}
+                playingOnTvId={tvNowPlaying?.entryId ?? null}
+                playingOnTvDeviceName={activeTargetTv?.name}
+                onCastItemToTV={(item) => setTvCastModal({ open: true, focusItem: item })}
+                onToggleItemInTVQueue={toggleItemInQueue}
               />
             ) : (
               <>
@@ -1313,7 +1790,19 @@ function App() {
 
                 <section className={viewMode === "tiles" ? "video-grid" : "video-list"} aria-label="Видео">
                   {filteredVideos.map((video) => (
-                    <VideoItem key={video.id} video={video} mode={viewMode} href={getVideoHref(video.id)} onPlay={() => openPlayer(video)} />
+                    <VideoItem
+                      key={video.id}
+                      video={video}
+                      mode={viewMode}
+                      href={getVideoHref(video.id)}
+                      onPlay={() => openPlayer(video)}
+                      tvCount={tvDevices.length}
+                      inTVQueue={tvQueueIdSet.has(video.id)}
+                      playingOnTv={tvNowPlaying?.entryId === video.id}
+                      playingOnTvDeviceName={activeTargetTv?.name}
+                      onCastToTV={(item) => setTvCastModal({ open: true, focusItem: videoToTVQueueItem(item) })}
+                      onToggleTVQueue={(item) => toggleItemInQueue(videoToTVQueueItem(item))}
+                    />
                   ))}
                 </section>
               </>
@@ -1321,7 +1810,54 @@ function App() {
           </div>
         )}
       </main>
-      {showBackToTop && page !== "player" && <button className="back-to-top" aria-label="Вернуться в начало" title="Наверх" onClick={() => {
+      <TVCastModal
+        open={tvCastModal.open}
+        focusItem={tvCastModal.focusItem}
+        playerPlaylistItems={tvCastModal.fromPlayer ? playerPlaylist.map(videoToTVQueueItem) : undefined}
+        tvDevices={tvDevices}
+        connectedTv={connectedTv}
+        tvQueue={tvQueue}
+        activeQueueItemId={activeQueueItemId}
+        tvNowPlaying={tvNowPlaying}
+        tvNowPlayingByDevice={tvNowPlayingByDevice}
+        isSyncedWithTv={isSyncedWithTv}
+        wsConnected={wsConnected}
+        theme={theme}
+        onClose={() => setTvCastModal({ open: false, focusItem: null })}
+        onSelectTv={selectTvDevice}
+        onPlayItems={playItemsOnTV}
+        onPlayFromQueue={playFromQueueIndex}
+        onSyncQueue={syncQueueToTV}
+        onStopOnTv={stopOnTV}
+        onDisconnect={disconnectFromTV}
+        onAddItem={addItemToQueue}
+        onRemoveItem={removeItemFromQueue}
+        onMoveItem={moveQueueItem}
+        onClearQueue={clearQueue}
+      />
+      {page !== "player" && (
+        <TVFloatingDock
+          connectedTv={connectedTv}
+          tvDevices={tvDevices}
+          queue={tvQueue}
+          activeItemId={activeQueueItemId}
+          tvNowPlaying={tvNowPlaying}
+          hasBackToTop={showBackToTop}
+          collapsed={tvDockCollapsed}
+          onCollapsedChange={setTvDockCollapsed}
+          onOpenModal={() => setTvCastModal({ open: true, focusItem: null })}
+          onPlayQueue={() => {
+            const target = connectedTv ?? activeTargetTv ?? (tvDevices.length === 1 ? tvDevices[0] : null);
+            if (target && tvQueue.length > 0) {
+              void playItemsOnTV(target, tvQueue, "replace");
+            }
+          }}
+          onStopOnTv={(device) => void stopOnTV(device)}
+          onDisconnect={() => void disconnectFromTV({ stopPlayback: false })}
+        />
+      )}
+      <VaultLiveToast toast={toast} />
+      {showBackToTop && page !== "player" && <button className={`back-to-top ${(connectedTv || tvQueue.length > 0 || tvNowPlaying) && !tvDockCollapsed ? "above-tv-dock" : ""}`} aria-label="Вернуться в начало" title="Наверх" onClick={() => {
         const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
         if (isMobileLayout()) window.scrollTo({ top: 0, behavior });
         else contentRef.current?.scrollTo({ top: 0, behavior });
@@ -1339,69 +1875,264 @@ const wallpaperChoices: Array<{ id: WallpaperVariant; title: string; description
   { id: "water", title: "Black Water", description: "Предыдущая водная иллюзия", video: "/media/black-water-illusion.mp4#t=0.5" }
 ];
 
-function SettingsPanel({ theme, wallpaper, session, onThemeChange, onWallpaperChange, onOpenLogin, onLogout }: {
+type SettingsSectionId = "appearance" | "account" | "folders" | "media" | "users";
+
+const settingsSectionStorageKey = "local-video-vault-settings-section";
+
+function SettingsPanel({
+  section,
+  theme,
+  wallpaper,
+  session,
+  folders,
+  allFolders,
+  videos,
+  scrollContainerRef,
+  onPendingCountChange,
+  onThemeChange,
+  onWallpaperChange,
+  onOpenLogin,
+  onLogin,
+  onLogout,
+  onFolderCreated,
+  onFolderUpdated,
+  onFolderDeleted,
+  onVideoUpdated,
+  onVideoDeleted,
+  onFileDeleted
+}: {
+  section: SettingsSectionId;
   theme: "classic" | "glass";
   wallpaper: WallpaperVariant;
   session: AdminSession | null;
+  folders: VaultFolder[];
+  allFolders: VaultFolder[];
+  videos: VideoFile[];
+  scrollContainerRef: RefObject<HTMLElement | null>;
+  onPendingCountChange?: (count: number) => void;
   onThemeChange: (theme: "classic" | "glass") => void;
   onWallpaperChange: (wallpaper: WallpaperVariant) => void;
   onOpenLogin: () => void;
+  onLogin: (session: AdminSession) => void;
   onLogout: () => void;
+  onFolderCreated: (payload: { folder: VaultFolder }) => void;
+  onFolderUpdated: (folder: VaultFolder) => void;
+  onFolderDeleted: (folderId: string) => Promise<void>;
+  onVideoUpdated: (video: VideoFile) => void;
+  onVideoDeleted: (videoId: string) => void;
+  onFileDeleted: (fileId: string) => void;
 }) {
-  return <section className="settings-panel settings-page" aria-labelledby="settings-title">
-      <header className="settings-header">
-        <div><span>VIDEO VAULT</span><h1 id="settings-title">Настройки</h1></div>
-        {session && <Button type="button" variant="outline" className="settings-logout" onClick={onLogout}>
-          <LogOut aria-hidden="true" />Выйти из аккаунта
-        </Button>}
+  const admin = isAdministrator(session);
+  const activeSection: SettingsSectionId =
+    !admin && (section === "folders" || section === "media" || section === "users") ? "account" : section;
+
+  const sectionMeta: Record<SettingsSectionId, { eyebrow: string; title: string; description: string }> = {
+    appearance: {
+      eyebrow: "Настройки / Личные",
+      title: "Оформление",
+      description: "Тема интерфейса и фоновые сцены для режима «Стекло»"
+    },
+    account: {
+      eyebrow: "Настройки / Личные",
+      title: "Аккаунт и безопасность",
+      description: session ? `Вы вошли как ${session.login}` : "Авторизация и параметры вашего профиля"
+    },
+    folders: {
+      eyebrow: "Настройки / Администрирование",
+      title: "Папки и сканирование",
+      description: "Подключённые директории сервера, видимость разделов и переиндексация"
+    },
+    media: {
+      eyebrow: "Настройки / Администрирование",
+      title: "Медиа и постеры",
+      description: "Замена обложек видео и удаление файлов из медиатеки"
+    },
+    users: {
+      eyebrow: "Настройки / Администрирование",
+      title: "Пользователи и заявки",
+      description: "Одобрение новых аккаунтов, роли, активные сеансы и доступ"
+    }
+  };
+
+  const currentMeta = sectionMeta[activeSection];
+
+  return (
+    <section className="settings-hub settings-page" aria-labelledby="settings-title">
+      <header className="settings-hub-header">
+        <div className="settings-hub-header-copy">
+          <span className="settings-hub-eyebrow">{currentMeta.eyebrow}</span>
+          <h1 id="settings-title">{currentMeta.title}</h1>
+          <p className="settings-hub-subtitle">{currentMeta.description}</p>
+        </div>
+        <div className="settings-hub-header-actions">
+          {session ? (
+            <Button type="button" variant="outline" className="icon-text settings-logout" onClick={onLogout}>
+              <LogOut size={16} aria-hidden="true" />
+              <span className="settings-logout-label">Выйти</span>
+            </Button>
+          ) : (
+            <Button type="button" className="primary-button" onClick={onOpenLogin}>
+              <LogIn size={16} aria-hidden="true" />
+              <span>Войти</span>
+            </Button>
+          )}
+        </div>
       </header>
 
-      <div className="settings-section">
-        <div className="settings-section-title"><Settings size={18} /><div><h3>Оформление</h3><p>Выберите внешний вид интерфейса</p></div></div>
-        <div className="theme-choice" role="group" aria-label="Тема оформления">
-          <button aria-pressed={theme === "classic"} onClick={() => onThemeChange("classic")}>
-            <span className="theme-swatch classic-swatch"><i /><i /><i /></span>
-            <span><strong>Классическая</strong><small>Тёмная рабочая область</small></span>
-            {theme === "classic" && <Check size={18} />}
-          </button>
-          <button aria-pressed={theme === "glass"} onClick={() => onThemeChange("glass")}>
-            <span className="theme-swatch glass-swatch"><i /><i /><i /></span>
-            <span><strong>Стекло</strong><small>Видео и матовые поверхности</small></span>
-            {theme === "glass" && <Check size={18} />}
-          </button>
-        </div>
-      </div>
+      <div key={activeSection} className="settings-hub-content">
 
-      <div className="settings-section">
-        <div className="settings-section-title"><MonitorPlay size={18} /><div><h3>Фон</h3><p>Фон используется в теме «Стекло»</p></div></div>
-        <div className="wallpaper-choice" role="radiogroup" aria-label="Фоновое оформление">
-          {wallpaperChoices.map((choice) => <button
-            key={choice.id}
-            role="radio"
-            aria-checked={wallpaper === choice.id}
-            className={wallpaper === choice.id ? "selected" : ""}
-            onClick={() => onWallpaperChange(choice.id)}
-          >
-            <span className={`wallpaper-preview preview-${choice.id}`}>
-              {choice.image && <img src={choice.image} alt="" loading="lazy" />}
-              {choice.video && <video src={choice.video} muted playsInline preload="metadata" />}
-              <span>{wallpaper === choice.id && <Check size={17} />}</span>
-            </span>
-            <strong>{choice.title}</strong>
-            <small>{choice.description}</small>
-          </button>)}
-        </div>
-      </div>
+          {activeSection === "appearance" && (
+            <>
+              <div className="settings-hub-card">
+                <div className="settings-hub-card-head">
+                  <div>
+                    <h3>Тема интерфейса</h3>
+                    <p>Выберите классический графит или полупрозрачное стекло</p>
+                  </div>
+                </div>
+                <div className="theme-choice" role="group" aria-label="Тема оформления">
+                  <button type="button" aria-pressed={theme === "classic"} onClick={() => onThemeChange("classic")}>
+                    <span className="theme-swatch classic-swatch"><i /><i /><i /></span>
+                    <span><strong>Классическая</strong><small>Тёмная рабочая область</small></span>
+                    {theme === "classic" && <Check size={18} />}
+                  </button>
+                  <button type="button" aria-pressed={theme === "glass"} onClick={() => onThemeChange("glass")}>
+                    <span className="theme-swatch glass-swatch"><i /><i /><i /></span>
+                    <span><strong>Стекло</strong><small>Видео и матовые поверхности</small></span>
+                    {theme === "glass" && <Check size={18} />}
+                  </button>
+                </div>
+              </div>
 
-      <div className="settings-section account-settings">
-        <div className="settings-section-title"><UserRound size={18} /><div><h3>Аккаунт</h3><p>{session ? `Вы вошли как ${session.login}` : "Войдите для управления медиатекой"}</p></div></div>
-        <div className="settings-account-card">
-          <span className="settings-avatar">{session ? session.login.slice(0, 2).toUpperCase() : <UserRound size={20} />}</span>
-          <span><strong>{session?.login ?? "Гость"}</strong><small>{session ? (session.role === "admin" ? "Администратор" : "Пользователь") : "Аккаунт не подключён"}</small></span>
-        </div>
-        {session ? <div className="account-center settings-account-form"><PasswordForm /></div> : <Button className="primary-button" onClick={onOpenLogin}>Войти в аккаунт</Button>}
+              <div className="settings-hub-card">
+                <div className="settings-hub-card-head">
+                  <div>
+                    <h3>Фоновое оформление</h3>
+                    <p>Отображается в теме «Стекло»</p>
+                  </div>
+                </div>
+                <div className="wallpaper-choice" role="radiogroup" aria-label="Фоновое оформление">
+                  {wallpaperChoices.map((choice) => (
+                    <button
+                      key={choice.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={wallpaper === choice.id}
+                      className={wallpaper === choice.id ? "selected" : ""}
+                      onClick={() => onWallpaperChange(choice.id)}
+                    >
+                      <span className={`wallpaper-preview preview-${choice.id}`}>
+                        {choice.image && <img src={choice.image} alt="" loading="lazy" />}
+                        {choice.video && <video src={choice.video} muted playsInline preload="metadata" />}
+                        <span>{wallpaper === choice.id && <Check size={17} />}</span>
+                      </span>
+                      <strong>{choice.title}</strong>
+                      <small>{choice.description}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeSection === "account" && (
+            <>
+              <div className="settings-hub-card">
+                <div className="settings-profile-banner">
+                  <div className="settings-profile-identity">
+                    <span className={`settings-profile-avatar ${admin ? "is-admin" : ""}`}>
+                      {session ? session.login.slice(0, 2).toUpperCase() : <UserRound size={20} />}
+                    </span>
+                    <div className="settings-profile-meta">
+                      <strong>{session?.login ?? "Гостевой режим"}</strong>
+                      <span className="settings-profile-role">
+                        {admin && <Shield size={13} aria-hidden="true" />}
+                        {session ? (admin ? "Администратор" : "Пользователь") : "Аккаунт не подключён"}
+                      </span>
+                    </div>
+                  </div>
+                  {session ? (
+                    <Button type="button" variant="outline" className="ghost-button" onClick={onLogout}>
+                      <LogOut size={16} aria-hidden="true" />
+                      <span>Выйти из аккаунта</span>
+                    </Button>
+                  ) : (
+                    <Button type="button" className="primary-button" onClick={onOpenLogin}>
+                      <LogIn size={16} aria-hidden="true" />
+                      <span>Войти в аккаунт</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {session && (
+                <div className="settings-hub-card">
+                  <div className="settings-hub-card-head">
+                    <div>
+                      <h3>Смена пароля</h3>
+                      <p>Обновите пароль для входа в ваш аккаунт</p>
+                    </div>
+                  </div>
+                  <div className="account-center settings-password-wrap">
+                    <PasswordForm />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {admin && activeSection === "folders" && (
+            <div className="account-center management-page">
+              <div className="library-admin">
+                <AdminPage
+                  section="folders"
+                  folders={folders}
+                  allFolders={allFolders}
+                  videos={videos}
+                  scrollContainerRef={scrollContainerRef}
+                  session={session}
+                  onLogin={onLogin}
+                  onLogout={onLogout}
+                  onFolderCreated={onFolderCreated}
+                  onFolderUpdated={onFolderUpdated}
+                  onFolderDeleted={onFolderDeleted}
+                  onVideoUpdated={onVideoUpdated}
+                  onVideoDeleted={onVideoDeleted}
+                  onFileDeleted={onFileDeleted}
+                />
+              </div>
+            </div>
+          )}
+
+          {admin && activeSection === "media" && (
+            <div className="account-center management-page">
+              <div className="library-admin">
+                <AdminPage
+                  section="media"
+                  folders={folders}
+                  allFolders={allFolders}
+                  videos={videos}
+                  scrollContainerRef={scrollContainerRef}
+                  session={session}
+                  onLogin={onLogin}
+                  onLogout={onLogout}
+                  onFolderCreated={onFolderCreated}
+                  onFolderUpdated={onFolderUpdated}
+                  onFolderDeleted={onFolderDeleted}
+                  onVideoUpdated={onVideoUpdated}
+                  onVideoDeleted={onVideoDeleted}
+                  onFileDeleted={onFileDeleted}
+                />
+              </div>
+            </div>
+          )}
+
+          {admin && session && activeSection === "users" && (
+            <AdminUsersPanel session={session} onPendingCountChange={onPendingCountChange} />
+          )}
       </div>
-    </section>;
+    </section>
+  );
 }
 
 function buildBreadcrumbs(currentFolder: VaultFolder | null, folders: VaultFolder[]) {
@@ -1425,7 +2156,13 @@ function FileBrowser({
   onOpenFolder,
   onOpenRoot,
   onOpenVideo,
-  getVideoHref
+  getVideoHref,
+  tvCount,
+  tvQueueIds,
+  playingOnTvId,
+  playingOnTvDeviceName,
+  onCastItemToTV,
+  onToggleItemInTVQueue
 }: {
   entries: FileBrowserEntry[];
   breadcrumbs: VaultFolder[];
@@ -1436,6 +2173,12 @@ function FileBrowser({
   onOpenRoot: () => void;
   onOpenVideo: (video: VideoFile) => void;
   getVideoHref: (videoId: string) => string;
+  tvCount: number;
+  tvQueueIds: Set<string>;
+  playingOnTvId?: string | null;
+  playingOnTvDeviceName?: string;
+  onCastItemToTV: (item: TVQueueItem) => void;
+  onToggleItemInTVQueue: (item: TVQueueItem) => void;
 }) {
   const [previewFile, setPreviewFile] = useState<SharedFile | null>(null);
   const folderCount = entries.filter((entry) => entry.type === "folder").length;
@@ -1473,12 +2216,28 @@ function FileBrowser({
             entry.type === "folder" ? (
               <FolderItem key={entry.folder.id} folder={entry.folder} onOpen={() => onOpenFolder(entry.folder)} />
             ) : entry.type === "video" ? (
-              <VideoItem key={entry.video.id} video={entry.video} mode={viewMode} href={getVideoHref(entry.video.id)} onPlay={() => onOpenVideo(entry.video)} />
+              <VideoItem
+                key={entry.video.id}
+                video={entry.video}
+                mode={viewMode}
+                href={getVideoHref(entry.video.id)}
+                onPlay={() => onOpenVideo(entry.video)}
+                tvCount={tvCount}
+                inTVQueue={tvQueueIds.has(entry.video.id)}
+                playingOnTv={playingOnTvId === entry.video.id}
+                playingOnTvDeviceName={playingOnTvDeviceName}
+                onCastToTV={(video) => onCastItemToTV(videoToTVQueueItem(video))}
+                onToggleTVQueue={(video) => onToggleItemInTVQueue(videoToTVQueueItem(video))}
+              />
             ) : (
               <FileItem
                 key={entry.file.id}
                 file={entry.file}
                 onPreview={() => setPreviewFile(entry.file)}
+                tvCount={tvCount}
+                inTVQueue={tvQueueIds.has(entry.file.id)}
+                onCastAudioToTV={(file) => onCastItemToTV(audioFileToTVQueueItem(file))}
+                onToggleAudioInTVQueue={(file) => onToggleItemInTVQueue(audioFileToTVQueueItem(file))}
               />
             )
           )}
@@ -1564,11 +2323,16 @@ function FileTypePreview({ extension, mimeType }: { extension: string; mimeType?
   </span>;
 }
 
-function FileItem({ file, onPreview }: {
+function FileItem({ file, onPreview, tvCount = 0, inTVQueue = false, onCastAudioToTV, onToggleAudioInTVQueue }: {
   file: SharedFile;
   onPreview: () => void;
+  tvCount?: number;
+  inTVQueue?: boolean;
+  onCastAudioToTV?: (file: SharedFile) => void;
+  onToggleAudioInTVQueue?: (file: SharedFile) => void;
 }) {
   const image = isImageFile(file);
+  const audio = isAudioSharedFile(file);
   const extension = getFileExtension(file);
   const extensionLabel = extension === "ФАЙЛ" ? extension : `.${extension}`;
   const displayName = getFileDisplayName(file);
@@ -1598,6 +2362,15 @@ function FileItem({ file, onPreview }: {
 
   return (
     <article className={image ? "shared-file-card" : "shared-file-card document-file-card"}>
+      {audio && onCastAudioToTV && onToggleAudioInTVQueue && (
+        <TVCastCardControls
+          tvCount={tvCount}
+          inQueue={inTVQueue}
+          itemTitle={displayName}
+          onOpenCast={() => onCastAudioToTV(file)}
+          onToggleQueue={() => onToggleAudioInTVQueue(file)}
+        />
+      )}
       {image ? (
         <button className="shared-file-open" onClick={onPreview} aria-label={`Открыть изображение ${displayName}`}>
           {content}
@@ -1769,11 +2542,22 @@ function PosterImage({ video }: { video: VideoFile }) {
   );
 }
 
-function VideoItem({ video, mode, href, onPlay }: { video: VideoFile; mode: ViewMode; href: string; onPlay: () => void }) {
+function VideoItem({ video, mode, href, onPlay, tvCount = 0, inTVQueue = false, playingOnTv = false, playingOnTvDeviceName, onCastToTV, onToggleTVQueue }: {
+  video: VideoFile;
+  mode: ViewMode;
+  href: string;
+  onPlay: () => void;
+  tvCount?: number;
+  inTVQueue?: boolean;
+  playingOnTv?: boolean;
+  playingOnTvDeviceName?: string;
+  onCastToTV?: (video: VideoFile) => void;
+  onToggleTVQueue?: (video: VideoFile) => void;
+}) {
   const duration = formatDuration(video.duration);
 
   return (
-    <article className="video-item">
+    <article className={`video-item ${playingOnTv ? "playing-on-tv" : ""}`}>
       <VideoProblemBadge id={video.id} />
       <a className="poster-button" href={href} rel="noopener" aria-label={`Открыть ${video.title}`} onClick={(event) => {
         if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
@@ -1781,6 +2565,7 @@ function VideoItem({ video, mode, href, onPlay }: { video: VideoFile; mode: View
         onPlay();
       }}>
         <PosterImage video={video} />
+        {playingOnTv && <TVCardNowPlayingBadge deviceName={playingOnTvDeviceName} />}
         <span className="play-badge">
           <Play size={18} fill="currentColor" />
         </span>
@@ -1792,18 +2577,30 @@ function VideoItem({ video, mode, href, onPlay }: { video: VideoFile; mode: View
           <h2>{video.title}</h2>
           <p>{video.folderName}</p>
         </div>
-        <dl>
-          <div>
-            <dt className="visually-hidden">Размер</dt>
-            <dd>{video.size}</dd>
-          </div>
-          {mode === "list" && (
+        <footer className="video-info-footer">
+          <dl>
             <div>
-              <dt>Обновлен</dt>
-              <dd>{video.modifiedAt}</dd>
+              <dt className="visually-hidden">Размер</dt>
+              <dd>{video.size}</dd>
             </div>
+            {mode === "list" && (
+              <div>
+                <dt>Обновлен</dt>
+                <dd>{video.modifiedAt}</dd>
+              </div>
+            )}
+          </dl>
+          {onCastToTV && onToggleTVQueue && (
+            <TVCastCardControls
+              tvCount={tvCount}
+              inQueue={inTVQueue}
+              itemTitle={video.title}
+              inline
+              onOpenCast={() => onCastToTV(video)}
+              onToggleQueue={() => onToggleTVQueue(video)}
+            />
           )}
-        </dl>
+        </footer>
       </div>
     </article>
   );
@@ -1811,13 +2608,17 @@ function VideoItem({ video, mode, href, onPlay }: { video: VideoFile; mode: View
 
 const defaultSeekSeconds = 5;
 
-function PlayerPage({ video, playlist, onSelectVideo, onBack, playlistCollapsed, onPlaylistCollapsedChange }: {
+function PlayerPage({ video, playlist, onSelectVideo, onBack, playlistCollapsed, onPlaylistCollapsedChange, connectedTv, tvCount, queueCount, onCastToTV }: {
   video: VideoFile;
   playlist: VideoFile[];
   onSelectVideo: (video: VideoFile) => void;
   onBack: () => void;
   playlistCollapsed: boolean;
   onPlaylistCollapsedChange: (collapsed: boolean) => void;
+  connectedTv: TVDevice | null;
+  tvCount: number;
+  queueCount: number;
+  onCastToTV: (video: VideoFile) => void;
 }) {
   const duration = formatDuration(video.duration);
   const mediaRef = useRef<HTMLVideoElement>(null);
@@ -2258,7 +3059,10 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack, playlistCollapsed,
             ))}
           </dl>}
         </div>
-        <VideoProblemControl key={video.id} id={video.id} title={video.title} getTime={() => mediaRef.current?.currentTime ?? 0} />
+        <div className="player-topbar-actions">
+          <TVPlayerButton connectedTv={connectedTv} tvCount={tvCount} queueCount={queueCount} onClick={() => onCastToTV(video)} />
+          <VideoProblemControl key={video.id} id={video.id} title={video.title} getTime={() => mediaRef.current?.currentTime ?? 0} />
+        </div>
       </header>
 
       <div className="watch-layout" style={{ "--video-aspect": videoAspect } as CSSProperties}><div className="watch-main">
@@ -2426,6 +3230,7 @@ function PlayerPage({ video, playlist, onSelectVideo, onBack, playlistCollapsed,
 }
 
 function AdminPage({
+  section = "all",
   folders,
   allFolders,
   videos,
@@ -2440,6 +3245,7 @@ function AdminPage({
   onVideoDeleted,
   onFileDeleted
 }: {
+  section?: "folders" | "media" | "all";
   folders: VaultFolder[];
   allFolders: VaultFolder[];
   videos: VideoFile[];
@@ -2658,70 +3464,79 @@ function AdminPage({
         </form>
       ) : (
         <section className="admin-page-grid">
-          <form className="add-folder admin-page-card" onSubmit={submitFolder}>
-            <label>
-              Подключённые папки
-              <Input aria-label="Путь к папке на сервере" value={path} onChange={(event) => setPath(event.target.value)} placeholder="D:\\Video" disabled={isBusy} />
-            </label>
-            <div className="path-actions">
-              <Button type="button" className="ghost-button" onClick={() => setPickerOpen(true)} disabled={isBusy}>
-                <FolderOpen size={18} />
-                <span>Выбрать</span>
-              </Button>
-              <Button className="primary-button" disabled={isBusy || !path.trim()}>
-                <FolderPlus size={18} />
-                <span>Добавить</span>
-              </Button>
-            </div>
-          </form>
+          {(section === "all" || section === "folders") && (
+            <>
+              <form className="add-folder admin-page-card" onSubmit={submitFolder}>
+                <label>
+                  Подключённые папки
+                  <Input aria-label="Путь к папке на сервере" value={path} onChange={(event) => setPath(event.target.value)} placeholder="D:\\Video" disabled={isBusy} />
+                </label>
+                <div className="path-actions">
+                  <Button type="button" className="ghost-button" onClick={() => setPickerOpen(true)} disabled={isBusy}>
+                    <FolderOpen size={18} />
+                    <span>Выбрать</span>
+                  </Button>
+                  <Button className="primary-button" disabled={isBusy || !path.trim()}>
+                    <FolderPlus size={18} />
+                    <span>Добавить</span>
+                  </Button>
+                </div>
+              </form>
 
-          {isPickerOpen && (
-            <FolderPicker
-              initialPath={path}
-              onClose={() => setPickerOpen(false)}
-              onSelect={(nextPath) => {
-                setPath(nextPath);
-                setPickerOpen(false);
-              }}
-            />
+              {isPickerOpen && (
+                <FolderPicker
+                  initialPath={path}
+                  onClose={() => setPickerOpen(false)}
+                  onSelect={(nextPath) => {
+                    setPath(nextPath);
+                    setPickerOpen(false);
+                  }}
+                />
+              )}
+
+              {error && <p className="error">{error}</p>}
+
+              <div className="folder-table admin-page-card" aria-label="Подключённые папки">
+                {!folders.length && <p className="library-empty-inline">Пока нет подключённых папок.</p>}
+                {folders.map((folder) => (
+                  <AdminFolderRow
+                    key={folder.id}
+                    folder={folder}
+                    isBusy={isBusy || updatingFolderId !== null || rescanningFolderId !== null}
+                    isRescanning={rescanningFolderId === folder.id}
+                    isUpdating={updatingFolderId === folder.id}
+                    isEditing={editingFolderId === folder.id}
+                    editingName={editingFolderName}
+                    onEditingNameChange={setEditingFolderName}
+                    onStartEdit={() => startEditingFolder(folder)}
+                    onCancelEdit={cancelEditingFolder}
+                    onSaveEdit={() => saveFolderName(folder)}
+                    onToggleEnabled={() => toggleFolderEnabled(folder)}
+                    onRescan={() => rescanItem(folder)}
+                    onDelete={() => deleteItem(folder)}
+                  />
+                ))}
+              </div>
+            </>
           )}
 
-          {error && <p className="error">{error}</p>}
-
-          <div className="folder-table admin-page-card" aria-label="Подключённые папки">
-            {!folders.length && <p className="library-empty-inline">Пока нет подключённых папок.</p>}
-            {folders.map((folder) => (
-              <AdminFolderRow
-                key={folder.id}
-                folder={folder}
-                isBusy={isBusy || updatingFolderId !== null || rescanningFolderId !== null}
-                isRescanning={rescanningFolderId === folder.id}
-                isUpdating={updatingFolderId === folder.id}
-                isEditing={editingFolderId === folder.id}
-                editingName={editingFolderName}
-                onEditingNameChange={setEditingFolderName}
-                onStartEdit={() => startEditingFolder(folder)}
-                onCancelEdit={cancelEditingFolder}
-                onSaveEdit={() => saveFolderName(folder)}
-                onToggleEnabled={() => toggleFolderEnabled(folder)}
-                onRescan={() => rescanItem(folder)}
-                onDelete={() => deleteItem(folder)}
+          {(section === "all" || section === "media") && (
+            <>
+              {section === "media" && error && <p className="error">{error}</p>}
+              <AdminMediaManager
+                folders={allFolders}
+                videos={videos}
+                scrollContainerRef={scrollContainerRef}
+                updatingPosterId={updatingPosterId}
+                deletingVideoId={deletingVideoId}
+                disabled={updatingPosterId !== null || deletingVideoId !== null}
+                onVideoChange={changePoster}
+                onVideoDelete={deleteVideoItem}
+                onVideoDeleted={onVideoDeleted}
+                onFileDeleted={onFileDeleted}
               />
-            ))}
-          </div>
-
-          <AdminMediaManager
-            folders={allFolders}
-            videos={videos}
-            scrollContainerRef={scrollContainerRef}
-            updatingPosterId={updatingPosterId}
-            deletingVideoId={deletingVideoId}
-            disabled={updatingPosterId !== null || deletingVideoId !== null}
-            onVideoChange={changePoster}
-            onVideoDelete={deleteVideoItem}
-            onVideoDeleted={onVideoDeleted}
-            onFileDeleted={onFileDeleted}
-          />
+            </>
+          )}
         </section>
       )}
     </>

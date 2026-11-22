@@ -41,23 +41,36 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid #89948f;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(250, 243, 229, 0.16);
   border-radius: 10px;
-  background: #111516;
-  color: #f4efe7;
+  background: rgba(18, 30, 36, 0.38);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #e9e2d4;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 550;
   cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
-.harbor-nav .harbor-back:hover {background:#252d2e;border-color:#c2cbc6}
-.harbor-nav .harbor-back:active {background:#0b0f10}
+.harbor-nav .harbor-back:hover {background:rgba(250, 243, 229, 0.1);border-color:rgba(250, 243, 229, 0.28);color:#fff}
+.harbor-nav .harbor-back:active {background:rgba(12, 20, 24, 0.55)}
 .harbor-nav .harbor-back:focus-visible {outline:2px solid #ffc269;outline-offset:3px}
 @media(max-width:650px){
-  .harbor-nav {padding: max(10px,env(safe-area-inset-top)) 16px 8px}
+  .harbor-nav {padding: max(12px,env(safe-area-inset-top)) 16px 8px}
   .harbor-nav strong {font-size:16px;gap:8px}
+  .harbor-nav .harbor-back {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 12px;
+    gap: 6px;
+    border-radius: 9px;
+    font-size: 13px;
+    background: rgba(18, 30, 36, 0.42);
+    border-color: rgba(250, 243, 229, 0.14);
+  }
   .harbor-sky {height:clamp(120px,19svh,162px)}
   .harbor-main {padding:12px clamp(20px,7vw,40px) 24px}
   .harbor-access h1 {font-size:clamp(27px,7vw,32px);margin-bottom:22px}
@@ -86,5 +99,20 @@
   }
   .harbor-access {width:100%;max-width:480px;padding:0;background:none}
   .harbor-access h1 {font-size:clamp(32px,8vw,42px);margin-bottom:26px}
-  .harbor-access input,.harbor-access .harbor-submit {height:52px}
+  .harbor-access input {
+    height: 46px;
+    border-radius: 9px;
+    background: #1b2221;
+    border-color: rgba(250, 243, 229, 0.15);
+  }
+  .harbor-access .harbor-submit {
+    height: 46px;
+    border: 0;
+    border-radius: 9px;
+    background: #d9a75f;
+    color: #171510;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .harbor-access .harbor-submit:hover {background:#e6b772}
 }

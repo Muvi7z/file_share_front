@@ -1,8 +1,8 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.localvideovault.tv9fresh"
-4    android:versionCode="1"
-5    android:versionName="1.0.3-tv9-fresh" >
+4    android:versionCode="2"
+5    android:versionName="1.0.4-tv9-fresh" >
 6
 7    <uses-sdk
 7-->INJECTED
@@ -32,22 +32,22 @@
 19-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:6:63-87
 20
 21    <permission
-21-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:22:5-24:47
+21-->[androidx.core:core:1.13.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\c4a03f185e1d4c78cbf19f382c5c49c1\transformed\core-1.13.0\AndroidManifest.xml:22:5-24:47
 22        android:name="com.localvideovault.tv9fresh.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-22-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:23:9-81
+22-->[androidx.core:core:1.13.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\c4a03f185e1d4c78cbf19f382c5c49c1\transformed\core-1.13.0\AndroidManifest.xml:23:9-81
 23        android:protectionLevel="signature" />
-23-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:24:9-44
+23-->[androidx.core:core:1.13.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\c4a03f185e1d4c78cbf19f382c5c49c1\transformed\core-1.13.0\AndroidManifest.xml:24:9-44
 24
 25    <uses-permission android:name="com.localvideovault.tv9fresh.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-25-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:26:5-97
-25-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:26:22-94
+25-->[androidx.core:core:1.13.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\c4a03f185e1d4c78cbf19f382c5c49c1\transformed\core-1.13.0\AndroidManifest.xml:26:5-97
+25-->[androidx.core:core:1.13.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\c4a03f185e1d4c78cbf19f382c5c49c1\transformed\core-1.13.0\AndroidManifest.xml:26:22-94
 26
 27    <application
-27-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:8:5-27:19
+27-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:8:5-30:19
 28        android:allowBackup="true"
 28-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:9:9-35
 29        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-29-->[androidx.core:core:1.9.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\7241f257c8a6819728a3f1dfe976f7ce\transformed\core-1.9.0\AndroidManifest.xml:28:18-86
+29-->[androidx.core:core:1.13.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\c4a03f185e1d4c78cbf19f382c5c49c1\transformed\core-1.13.0\AndroidManifest.xml:28:18-86
 30        android:banner="@drawable/tv_banner"
 30-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:10:9-45
 31        android:debuggable="true"
@@ -65,7 +65,7 @@
 38        android:usesCleartextTraffic="true" >
 38-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:15:9-44
 39        <activity
-39-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:16:9-26:20
+39-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:16:9-29:20
 40            android:name="com.localvideovault.mobile.MainActivity"
 40-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:17:13-67
 41            android:banner="@drawable/tv_banner"
@@ -75,7 +75,7 @@
 43            android:exported="true" >
 43-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:20:13-36
 44            <intent-filter>
-44-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:21:13-25:29
+44-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:21:13-24:29
 45                <action android:name="android.intent.action.MAIN" />
 45-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:22:17-69
 45-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:22:25-66
@@ -83,11 +83,84 @@
 47                <category android:name="android.intent.category.LAUNCHER" />
 47-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:23:17-77
 47-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:23:27-74
-48                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-48-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:24:17-86
-48-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:24:27-83
-49            </intent-filter>
-50        </activity>
-51    </application>
-52
-53</manifest>
+48            </intent-filter>
+49            <intent-filter>
+49-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:25:13-28:29
+50                <action android:name="android.intent.action.MAIN" />
+50-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:22:17-69
+50-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:22:25-66
+51
+52                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+52-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:27:17-86
+52-->C:\Users\Ochir\Documents\file_share\mobile_android\app\src\main\AndroidManifest.xml:27:27-83
+53            </intent-filter>
+54        </activity>
+55
+56        <provider
+56-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\bf57c1bae370bb20378492ec05ef0e3a\transformed\emoji2-1.3.0\AndroidManifest.xml:24:9-32:20
+57            android:name="androidx.startup.InitializationProvider"
+57-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\bf57c1bae370bb20378492ec05ef0e3a\transformed\emoji2-1.3.0\AndroidManifest.xml:25:13-67
+58            android:authorities="com.localvideovault.tv9fresh.androidx-startup"
+58-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\bf57c1bae370bb20378492ec05ef0e3a\transformed\emoji2-1.3.0\AndroidManifest.xml:26:13-68
+59            android:exported="false" >
+59-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\bf57c1bae370bb20378492ec05ef0e3a\transformed\emoji2-1.3.0\AndroidManifest.xml:27:13-37
+60            <meta-data
+60-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\bf57c1bae370bb20378492ec05ef0e3a\transformed\emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+61                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+61-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\bf57c1bae370bb20378492ec05ef0e3a\transformed\emoji2-1.3.0\AndroidManifest.xml:30:17-75
+62                android:value="androidx.startup" />
+62-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\bf57c1bae370bb20378492ec05ef0e3a\transformed\emoji2-1.3.0\AndroidManifest.xml:31:17-49
+63            <meta-data
+63-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\fab4a769fdedd20ebba8af618d054b28\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:29:13-31:52
+64                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+64-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\fab4a769fdedd20ebba8af618d054b28\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:30:17-78
+65                android:value="androidx.startup" />
+65-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\fab4a769fdedd20ebba8af618d054b28\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:31:17-49
+66            <meta-data
+66-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+67                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+67-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+68                android:value="androidx.startup" />
+68-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+69        </provider>
+70
+71        <receiver
+71-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+72            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+72-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+73            android:directBootAware="false"
+73-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+74            android:enabled="true"
+74-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+75            android:exported="true"
+75-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+76            android:permission="android.permission.DUMP" >
+76-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+77            <intent-filter>
+77-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+78                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+78-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+78-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+79            </intent-filter>
+80            <intent-filter>
+80-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+81                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+81-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+81-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+82            </intent-filter>
+83            <intent-filter>
+83-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+84                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+84-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+84-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+85            </intent-filter>
+86            <intent-filter>
+86-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+87                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+87-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+87-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Ochir\.gradle\caches\9.4.1\transforms\88ed431b6a4298cab1df7263c52d698f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+88            </intent-filter>
+89        </receiver>
+90    </application>
+91
+92</manifest>
