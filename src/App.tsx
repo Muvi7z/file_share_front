@@ -94,6 +94,7 @@ import {
   deleteMediaFile,
   deleteMediaVideo,
   getAccounts,
+  getCurrentSession,
   getFolderEntries,
   getFileDownloadUrl,
   getFolders,
@@ -104,6 +105,7 @@ import {
   getVideoPosterUrl,
   getVideos,
   loginAdmin,
+  logoutAccount,
   rescanFolder,
   updateFolder,
   updateVideoPoster
@@ -460,8 +462,56 @@ function App() {
   const [loadError, setLoadError] = useState("");
   const [session, setSession] = useState<AdminSession | null>(() => {
     const raw = localStorage.getItem(sessionStorageKey);
-    try { return raw ? (JSON.parse(raw) as AdminSession) : null; } catch { return null; }
+    try {
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as AdminSession;
+      if (!parsed?.login) return null;
+      return { login: parsed.login, role: parsed.role, userId: parsed.userId };
+    } catch {
+      return null;
+    }
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    void getCurrentSession()
+      .then((verified) => {
+        if (cancelled) return;
+        if (verified) {
+          const cleanSession: AdminSession = {
+            login: verified.login,
+            role: verified.role,
+            userId: verified.userId
+          };
+          try {
+            localStorage.setItem(sessionStorageKey, JSON.stringify(cleanSession));
+          } catch {
+            // Ignore storage errors.
+          }
+          setSession((current) =>
+            current &&
+            current.login === cleanSession.login &&
+            current.role === cleanSession.role &&
+            current.userId === cleanSession.userId
+              ? current
+              : cleanSession
+          );
+        } else {
+          try {
+            localStorage.removeItem(sessionStorageKey);
+          } catch {
+            // Ignore storage errors.
+          }
+          setSession((current) => (current ? null : current));
+        }
+      })
+      .catch(() => {
+        // Keep cached UI state when offline; next API call will re-validate.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const refreshData = useCallback(async () => {
     try {
@@ -843,14 +893,20 @@ function App() {
   };
 
   const handleLogin = (nextSession: AdminSession) => {
-    localStorage.setItem(sessionStorageKey, JSON.stringify(nextSession));
-    setSession(nextSession);
+    const cleanSession: AdminSession = {
+      login: nextSession.login,
+      role: nextSession.role,
+      userId: nextSession.userId
+    };
+    localStorage.setItem(sessionStorageKey, JSON.stringify(cleanSession));
+    setSession(cleanSession);
     openPage(loginFromFiles ? "files" : "settings");
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(sessionStorageKey);
-    setSession(null);
+    void logoutAccount().finally(() => {
+      setSession(null);
+    });
   };
 
   const handleFolderCreated = ({ folder }: { folder: VaultFolder }) => {

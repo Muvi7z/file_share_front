@@ -117,7 +117,7 @@ export function attachHls(
   };
 
   const start = async () => {
-    const response = await fetch(masterUrl, { signal: controller.signal });
+    const response = await fetch(masterUrl, { signal: controller.signal, credentials: "include" });
     if (!response.ok) throw new Error(`Не удалось открыть HLS-плейлист (HTTP ${response.status}).`);
     const manifest = await response.text();
     if (!manifest.trimStart().startsWith("#EXTM3U")) throw new Error("Сервер вернул некорректный HLS-плейлист.");
@@ -126,7 +126,11 @@ export function attachHls(
     sourceUrl = URL.createObjectURL(new Blob([rewritten], { type: "application/vnd.apple.mpegurl" }));
 
     if (Hls.isSupported()) {
-      const player = hls = new Hls();
+      const player = hls = new Hls({
+        xhrSetup(xhr) {
+          xhr.withCredentials = true;
+        }
+      });
       audioGate = waitForHlsAudio(player, media, onAudioWaiting);
       const syncTracks = () => onTracks(player.audioTracks.map((track, index) => ({
         index,

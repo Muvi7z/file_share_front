@@ -99,63 +99,87 @@ export async function createVideoReport(report: CreateVideoReport): Promise<Vide
 
 type RequestOptions = RequestInit & {
   retryWithoutAuth?: boolean;
+  skipAuthRefresh?: boolean;
 };
 
-function authToken() {
-  const raw = localStorage.getItem(sessionStorageKey);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return (JSON.parse(raw) as AdminSession).token;
-  } catch {
-    return null;
-  }
-}
+let refreshSessionPromise: Promise<boolean> | null = null;
 
 function clearStoredSession() {
+  const hadSession = Boolean(localStorage.getItem(sessionStorageKey));
   localStorage.removeItem(sessionStorageKey);
-  window.dispatchEvent(new Event(authExpiredEvent));
+  if (hadSession) {
+    window.dispatchEvent(new Event(authExpiredEvent));
+  }
 }
 
 function isAuthorizationError(error: unknown): error is ApiError {
   return error instanceof ApiError && (error.status === 401 || error.status === 403);
 }
 
-async function fetchApi(path: string, options: RequestInit, token: string | null): Promise<Response> {
+function isAuthEndpoint(path: string): boolean {
+  return (
+    path.startsWith("/auth/login") ||
+    path.startsWith("/auth/register") ||
+    path.startsWith("/auth/refresh") ||
+    path.startsWith("/auth/logout")
+  );
+}
+
+async function fetchApi(path: string, options: RequestInit): Promise<Response> {
   const headers = new Headers(options.headers);
 
   if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  } else {
-    headers.delete("Authorization");
-  }
+  headers.delete("Authorization");
+
+  const init: RequestInit = {
+    ...options,
+    credentials: "include",
+    headers
+  };
 
   try {
-    return await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+    return await fetch(`${apiBaseUrl}${path}`, init);
   } catch (primaryError) {
     if (!apiFallbackBaseUrl || apiFallbackBaseUrl === apiBaseUrl) {
       throw primaryError;
     }
-    return fetch(`${apiFallbackBaseUrl}${path}`, { ...options, headers });
+    return fetch(`${apiFallbackBaseUrl}${path}`, init);
   }
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { retryWithoutAuth = false, ...requestOptions } = options;
-  const token = authToken();
+async function refreshSessionOnce(): Promise<boolean> {
+  if (!refreshSessionPromise) {
+    refreshSessionPromise = fetchApi("/auth/refresh", { method: "POST" })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshSessionPromise = null;
+      });
+  }
+  return refreshSessionPromise;
+}
 
-  let response = await fetchApi(path, requestOptions, token);
-  const authorizationFailed = response.status === 401 || response.status === 403;
-  if (authorizationFailed && token && retryWithoutAuth) {
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { retryWithoutAuth = false, skipAuthRefresh = false, ...requestOptions } = options;
+
+  let response = await fetchApi(path, requestOptions);
+
+  if (response.status === 401 && !skipAuthRefresh && !isAuthEndpoint(path)) {
+    const refreshed = await refreshSessionOnce();
+    if (refreshed) {
+      response = await fetchApi(path, requestOptions);
+    } else {
+      clearStoredSession();
+      if (retryWithoutAuth) {
+        response = await fetchApi(path, requestOptions);
+      }
+    }
+  } else if (response.status === 403 && retryWithoutAuth && !isAuthEndpoint(path)) {
+    await fetchApi("/auth/logout", { method: "POST" }).catch(() => {});
     clearStoredSession();
-    response = await fetchApi(path, requestOptions, null);
-  } else if (response.status === 401 && token) {
-    clearStoredSession();
+    response = await fetchApi(path, requestOptions);
   }
   if (!response.ok) {
     let message = `API error ${response.status}`;
@@ -361,10 +385,45 @@ export async function getFolderEntries(folderId: string | null): Promise<FileBro
 }
 
 export async function loginAdmin(login: string, password: string): Promise<AdminSession> {
-  return request<AdminSession>("/auth/login", {
+  const user = await request<AdminSession>("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ login, password })
+    body: JSON.stringify({ login, password }),
+    skipAuthRefresh: true
   });
+  return {
+    login: user?.login || login,
+    role: user?.role,
+    userId: user?.userId
+  };
+}
+
+export async function getCurrentSession(): Promise<AdminSession | null> {
+  try {
+    const user = await request<AdminSession>("/auth/me", { method: "POST" });
+    if (!user || !user.login) {
+      return null;
+    }
+    return {
+      login: user.login,
+      role: user.role,
+      userId: user.userId
+    };
+  } catch (error) {
+    if (isAuthorizationError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function logoutAccount(): Promise<void> {
+  try {
+    await fetchApi("/auth/logout", { method: "POST" });
+  } catch {
+    // Even if backend is unreachable, clear local cached profile state.
+  } finally {
+    localStorage.removeItem(sessionStorageKey);
+  }
 }
 
 export async function addFolder(path: string): Promise<{ folder: Folder }> {

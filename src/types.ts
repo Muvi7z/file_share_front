@@ -69,7 +69,7 @@ export type FileBrowserEntry =
     };
 
 export type AdminSession = {
-  token: string;
+  token?: string;
   login: string;
   role?: "admin" | "user";
   userId?: string;

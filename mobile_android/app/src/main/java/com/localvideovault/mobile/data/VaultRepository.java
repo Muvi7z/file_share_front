@@ -37,6 +37,48 @@ public class VaultRepository {
         }
     }
 
+    public boolean removeVideoById(String videoId) {
+        if (videoId == null || videoId.isEmpty()) return false;
+        boolean removed = false;
+        for (int index = videos.size() - 1; index >= 0; index--) {
+            if (videoId.equals(videos.get(index).id)) {
+                videos.remove(index);
+                removed = true;
+            }
+        }
+        return removed;
+    }
+
+    public boolean removeFolderById(String folderId) {
+        if (folderId == null || folderId.isEmpty()) return false;
+        Set<String> removedIds = new HashSet<>();
+        removedIds.add(folderId);
+        boolean grew = true;
+        while (grew) {
+            grew = false;
+            for (SharedFolder folder : folders) {
+                if (folder.parentId != null && removedIds.contains(folder.parentId) && removedIds.add(folder.id)) {
+                    grew = true;
+                }
+            }
+        }
+        boolean removed = false;
+        for (int index = folders.size() - 1; index >= 0; index--) {
+            if (removedIds.contains(folders.get(index).id)) {
+                folders.remove(index);
+                removed = true;
+            }
+        }
+        for (int index = videos.size() - 1; index >= 0; index--) {
+            VideoFile video = videos.get(index);
+            if (removedIds.contains(video.folderId) || removedIds.contains(video.parentDirectoryId)) {
+                videos.remove(index);
+                removed = true;
+            }
+        }
+        return removed;
+    }
+
     public List<SharedFolder> getEnabledFolders() {
         List<SharedFolder> result = new ArrayList<>();
         for (SharedFolder folder : folders) {

@@ -335,17 +335,91 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         apiClient = new ApiClient(this);
+        apiClient.setAuthExpiredListener(() -> runOnUiThread(() -> {
+            if (!accountLogin.isEmpty() || isAdmin) {
+                accountLogin = "";
+                isAdmin = false;
+                getPreferences(MODE_PRIVATE).edit()
+                    .remove("accountLogin")
+                    .remove("isAdmin")
+                    .apply();
+                if (!"player".equals(page)) {
+                    render();
+                }
+            }
+        }));
         sortField = getPreferences(MODE_PRIVATE).getString("sortField", "name");
         sortAscending = getPreferences(MODE_PRIVATE).getBoolean("sortAscending", true);
         viewMode = getPreferences(MODE_PRIVATE).getString("viewMode", "grid");
         playerAutoplay = getPreferences(MODE_PRIVATE).getBoolean("playerAutoplay", true);
         playerResizeMode = getPreferences(MODE_PRIVATE).getInt("playerResizeMode", AspectRatioFrameLayout.RESIZE_MODE_FIT);
         selectedCastTvId = getPreferences(MODE_PRIVATE).getString("selectedCastTvId", "");
+        if (apiClient.hasSessionCookies()) {
+            accountLogin = getPreferences(MODE_PRIVATE).getString("accountLogin", "");
+            isAdmin = getPreferences(MODE_PRIVATE).getBoolean("isAdmin", false);
+        }
         initDeviceIdentity();
         nameCollator.setStrength(Collator.PRIMARY);
         enterTvFullscreen();
         startVaultWebSocket();
-        refreshData();
+        if (apiClient.hasSessionCookies()) {
+            restoreSessionAndRefresh();
+        } else {
+            refreshData();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (wsClient != null) {
+            wsClient.reconnectIfDisconnected();
+        }
+    }
+
+    private void restoreSessionAndRefresh() {
+        new Thread(() -> {
+            boolean sessionChanged = false;
+            try {
+                JSONObject user = apiClient.fetchCurrentUser();
+                String nextLogin = user.optString("login", "").trim();
+                boolean nextAdmin = "admin".equalsIgnoreCase(user.optString("role", ""));
+                if (!nextLogin.isEmpty()) {
+                    sessionChanged = !nextLogin.equals(accountLogin) || nextAdmin != isAdmin;
+                    final String finalLogin = nextLogin;
+                    final boolean finalAdmin = nextAdmin;
+                    runOnUiThread(() -> {
+                        accountLogin = finalLogin;
+                        isAdmin = finalAdmin;
+                        getPreferences(MODE_PRIVATE).edit()
+                            .putString("accountLogin", finalLogin)
+                            .putBoolean("isAdmin", finalAdmin)
+                            .apply();
+                        refreshData();
+                    });
+                    return;
+                }
+            } catch (ApiClient.ApiResponseException error) {
+                if (error.status == 401 || error.status == 403) {
+                    sessionChanged = !accountLogin.isEmpty() || isAdmin;
+                    runOnUiThread(() -> {
+                        accountLogin = "";
+                        isAdmin = false;
+                        getPreferences(MODE_PRIVATE).edit()
+                            .remove("accountLogin")
+                            .remove("isAdmin")
+                            .apply();
+                        refreshData();
+                    });
+                    return;
+                }
+            } catch (Exception ignored) {
+                // Keep cached UI state when offline; refreshData will handle error display.
+            }
+            if (!sessionChanged) {
+                runOnUiThread(this::refreshData);
+            }
+        }).start();
     }
 
     @Override
@@ -700,8 +774,8 @@ public class MainActivity extends AppCompatActivity {
 
         new Thread(() -> {
             try {
-                JSONArray folderPayload = apiClient.getArray("/folders");
-                JSONArray videoPayload = apiClient.getArray("/videos");
+                JSONArray folderPayload = apiClient.getArray("/folders/");
+                JSONArray videoPayload = apiClient.getArray("/videos/");
                 List<SharedFolder> nextFolders = parseFolders(folderPayload);
                 List<VideoFile> nextVideos = parseVideos(videoPayload);
                 runOnUiThread(() -> {
@@ -1974,6 +2048,8 @@ public class MainActivity extends AppCompatActivity {
             }
             String auth = source.header("Authorization");
             if (auth != null) request.addRequestHeader("Authorization", auth);
+            String cookieHeader = apiClient.cookieHeaderFor(source.url());
+            if (!cookieHeader.isEmpty()) request.addRequestHeader("Cookie", cookieHeader);
             ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(request);
             android.widget.Toast.makeText(this, "Скачивание началось", android.widget.Toast.LENGTH_SHORT).show();
         } catch (Exception error) {
@@ -2606,9 +2682,15 @@ public class MainActivity extends AppCompatActivity {
         page = "videos";
         accountLogin = "";
         isAdmin = false;
-        apiClient.setAuthToken("");
+        getPreferences(MODE_PRIVATE).edit()
+            .remove("accountLogin")
+            .remove("isAdmin")
+            .apply();
         repository.replaceData(Collections.emptyList(), Collections.emptyList());
-        refreshData();
+        new Thread(() -> {
+            apiClient.logout();
+            runOnUiThread(this::refreshData);
+        }).start();
     }
 
     private void registerWithApi(String login, String password) {
@@ -2714,11 +2796,20 @@ public class MainActivity extends AppCompatActivity {
                 payload.put("password", password);
                 JSONObject response = apiClient.postJson("/auth/login", payload);
                 String token = response.optString("token", "");
-                if (token.isEmpty()) throw new IllegalStateException("Сервер не вернул токен.");
-                apiClient.setAuthToken(token);
+                if (!token.isEmpty()) {
+                    apiClient.setAuthToken(token);
+                } else {
+                    apiClient.setAuthToken("");
+                }
+                final String nextLogin = response.optString("login", login.trim());
+                final boolean nextAdmin = "admin".equalsIgnoreCase(response.optString("role", ""));
                 runOnUiThread(() -> {
-                    accountLogin = response.optString("login", login);
-                    isAdmin = "admin".equals(response.optString("role"));
+                    accountLogin = nextLogin;
+                    isAdmin = nextAdmin;
+                    getPreferences(MODE_PRIVATE).edit()
+                        .putString("accountLogin", nextLogin)
+                        .putBoolean("isAdmin", nextAdmin)
+                        .apply();
                     if ("login".equals(page)) page = loginReturnPage;
                     isLoading = false;
                     loadError = "";
@@ -2741,7 +2832,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 JSONObject payload = new JSONObject();
                 payload.put("path", path);
-                apiClient.postJson("/folders", payload);
+                apiClient.postJson("/folders/", payload);
                 runOnUiThread(() -> {
                     isLoading = false;
                     refreshData();
@@ -5347,6 +5438,11 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 @Override
+                public void onLibraryEntryDelete(JSONObject entryPayload) {
+                    handleLiveLibraryDeletePayload(entryPayload);
+                }
+
+                @Override
                 public void onLibraryRefresh() {
                     silentRefreshLibrary();
                 }
@@ -5398,11 +5494,51 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void handleLiveLibraryDeletePayload(JSONObject payload) {
+        try {
+            String type = payload.optString("type", "");
+            String toastHeading = "";
+            String toastSub = "";
+            boolean changed = false;
+            if ("video".equals(type)) {
+                JSONObject v = payload.optJSONObject("video");
+                if (v == null) return;
+                String id = v.optString("id", "");
+                changed = repository.removeVideoById(id);
+                toastHeading = "Удалено видео";
+                toastSub = v.optString("title", "");
+            } else if ("folder".equals(type)) {
+                JSONObject f = payload.optJSONObject("folder");
+                if (f == null) return;
+                String id = f.optString("id", "");
+                changed = repository.removeFolderById(id);
+                toastHeading = "Удалена папка";
+                toastSub = f.optString("name", "");
+            } else if ("file".equals(type)) {
+                JSONObject f = payload.optJSONObject("file");
+                if (f == null) return;
+                changed = true;
+                toastHeading = "Удалён файл";
+                toastSub = f.optString("name", "");
+            }
+            if (!changed) return;
+            invalidateDirectoryEntries();
+            if (!"player".equals(page) && !isLoading) {
+                render();
+            }
+            if (!toastHeading.isEmpty()) {
+                showCastBanner(toastHeading, toastSub, false);
+            }
+        } catch (Exception ignored) {
+            // Ignore malformed live delete entry.
+        }
+    }
+
     private void silentRefreshLibrary() {
         new Thread(() -> {
             try {
-                JSONArray folderPayload = apiClient.getArray("/folders");
-                JSONArray videoPayload = apiClient.getArray("/videos");
+                JSONArray folderPayload = apiClient.getArray("/folders/");
+                JSONArray videoPayload = apiClient.getArray("/videos/");
                 List<SharedFolder> nextFolders = parseFolders(folderPayload);
                 List<VideoFile> nextVideos = parseVideos(videoPayload);
                 runOnUiThread(() -> {
